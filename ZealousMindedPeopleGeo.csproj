@@ -1,0 +1,133 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+
+    <!-- Информация о пакете -->
+    <PackageId>ZealousMindedPeopleGeo</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Zealous Minded People Community</Authors>
+    <Company>Zealous Minded People</Company>
+    <Description>Библиотека для создания интерактивных географических приложений сообщества людей, объединенных стремлением сделать мир добрее и гармоничнее. Включает карты, 3D глобус, геокодирование, PWA поддержку и многое другое.</Description>
+    <PackageDescription>
+      Полнофункциональная библиотека для географических приложений сообщества:
+
+      ✨ Возможности:
+      • Интерактивная карта сообщества на Google Maps
+      • 3D глобус с Three.js и интерактивным управлением
+      • Геокодирование через Nominatim OpenStreetMap API
+      • Гибкие источники данных (In-Memory, Google Sheets, JSON)
+      • Полная PWA поддержка с оффлайн функциональностью
+      • Локализация (русский/английский)
+      • Комплексная валидация данных с FluentValidation
+      • Интеллектуальное кэширование через MemoryCache
+      • Интеграционные тесты и автоматизация
+
+      🚀 Быстрый старт:
+      1. Установите пакет: dotnet add package ZealousMindedPeopleGeo
+      2. Зарегистрируйте сервисы: services.AddZealousMindedPeopleGeo(Configuration)
+      3. Используйте компоненты в Razor страницах
+
+      📚 Подробная документация: https://github.com/zealousmindedpeople/geo-library
+    </PackageDescription>
+    <PackageTags>geography;maps;community;blazor;threejs;pwa;geocoding;localization;validation;caching</PackageTags>
+    <PackageProjectUrl>https://github.com/zealousmindedpeople/geo-library</PackageProjectUrl>
+    <PackageLicenseUrl>https://opensource.org/licenses/MIT</PackageLicenseUrl>
+    <!-- Иконка пакета будет добавлена позже -->
+    <!-- <PackageIcon>icon.png</PackageIcon> -->
+    <RepositoryUrl>https://github.com/zealousmindedpeople/geo-library.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>
+      Первый релиз библиотеки ZealousMindedPeopleGeo v1.0.0
+
+      Новые возможности:
+      - Интерактивная карта сообщества с маркерами участников
+      - 3D глобус с управлением мышью и анимацией
+      - Геокодирование адресов через OpenStreetMap Nominatim API
+      - Гибкие репозитории данных (In-Memory, Google Sheets, JSON файлы)
+      - Полная поддержка PWA с сервис-воркером и манифестом
+      - Локализация на русский и английский языки
+      - Комплексная валидация данных с FluentValidation
+      - Интеллектуальное кэширование через MemoryCache
+      - Компоненты для быстрого старта разработки
+      - Интеграционные тесты и скрипты автоматизации
+      - Подробная документация и примеры использования
+    </PackageReleaseNotes>
+
+    <!-- Настройки сборки -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <!-- Включаем все файлы ресурсов -->
+    <IncludeContentInPackage>true</IncludeContentInPackage>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+
+    <!-- Исходный код для отладки -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Символы для отладки -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Ссылки на пакеты -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="9.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.9" />
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.70.0.3819" />
+    <PackageReference Include="System.Text.Json" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+  </ItemGroup>
+
+  <!-- Исходные файлы проекта -->
+  <ItemGroup>
+    <!-- Локализация настроена программно без .resx файлов -->
+  </ItemGroup>
+
+  <!-- Статические файлы веб-ресурсов -->
+  <ItemGroup>
+    <None Include="wwwroot\**" Pack="true" PackagePath="staticwebassets" />
+  </ItemGroup>
+
+  <!-- Файлы проекта -->
+  <ItemGroup>
+    <Content Update="Components\*.razor">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles\any\net6.0\Components</PackagePath>
+    </Content>
+    <Content Update="wwwroot\**\*">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles\any\net6.0\wwwroot</PackagePath>
+    </Content>
+  </ItemGroup>
+
+  <!-- Файлы примеров и документации -->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="LICENSE" Pack="true" PackagePath="\" />
+    <None Include="Samples\**\*">
+      <Pack>true</Pack>
+      <PackagePath>samples</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <!-- Исходные файлы для отладки -->
+  <ItemGroup>
+    <SourceRoot Include="$(NuGetPackageRoot)" Condition=" '$(NuGetPackageRoot)' != '' " />
+  </ItemGroup>
+
+  <!-- Целевые файлы для различных платформ -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+    <PackageReference Include="Microsoft.AspNetCore.App" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>

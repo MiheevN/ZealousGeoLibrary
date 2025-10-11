@@ -1,0 +1,124 @@
+{
+  "name": "Zealous Minded People Geography",
+  "short_name": "ZealousGeo",
+  "description": "География людей, объединенных стремлением сделать мир добрее и гармоничнее",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f23",
+  "theme_color": "#00aaff",
+  "orientation": "any",
+  "categories": ["social", "education", "lifestyle"],
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Регистрация участника",
+      "short_name": "Регистрация",
+      "description": "Присоединиться к сообществу",
+      "url": "/register",
+      "icons": [
+        {
+          "src": "/_content/ZealousMindedPeopleGeo/icons/shortcut-register.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Посмотреть карту",
+      "short_name": "Карта",
+      "description": "Посмотреть географию сообщества",
+      "url": "/map",
+      "icons": [
+        {
+          "src": "/_content/ZealousMindedPeopleGeo/icons/shortcut-map.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "3D глобус",
+      "short_name": "Глобус",
+      "description": "Интерактивный 3D глобус сообщества",
+      "url": "/globe",
+      "icons": [
+        {
+          "src": "/_content/ZealousMindedPeopleGeo/icons/shortcut-globe.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/_content/ZealousMindedPeopleGeo/screenshots/mobile.png",
+      "sizes": "375x812",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "scope": "/",
+  "id": "zealous-minded-people-geo",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}

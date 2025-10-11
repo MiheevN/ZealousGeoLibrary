@@ -1,0 +1,174 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@using ZealousMindedPeopleGeo.Services
+@using ZealousMindedPeopleGeo.Services.Geocoding
+@using ZealousMindedPeopleGeo.Models
+@inject IParticipantService ParticipantService
+@inject IGeocodingService GeocodingService
+@inject ILogger<ParticipantRegistrationComponent> Logger
+
+<div class="participant-registration">
+    <h2>Join Our Community</h2>
+
+    <EditForm Model="@registrationModel" OnValidSubmit="@HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group">
+            <label for="name">Name *</label>
+            <InputText id="name" @bind="registrationModel.Name" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label for="address">Address *</label>
+            <InputText id="address" @bind="registrationModel.Address" @bind:event="oninput" class="form-control" placeholder="Enter your full address" />
+            @if (isGeocoding)
+            {
+                <div class="geocoding-status">
+                    <span>Finding your location...</span>
+                </div>
+            }
+        </div>
+
+        <div class="form-group">
+            <label for="socialMedia">Social Media</label>
+            <InputText id="socialMedia" @bind="registrationModel.SocialMedia" class="form-control" placeholder="Your social media links" />
+        </div>
+
+        <div class="form-group">
+            <label for="message">Message</label>
+            <InputTextArea id="message" @bind="registrationModel.Message" class="form-control" rows="3" placeholder="Share your thoughts or goals" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+            @(isSubmitting ? "Registering..." : "Join Community")
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="status-message @statusClass">
+            @statusMessage
+        </div>
+    }
+
+    @if (geocodingResult != null && geocodingResult.Success)
+    {
+        <div class="location-preview">
+            <h4>Location Found</h4>
+            <p><strong>Address:</strong> @geocodingResult.FormattedAddress</p>
+            <p><strong>Coordinates:</strong> @geocodingResult.Latitude.ToString("F6"), @geocodingResult.Longitude.ToString("F6")</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<Participant> OnParticipantRegistered { get; set; }
+    [Parameter] public bool AutoGeocode { get; set; } = true;
+
+    private ParticipantRegistrationModel registrationModel = new();
+    private bool isSubmitting = false;
+    private bool isGeocoding = false;
+    private GeocodingResult? geocodingResult;
+    private string? statusMessage;
+    private string statusClass = "";
+    private System.Timers.Timer? geocodingTimer;
+
+    protected override void OnInitialized()
+    {
+        if (AutoGeocode)
+        {
+            geocodingTimer = new System.Timers.Timer(1000);
+            geocodingTimer.Elapsed += async (s, e) => await TryGeocodeAddressAsync();
+            geocodingTimer.AutoReset = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        statusMessage = null;
+
+        try
+        {
+            var result = await ParticipantService.RegisterParticipantAsync(registrationModel);
+
+            if (result.Success)
+            {
+                statusMessage = "Registration successful! Welcome to our community!";
+                statusClass = "success";
+
+                registrationModel = new(); // Очищаем форму
+                geocodingResult = null;
+
+                if (OnParticipantRegistered.HasDelegate)
+                {
+                    await OnParticipantRegistered.InvokeAsync(result.Participant);
+                }
+            }
+            else
+            {
+                statusMessage = result.ErrorMessage ?? "Registration failed. Please try again.";
+                statusClass = "error";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during participant registration");
+            statusMessage = "Registration failed. Please try again.";
+            statusClass = "error";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnAddressChanged(ChangeEventArgs e)
+    {
+        registrationModel.Address = e.Value?.ToString() ?? "";
+
+        if (AutoGeocode && !string.IsNullOrWhiteSpace(registrationModel.Address))
+        {
+            geocodingTimer?.Stop();
+            geocodingTimer?.Start();
+        }
+    }
+
+    private async Task TryGeocodeAddressAsync()
+    {
+        if (string.IsNullOrWhiteSpace(registrationModel.Address)) return;
+
+        isGeocoding = true;
+        geocodingResult = null;
+        StateHasChanged();
+
+        try
+        {
+            geocodingResult = await GeocodingService.GeocodeAddressAsync(registrationModel.Address);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during geocoding");
+            geocodingResult = new GeocodingResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+        finally
+        {
+            isGeocoding = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        geocodingTimer?.Dispose();
+    }
+}
+
+@* Ссылки на внешние ресурсы *@
+<link href="_content/ZealousMindedPeopleGeo/css/participant-registration.css" rel="stylesheet" />

@@ -1,0 +1,614 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@using ZealousMindedPeopleGeo.Services
+@inject IPwaService PwaService
+@inject ILogger<PwaManagerComponent> Logger
+
+<div class="pwa-manager">
+    @if (_isLoading)
+    {
+        <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <span>Загрузка...</span>
+        </div>
+    }
+    else if (_showInstallPrompt && _installInfo.CanInstall)
+    {
+        <div class="install-prompt">
+            <div class="install-content">
+                <div class="install-icon">📱</div>
+                <div class="install-text">
+                    <h4>Установите приложение</h4>
+                    <p>Получите быстрый доступ к географии сообщества прямо с рабочего стола</p>
+                </div>
+                <div class="install-actions">
+                    <button class="btn btn-primary" @onclick="InstallPwaAsync">
+                        Установить
+                    </button>
+                    <button class="btn btn-secondary" @onclick="DismissInstallPrompt">
+                        Позже
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (_showPwaInfo)
+    {
+        <div class="pwa-info-panel">
+            <div class="pwa-header">
+                <h4>PWA Информация</h4>
+                <button class="close-button" @onclick="() => _showPwaInfo = false">×</button>
+            </div>
+            <div class="pwa-content">
+                <div class="pwa-status">
+                    <div class="status-item">
+                        <span class="status-label">Статус:</span>
+                        <span class="status-value @(_installInfo.IsInstalled ? "installed" : "not-installed")">
+                            @(_installInfo.IsInstalled ? "Установлено" : "Не установлено")
+                        </span>
+                    </div>
+
+                    @if (_cacheInfo != null)
+                    {
+                        <div class="status-item">
+                            <span class="status-label">Кэш:</span>
+                            <span class="status-value">
+                                @(FormatBytes(_cacheInfo.TotalSize)) (@_cacheInfo.CacheCount кэшей)
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                <div class="pwa-actions">
+                    @if (_installInfo.CanInstall)
+                    {
+                        <button class="btn btn-primary" @onclick="InstallPwaAsync">
+                            Установить приложение
+                        </button>
+                    }
+
+                    <button class="btn btn-secondary" @onclick="UpdateServiceWorkerAsync">
+                        Проверить обновления
+                    </button>
+
+                    <button class="btn btn-outline-secondary" @onclick="ClearCacheAsync">
+                        Очистить кэш
+                    </button>
+
+                    <button class="btn btn-outline-primary" @onclick="ShowCacheInfoAsync">
+                        Информация о кэше
+                    </button>
+                </div>
+
+                @if (_showCacheDetails && _cacheInfo != null)
+                {
+                    <div class="cache-details">
+                        <h5>Детали кэша</h5>
+                        <div class="cache-list">
+                            @foreach (var cache in _cacheInfo.Caches)
+                            {
+                                <div class="cache-item">
+                                    <div class="cache-name">@cache.Name</div>
+                                    <div class="cache-stats">
+                                        <span>@FormatBytes(cache.Size)</span>
+                                        <span>@cache.ItemCount элементов</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (_showNotificationTest)
+    {
+        <div class="notification-test">
+            <h5>Тест уведомлений</h5>
+            <div class="form-group">
+                <label>Заголовок:</label>
+                <input type="text" class="form-control" @bind="_notificationTitle" placeholder="Заголовок уведомления" />
+            </div>
+            <div class="form-group">
+                <label>Сообщение:</label>
+                <input type="text" class="form-control" @bind="_notificationBody" placeholder="Текст уведомления" />
+            </div>
+            <div class="notification-actions">
+                <button class="btn btn-primary" @onclick="SendTestNotificationAsync" disabled="@string.IsNullOrWhiteSpace(_notificationTitle)">
+                    Отправить уведомление
+                </button>
+                <button class="btn btn-secondary" @onclick="() => _showNotificationTest = false">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool ShowInstallPrompt { get; set; } = true;
+    [Parameter] public bool AutoCheckUpdates { get; set; } = true;
+    [Parameter] public EventCallback<PwaInstallInfo> OnInstallStateChanged { get; set; }
+
+    private bool _isLoading = true;
+    private PwaInstallInfo _installInfo = new();
+    private PwaCacheInfo? _cacheInfo;
+    private bool _showInstallPrompt = false;
+    private bool _showPwaInfo = false;
+    private bool _showCacheDetails = false;
+    private bool _showNotificationTest = false;
+    private string _notificationTitle = "Тест";
+    private string _notificationBody = "Это тестовое уведомление PWA";
+
+    private System.Timers.Timer? _updateTimer;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadPwaInfoAsync();
+
+            if (AutoCheckUpdates)
+            {
+                _updateTimer = new System.Timers.Timer(300000); // Каждые 5 минут
+                _updateTimer.Elapsed += async (s, e) => await CheckForUpdatesAsync();
+                _updateTimer.Start();
+            }
+        }
+    }
+
+    private async Task LoadPwaInfoAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            _installInfo = await PwaService.GetInstallInfoAsync();
+            _cacheInfo = await PwaService.GetCacheInfoAsync();
+
+            _showInstallPrompt = ShowInstallPrompt && _installInfo.CanInstall;
+
+            if (OnInstallStateChanged.HasDelegate)
+            {
+                await OnInstallStateChanged.InvokeAsync(_installInfo);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading PWA info");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InstallPwaAsync()
+    {
+        try
+        {
+            var result = await PwaService.ShowInstallPromptAsync();
+
+            if (result)
+            {
+                _showInstallPrompt = false;
+                await LoadPwaInfoAsync(); // Обновляем информацию после установки
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error installing PWA");
+        }
+    }
+
+    private void DismissInstallPrompt()
+    {
+        _showInstallPrompt = false;
+        StateHasChanged();
+    }
+
+    private async Task UpdateServiceWorkerAsync()
+    {
+        try
+        {
+            await PwaService.UpdateServiceWorkerAsync();
+            await LoadPwaInfoAsync(); // Обновляем информацию
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating service worker");
+        }
+    }
+
+    private async Task ClearCacheAsync()
+    {
+        try
+        {
+            await PwaService.ClearCacheAsync();
+            await LoadPwaInfoAsync(); // Обновляем информацию после очистки
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error clearing cache");
+        }
+    }
+
+    private async Task ShowCacheInfoAsync()
+    {
+        _showCacheDetails = !_showCacheDetails;
+        if (_showCacheDetails && _cacheInfo == null)
+        {
+            _cacheInfo = await PwaService.GetCacheInfoAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            await PwaService.UpdateServiceWorkerAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error checking for updates");
+        }
+    }
+
+    private async Task SendTestNotificationAsync()
+    {
+        try
+        {
+            var result = await PwaService.SendNotificationAsync(_notificationTitle, _notificationBody);
+            if (result)
+            {
+                _showNotificationTest = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error sending test notification");
+        }
+    }
+
+    public async Task ShowPwaInfoAsync()
+    {
+        _showPwaInfo = true;
+        await LoadPwaInfoAsync();
+    }
+
+    public async Task ShowNotificationTestAsync()
+    {
+        _showNotificationTest = true;
+        StateHasChanged();
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        int order = 0;
+        double size = bytes;
+
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:F1} {sizes[order]}";
+    }
+
+    public void Dispose()
+    {
+        _updateTimer?.Stop();
+        _updateTimer?.Dispose();
+    }
+}
+
+<style>
+.pwa-manager {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.loading-state {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: #666;
+}
+
+.loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.install-prompt {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.install-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.install-icon {
+    font-size: 2rem;
+}
+
+.install-text h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.install-text p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+.install-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.pwa-info-panel {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.pwa-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.pwa-header h4 {
+    margin: 0;
+    color: #495057;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-button:hover {
+    color: #495057;
+}
+
+.pwa-status {
+    margin-bottom: 1rem;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.status-value {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.status-value.installed {
+    color: #28a745;
+}
+
+.status-value.not-installed {
+    color: #dc3545;
+}
+
+.pwa-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.btn-outline-primary {
+    background: white;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-outline-primary:hover {
+    background: #007bff;
+    color: white;
+}
+
+.btn-outline-secondary {
+    background: white;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+}
+
+.cache-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.cache-details h5 {
+    margin: 0 0 0.5rem 0;
+    color: #495057;
+    font-size: 1rem;
+}
+
+.cache-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.cache-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+.cache-name {
+    font-weight: 500;
+    color: #495057;
+}
+
+.cache-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.notification-test {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.notification-test h5 {
+    margin: 0 0 1rem 0;
+    color: #495057;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.notification-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+@@media (max-width: 768px) {
+    .install-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .install-actions {
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .pwa-actions {
+        flex-direction: column;
+    }
+
+    .cache-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .cache-stats {
+        align-self: flex-end;
+    }
+}
+</style>

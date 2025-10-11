@@ -1,0 +1,92 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@using Microsoft.Extensions.Options
+@using Microsoft.JSInterop
+@using System.Text.Json
+@using ZealousMindedPeopleGeo.Services
+@using ZealousMindedPeopleGeo.Models
+@inject IJSRuntime JSRuntime
+@inject ILogger<CommunityMapComponent> Logger
+@inject IOptions<ZealousMindedPeopleGeoOptions> Options
+
+<div class="community-map-container">
+    <div class="map-header">
+        <h3>Community Map</h3>
+        <div class="participants-count">
+            Total Participants: @Participants.Count()
+        </div>
+    </div>
+
+    <div id="map" class="map-canvas" style="height: @Height; width: 100%;"></div>
+
+    @* Ссылки на внешние ресурсы *@
+    <link href="_content/ZealousMindedPeopleGeo/css/community-map.css" rel="stylesheet" />
+
+    @if (ShowParticipantsList)
+    {
+        <div class="participants-panel">
+            <h4>Community Members (@Participants.Count())</h4>
+            <div class="participants-list">
+                @foreach (var participant in Participants.Where(p => p.Latitude != 0 && p.Longitude != 0))
+                {
+                    <div class="participant-card" @onclick="() => ShowParticipantInfo(participant)">
+                        <div class="participant-avatar">
+                            @(participant.Name.FirstOrDefault()).ToString().ToUpper()
+                        </div>
+                        <div class="participant-info">
+                            <div class="participant-name">@participant.Name</div>
+                            <div class="participant-location">@participant.Address</div>
+                            @if (!string.IsNullOrEmpty(participant.City) || !string.IsNullOrEmpty(participant.Country))
+                            {
+                                <div class="participant-location-details">
+                                    @(participant.City ?? "")@(!string.IsNullOrEmpty(participant.City) && !string.IsNullOrEmpty(participant.Country) ? ", " : "")@(participant.Country ?? "")
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (SelectedParticipant != null)
+    {
+        <div class="participant-modal-overlay" @onclick="CloseParticipantModal">
+            <div class="participant-modal" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h4>@SelectedParticipant.Name</h4>
+                    <button class="close-btn" @onclick="CloseParticipantModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="participant-details">
+                        <p><strong>Address:</strong> @SelectedParticipant.Address</p>
+                        <p><strong>Coordinates:</strong> @(SelectedParticipant.Latitude?.ToString("F6") ?? "N/A"), @(SelectedParticipant.Longitude?.ToString("F6") ?? "N/A")</p>
+                        <p><strong>Registration Date:</strong> @SelectedParticipant.RegisteredAt.ToString("dd.MM.yyyy HH:mm")</p>
+
+                        @if (!string.IsNullOrEmpty(SelectedParticipant.City) || !string.IsNullOrEmpty(SelectedParticipant.Country))
+                        {
+                            <p><strong>Location:</strong> @(SelectedParticipant.City ?? "")@(!string.IsNullOrEmpty(SelectedParticipant.City) && !string.IsNullOrEmpty(SelectedParticipant.Country) ? ", " : "")@(SelectedParticipant.Country ?? "")</p>
+                        }
+
+                        @if (!string.IsNullOrEmpty(SelectedParticipant.Message))
+                        {
+                            <p><strong>Message:</strong> @SelectedParticipant.Message</p>
+                        }
+
+                        @if (!string.IsNullOrEmpty(SelectedParticipant.SocialMedia))
+                        {
+                            <p><strong>Social Media:</strong> @SelectedParticipant.SocialMedia</p>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseParticipantModal">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+

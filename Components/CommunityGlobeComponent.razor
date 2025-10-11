@@ -1,0 +1,583 @@
+@using Microsoft.AspNetCore.Components
+@using ZealousMindedPeopleGeo.Models
+@using ZealousMindedPeopleGeo.Services.Mapping
+@using ZealousMindedPeopleGeo.Services.Repositories
+@inject IThreeJsGlobeService ThreeJsGlobeService
+@inject IParticipantRepository ParticipantRepository
+@implements IDisposable
+
+<div class="community-globe-container">
+    <!-- Контейнер для 3D глобуса -->
+    <div id="@ContainerId" class="globe-canvas-container"
+         style="width: @(Width)px; height: @(Height)px;">
+
+        <!-- Индикатор загрузки -->
+        @if (_isInitializing)
+        {
+            <div class="globe-loading-overlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Загрузка глобуса</div>
+            </div>
+        }
+
+        <!-- Сообщение об ошибке -->
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="globe-error-overlay">
+                <div class="error-icon">⚠️</div>
+                <div class="error-message">@_errorMessage</div>
+                <button class="retry-button" @onclick="RetryInitializationAsync">
+                    Повторить
+                </button>
+            </div>
+        }
+    </div>
+
+    <!-- Панель управления глобусом -->
+    @if (_isInitialized && ShowControls)
+    {
+        <div class="globe-controls">
+            <div class="control-group">
+                <label class="control-label">Вращение:</label>
+                <button class="control-button @(_isAutoRotating ? "active" : "")"
+                        @onclick="ToggleRotationAsync"
+                        title="Включить/выключить автоповорот">
+                    🔄
+                </button>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Участники:</label>
+                <span class="participant-count">@_participantCount</span>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Страны:</label>
+                <span class="country-count">@_countryCount</span>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Детализация:</label>
+                <select class="control-select" @bind="_currentLod" @bind:event="oninput">
+                    <option value="0">Низкая</option>
+                    <option value="1">Средняя</option>
+                    <option value="2">Высокая</option>
+                    <option value="3">Ультра</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <button class="control-button"
+                        @onclick="RefreshDataAsync"
+                        title="Обновить данные">
+                    🔄
+                </button>
+                <button class="control-button"
+                        @onclick="CenterOnUserAsync"
+                        title="Центрировать на пользователе">
+                    🎯
+                </button>
+            </div>
+        </div>
+    }
+
+    <!-- Информация об участниках -->
+    @if (_isInitialized && ShowParticipantInfo && _selectedParticipant != null)
+    {
+        <div class="participant-info-panel">
+            <div class="participant-info-header">
+                <h4>@_selectedParticipant.Name</h4>
+                <button class="close-button" @onclick="CloseParticipantInfo">×</button>
+            </div>
+            <div class="participant-info-content">
+                <div class="participant-detail">
+                    <strong>Местоположение:</strong>
+                    <span>@_selectedParticipant.City, @_selectedParticipant.Country</span>
+                </div>
+                <div class="participant-detail">
+                    <strong>Координаты:</strong>
+                    <span>@(_selectedParticipant.Latitude?.ToString("F4") ?? "N/A"), @(_selectedParticipant.Longitude?.ToString("F4") ?? "N/A")</span>
+                </div>
+                @if (!string.IsNullOrEmpty(_selectedParticipant.Message))
+                {
+                    <div class="participant-detail">
+                        <strong>Сообщение:</strong>
+                        <span>@_selectedParticipant.Message</span>
+                    </div>
+                }
+                <div class="participant-detail">
+                    <strong>Зарегистрирован:</strong>
+                    <span>@_selectedParticipant.RegisteredAt.ToString("g")</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Уникальный идентификатор контейнера для глобуса
+    /// </summary>
+    [Parameter] public string ContainerId { get; set; } = $"globe-{Guid.NewGuid():N}";
+
+    /// <summary>
+    /// Ширина контейнера глобуса в пикселях
+    /// </summary>
+    [Parameter] public int Width { get; set; } = 800;
+
+    /// <summary>
+    /// Высота контейнера глобуса в пикселях
+    /// </summary>
+    [Parameter] public int Height { get; set; } = 600;
+
+    /// <summary>
+    /// Показывать панель управления
+    /// </summary>
+    [Parameter] public bool ShowControls { get; set; } = true;
+
+    /// <summary>
+    /// Показывать информацию об участниках при клике
+    /// </summary>
+    [Parameter] public bool ShowParticipantInfo { get; set; } = true;
+
+    /// <summary>
+    /// Параметры глобуса
+    /// </summary>
+    [Parameter] public GlobeOptions? Options { get; set; }
+
+    /// <summary>
+    /// Событие клика по участнику
+    /// </summary>
+    [Parameter] public EventCallback<Participant> OnParticipantClick { get; set; }
+
+    /// <summary>
+    /// Событие инициализации глобуса
+    /// </summary>
+    [Parameter] public EventCallback<GlobeInitializationResult> OnGlobeInitialized { get; set; }
+
+    /// <summary>
+    /// Событие изменения состояния глобуса
+    /// </summary>
+    [Parameter] public EventCallback<GlobeState> OnStateChanged { get; set; }
+
+    private bool _isInitializing = false;
+    private bool _isInitialized = false;
+    private string? _errorMessage;
+    private Participant? _selectedParticipant;
+    private int _participantCount;
+    private int _countryCount;
+    private int _currentLod = 2;
+    private bool _isAutoRotating = true;
+    private GlobeState? _currentState;
+    private System.Timers.Timer? _updateTimer;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Добавляем небольшую задержку для полной инициализации DOM
+            await Task.Delay(100);
+
+            await InitializeGlobeAsync();
+            await LoadParticipantsAsync();
+
+            // Настраиваем таймер для периодического обновления данных
+            _updateTimer = new System.Timers.Timer(30000); // Каждые 30 секунд
+            _updateTimer.Elapsed += async (s, e) => await LoadParticipantsAsync();
+            _updateTimer.Start();
+        }
+    }
+
+    private async Task InitializeGlobeAsync()
+    {
+        _isInitializing = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        const int maxRetries = 3;
+        const int retryDelay = 200; // миллисекунды
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                // Добавляем дополнительную задержку между попытками
+                if (attempt > 1)
+                {
+                    await Task.Delay(retryDelay * attempt);
+                }
+
+                var globeOptions = Options ?? new GlobeOptions
+                {
+                    Width = Width,
+                    Height = Height,
+                    AutoRotate = true,
+                    EnableMouseControls = true,
+                    LevelOfDetail = _currentLod
+                };
+
+                var result = await ThreeJsGlobeService.InitializeGlobeAsync(ContainerId, globeOptions);
+
+                if (result.Success)
+                {
+                    _isInitialized = true;
+                    await OnGlobeInitialized.InvokeAsync(result);
+                    await UpdateGlobeStateAsync();
+                    return; // Успешная инициализация, выходим из цикла
+                }
+                else
+                {
+                    _errorMessage = result.ErrorMessage ?? "Неизвестная ошибка инициализации";
+                    if (attempt == maxRetries)
+                    {
+                        break; // Последняя попытка неудачна
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Ошибка инициализации (попытка {attempt}/{maxRetries}): {ex.Message}";
+                if (attempt == maxRetries)
+                {
+                    break; // Последняя попытка неудачна
+                }
+            }
+        }
+
+        _isInitializing = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadParticipantsAsync()
+    {
+        if (!_isInitialized) return;
+
+        try
+        {
+            var participants = await ParticipantRepository.GetAllParticipantsAsync();
+
+            var result = await ThreeJsGlobeService.AddParticipantsAsync(participants);
+
+            if (result.Success)
+            {
+                _participantCount = participants.Count();
+                await UpdateGlobeStateAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Ошибка загрузки участников: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task RetryInitializationAsync()
+    {
+        if (_isInitializing || _isInitialized) return;
+
+        await InitializeGlobeAsync();
+    }
+
+    private async Task ToggleRotationAsync()
+    {
+        if (!_isInitialized) return;
+
+        var result = await ThreeJsGlobeService.SetAutoRotationAsync(!_isAutoRotating);
+
+        if (result.Success)
+        {
+            _isAutoRotating = !_isAutoRotating;
+            await UpdateGlobeStateAsync();
+        }
+    }
+
+    private async Task OnLodChanged(ChangeEventArgs e)
+    {
+        if (!_isInitialized || !int.TryParse(e.Value?.ToString(), out var lod)) return;
+
+        _currentLod = lod;
+        var result = await ThreeJsGlobeService.SetLevelOfDetailAsync(lod);
+
+        if (result.Success)
+        {
+            await UpdateGlobeStateAsync();
+        }
+    }
+
+    private async Task RefreshDataAsync()
+    {
+        await LoadParticipantsAsync();
+    }
+
+    private async Task CenterOnUserAsync()
+    {
+        if (!_isInitialized) return;
+
+        // Центрируем на Москву по умолчанию
+        var result = await ThreeJsGlobeService.CenterOnAsync(55.7558, 37.6176);
+
+        if (result.Success)
+        {
+            await UpdateGlobeStateAsync();
+        }
+    }
+
+    private void CloseParticipantInfo()
+    {
+        _selectedParticipant = null;
+        StateHasChanged();
+    }
+
+    private async Task UpdateGlobeStateAsync()
+    {
+        if (!_isInitialized) return;
+
+        try
+        {
+            _currentState = await ThreeJsGlobeService.GetStateAsync();
+
+            if (_currentState != null)
+            {
+                _participantCount = _currentState.ParticipantCount;
+                _countryCount = _currentState.CountryCount;
+                _isAutoRotating = _currentState.IsAutoRotating;
+                _currentLod = _currentState.CurrentLevelOfDetail;
+
+                await OnStateChanged.InvokeAsync(_currentState);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Ошибка обновления состояния: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _updateTimer?.Stop();
+        _updateTimer?.Dispose();
+
+        if (_isInitialized)
+        {
+            await ThreeJsGlobeService.DisposeAsync();
+        }
+    }
+
+    void IDisposable.Dispose()
+    {
+        _ = DisposeAsync();
+    }
+}
+
+<style>
+.community-globe-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.globe-canvas-container {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, #0f0f23, #1a1a2e);
+}
+
+.globe-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(2px);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #333;
+    border-top: 3px solid #00aaff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.globe-error-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    text-align: center;
+    padding: 2rem;
+}
+
+.error-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    color: #ff6b6b;
+    margin-bottom: 1.5rem;
+    max-width: 300px;
+}
+
+.retry-button {
+    background: #00aaff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.retry-button:hover {
+    background: #0088cc;
+}
+
+.globe-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.control-label {
+    color: #fff;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.control-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.control-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.control-button.active {
+    background: #00aaff;
+    border-color: #00aaff;
+}
+
+.control-select {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 0.25rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.participant-count,
+.country-count {
+    color: #00aaff;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.participant-info-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    max-width: 300px;
+    backdrop-filter: blur(10px);
+}
+
+.participant-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.5rem;
+}
+
+.participant-info-header h4 {
+    color: #00aaff;
+    margin: 0;
+    font-size: 1rem;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-button:hover {
+    color: #ff6b6b;
+}
+
+.participant-detail {
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.participant-detail strong {
+    color: #aaa;
+    display: inline-block;
+    min-width: 80px;
+}
+
+.participant-detail span {
+    color: #fff;
+}
+</style>
