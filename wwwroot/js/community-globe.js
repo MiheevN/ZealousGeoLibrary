@@ -21,33 +21,41 @@ class CommunityGlobe {
         this.container = null; // Будет инициализирован позже
 
         this.options = {
+            ...options,
             width: 800,
             height: 600,
             backgroundColor: '#000011',
             atmosphereColor: '#00aaff',
-            atmosphereOpacity: 0.3,
+            atmosphereOpacity: 0.2,
             participantPointSize: 0.5,
             participantPointColor: '#ffff00',
             highlightedPointColor: '#ff6600',
             autoRotate: true,
-            autoRotateSpeed: 0.5,
+            autoRotateSpeed: 0.1,
             enableMouseControls: true,
             enableZoom: true,
             minZoom: 0.5,
             maxZoom: 4.0,
             levelOfDetail: 2,
-            earthTextureUrl: '/_content/ZealousMindedPeopleGeo/assets/earth/earthmap.jpg',
-            normalTextureUrl: null,
-            specularTextureUrl: null,
-            cloudsTextureUrl: null,
-            cloudsOpacity: 0.4,
-            cloudsSpeed: 0.2,
+            earthTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_daymap.jpg",
+            normalTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_normal_map.tif",
+            specularTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_specular_map.tif",
+            cloudsTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_clouds.jpg",
+            enableClouds: true,
+            cloudsOpacity: 0.1,
+            cloudsSpeed: 0.01,
             enableAtmosphereGlow: true,
             countryPointColor: '#ffffff',
             countryPointSize: 0.1,
             countryLineColor: '#444444',
             countryLineWidth: 0.5,
-            ...options
+            // Настройки освещения
+            sunLightIntensity: 2.0,
+            sunLightColor: '#ffffff',
+            ambientLightIntensity: 0.4,
+            ambientLightColor: '#404040',
+            atmosphereLightIntensity: 0.5,
+            atmosphereLightColor: '#00aaff',
         };
 
         this.state = {
@@ -184,10 +192,28 @@ class CommunityGlobe {
     createEarth() {
         const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
         const textureLoader = new THREE.TextureLoader();
+
+        console.log('🌍 Загрузка текстур глобуса:');
+        console.log('Основная текстура:', this.options.earthTextureUrl);
+        console.log('Карта нормалей:', this.options.normalTextureUrl);
+        console.log('Карта спекуляции:', this.options.specularTextureUrl);
+
+        // Загружаем текстуры асинхронно для избежания блокировок
+        const loadTexture = (url) => {
+            if (!url) return null;
+            try {
+                console.log('Загрузка текстуры:', url);
+                return textureLoader.load(url);
+            } catch (error) {
+                console.error('Ошибка загрузки текстуры:', url, error);
+                return null;
+            }
+        };
+
         const earthMaterial = new THREE.MeshPhongMaterial({
-            map: this.options.earthTextureUrl ? textureLoader.load(this.options.earthTextureUrl) : null,
-            normalMap: this.options.normalTextureUrl ? textureLoader.load(this.options.normalTextureUrl) : null,
-            specularMap: this.options.specularTextureUrl ? textureLoader.load(this.options.specularTextureUrl) : null,
+            map: loadTexture(this.options.earthTextureUrl),
+            normalMap: loadTexture(this.options.normalTextureUrl),
+            specularMap: loadTexture(this.options.specularTextureUrl),
             shininess: 0.1
         });
 
@@ -212,11 +238,26 @@ class CommunityGlobe {
     }
 
     createClouds() {
-        if (!this.options.cloudsTextureUrl) return;
+        if (!this.options.enableClouds || !this.options.cloudsTextureUrl) return;
 
         const cloudsGeometry = new THREE.SphereGeometry(1.01, 32, 32);
+        const textureLoader = new THREE.TextureLoader();
+
+        console.log('☁️ Загрузка текстуры облаков:', this.options.cloudsTextureUrl);
+
+        const loadCloudTexture = (url) => {
+            if (!url) return null;
+            try {
+                console.log('Загрузка облаков:', url);
+                return textureLoader.load(url);
+            } catch (error) {
+                console.error('Ошибка загрузки облаков:', url, error);
+                return null;
+            }
+        };
+
         const cloudsMaterial = new THREE.MeshPhongMaterial({
-            map: new THREE.TextureLoader().load(this.options.cloudsTextureUrl),
+            map: loadCloudTexture(this.options.cloudsTextureUrl),
             transparent: true,
             opacity: this.options.cloudsOpacity
         });
@@ -227,15 +268,26 @@ class CommunityGlobe {
     }
 
     setupLighting() {
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+        console.log('💡 Настройка освещения глобуса:');
+        console.log('Яркость солнца:', this.options.sunLightIntensity);
+        console.log('Цвет солнца:', this.options.sunLightColor);
+        console.log('Яркость окружения:', this.options.ambientLightIntensity);
+        console.log('Цвет окружения:', this.options.ambientLightColor);
+
+        // Преобразуем цвет из hex в Color
+        const sunColor = new THREE.Color(this.options.sunLightColor);
+        const ambientColor = new THREE.Color(this.options.ambientLightColor);
+        const atmosphereColor = new THREE.Color(this.options.atmosphereLightColor);
+
+        const sunLight = new THREE.DirectionalLight(sunColor, this.options.sunLightIntensity);
         sunLight.position.set(5, 3, 5);
         sunLight.castShadow = true;
         this.scene.add(sunLight);
 
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        const ambientLight = new THREE.AmbientLight(ambientColor, this.options.ambientLightIntensity);
         this.scene.add(ambientLight);
 
-        const atmosphereLight = new THREE.PointLight(0x00aaff, 0.5, 100);
+        const atmosphereLight = new THREE.PointLight(atmosphereColor, this.options.atmosphereLightIntensity, 100);
         atmosphereLight.position.set(0, 0, 3);
         this.scene.add(atmosphereLight);
     }
@@ -471,6 +523,46 @@ class CommunityGlobe {
         this.state.currentLod = lod;
     }
 
+    setSunLightIntensity(intensity) {
+        if (this.scene) {
+            const sunLight = this.scene.children.find(child => child instanceof THREE.DirectionalLight);
+            if (sunLight) {
+                sunLight.intensity = intensity;
+                console.log('Яркость солнца изменена на:', intensity);
+            }
+        }
+    }
+
+    setSunLightColor(colorHex) {
+        if (this.scene) {
+            const sunLight = this.scene.children.find(child => child instanceof THREE.DirectionalLight);
+            if (sunLight) {
+                sunLight.color = new THREE.Color(colorHex);
+                console.log('Цвет солнца изменен на:', colorHex);
+            }
+        }
+    }
+
+    setAmbientLightIntensity(intensity) {
+        if (this.scene) {
+            const ambientLight = this.scene.children.find(child => child instanceof THREE.AmbientLight);
+            if (ambientLight) {
+                ambientLight.intensity = intensity;
+                console.log('Яркость окружения изменена на:', intensity);
+            }
+        }
+    }
+
+    setAtmosphereLightIntensity(intensity) {
+        if (this.scene) {
+            const atmosphereLight = this.scene.children.find(child => child instanceof THREE.PointLight);
+            if (atmosphereLight) {
+                atmosphereLight.intensity = intensity;
+                console.log('Яркость атмосферного света изменена на:', intensity);
+            }
+        }
+    }
+
     getState() {
         return { ...this.state };
     }
@@ -626,6 +718,48 @@ export function setAutoRotation(enabled, speed) {
         return false;
     } catch (error) {
         console.error('Error setting auto rotation:', error);
+        return false;
+    }
+}
+
+export function setSunLightIntensity(intensity) {
+    try {
+        const globe = globeInstances.values().next().value;
+        if (globe) {
+            globe.setSunLightIntensity(intensity);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error setting sun light intensity:', error);
+        return false;
+    }
+}
+
+export function setSunLightColor(colorHex) {
+    try {
+        const globe = globeInstances.values().next().value;
+        if (globe) {
+            globe.setSunLightColor(colorHex);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error setting sun light color:', error);
+        return false;
+    }
+}
+
+export function setAmbientLightIntensity(intensity) {
+    try {
+        const globe = globeInstances.values().next().value;
+        if (globe) {
+            globe.setAmbientLightIntensity(intensity);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error setting ambient light intensity:', error);
         return false;
     }
 }

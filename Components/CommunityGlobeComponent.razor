@@ -183,7 +183,16 @@
 
             // Настраиваем таймер для периодического обновления данных
             _updateTimer = new System.Timers.Timer(30000); // Каждые 30 секунд
-            _updateTimer.Elapsed += async (s, e) => await LoadParticipantsAsync();
+            _updateTimer.Elapsed += async (s, e) => {
+                try {
+                    // Используем InvokeAsync для корректного обновления состояния в Blazor Server
+                    await InvokeAsync(async () => {
+                        await LoadParticipantsAsync();
+                    });
+                } catch (Exception ex) {
+                    Console.WriteLine($"Ошибка в таймере обновления участников: {ex.Message}");
+                }
+            };
             _updateTimer.Start();
         }
     }
@@ -245,7 +254,7 @@
         }
 
         _isInitializing = false;
-        StateHasChanged();
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadParticipantsAsync()
@@ -372,212 +381,217 @@
 }
 
 <style>
-.community-globe-container {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-}
+    .community-globe-container {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
 
-.globe-canvas-container {
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    background: linear-gradient(135deg, #0f0f23, #1a1a2e);
-}
+    .globe-canvas-container {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, #0f0f23, #1a1a2e);
+    }
 
-.globe-loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(2px);
-}
+    .globe-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(2px);
+    }
 
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #333;
-    border-top: 3px solid #00aaff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-}
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #333;
+        border-top: 3px solid #00aaff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
 
-@@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+    @@keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
 
-.loading-text {
-    color: #fff;
-    font-size: 0.9rem;
-}
+        100% {
+            transform: rotate(360deg);
+        }
+    }
 
-.globe-error-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.8);
-    text-align: center;
-    padding: 2rem;
-}
+    .loading-text {
+        color: #fff;
+        font-size: 0.9rem;
+    }
 
-.error-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-}
+    .globe-error-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.8);
+        text-align: center;
+        padding: 2rem;
+    }
 
-.error-message {
-    color: #ff6b6b;
-    margin-bottom: 1.5rem;
-    max-width: 300px;
-}
+    .error-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
 
-.retry-button {
-    background: #00aaff;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
+    .error-message {
+        color: #ff6b6b;
+        margin-bottom: 1.5rem;
+        max-width: 300px;
+    }
 
-.retry-button:hover {
-    background: #0088cc;
-}
+    .retry-button {
+        background: #00aaff;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
 
-.globe-controls {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    padding: 0.5rem;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
+        .retry-button:hover {
+            background: #0088cc;
+        }
 
-.control-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
+    .globe-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        padding: 0.5rem;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
-.control-label {
-    color: #fff;
-    font-size: 0.8rem;
-    white-space: nowrap;
-}
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-.control-button {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: all 0.2s ease;
-}
+    .control-label {
+        color: #fff;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
 
-.control-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
+    .control-button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
 
-.control-button.active {
-    background: #00aaff;
-    border-color: #00aaff;
-}
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
 
-.control-select {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 0.25rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
+        .control-button.active {
+            background: #00aaff;
+            border-color: #00aaff;
+        }
 
-.participant-count,
-.country-count {
-    color: #00aaff;
-    font-weight: bold;
-    font-size: 0.8rem;
-}
+    .control-select {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 0.25rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
 
-.participant-info-panel {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    padding: 1rem;
-    max-width: 300px;
-    backdrop-filter: blur(10px);
-}
+    .participant-count,
+    .country-count {
+        color: #00aaff;
+        font-weight: bold;
+        font-size: 0.8rem;
+    }
 
-.participant-info-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 0.5rem;
-}
+    .participant-info-panel {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        padding: 1rem;
+        max-width: 300px;
+        backdrop-filter: blur(10px);
+    }
 
-.participant-info-header h4 {
-    color: #00aaff;
-    margin: 0;
-    font-size: 1rem;
-}
+    .participant-info-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 0.5rem;
+    }
 
-.close-button {
-    background: none;
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+        .participant-info-header h4 {
+            color: #00aaff;
+            margin: 0;
+            font-size: 1rem;
+        }
 
-.close-button:hover {
-    color: #ff6b6b;
-}
+    .close-button {
+        background: none;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.participant-detail {
-    margin-bottom: 0.5rem;
-    font-size: 0.8rem;
-}
+        .close-button:hover {
+            color: #ff6b6b;
+        }
 
-.participant-detail strong {
-    color: #aaa;
-    display: inline-block;
-    min-width: 80px;
-}
+    .participant-detail {
+        margin-bottom: 0.5rem;
+        font-size: 0.8rem;
+    }
 
-.participant-detail span {
-    color: #fff;
-}
+        .participant-detail strong {
+            color: #aaa;
+            display: inline-block;
+            min-width: 80px;
+        }
+
+        .participant-detail span {
+            color: #fff;
+        }
 </style>
