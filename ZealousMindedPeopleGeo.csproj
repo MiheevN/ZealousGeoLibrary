@@ -102,11 +102,11 @@
   <ItemGroup>
     <Content Update="Components\*.razor">
       <Pack>true</Pack>
-      <PackagePath>contentFiles\any\net6.0\Components</PackagePath>
+      <PackagePath>contentFiles\any\net9.0\Components</PackagePath>
     </Content>
     <Content Update="wwwroot\**\*">
       <Pack>true</Pack>
-      <PackagePath>contentFiles\any\net6.0\wwwroot</PackagePath>
+      <PackagePath>contentFiles\any\net9.0\wwwroot</PackagePath>
     </Content>
   </ItemGroup>
 
@@ -126,8 +126,8 @@
   </ItemGroup>
 
   <!-- Целевые файлы для различных платформ -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
-    <PackageReference Include="Microsoft.AspNetCore.App" Version="6.0.0" />
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <PackageReference Include="Microsoft.AspNetCore.App" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

@@ -44,6 +44,7 @@ namespace ZealousMindedPeopleGeo
             services.AddScoped<IParticipantRepository, GoogleSheetsParticipantRepository>();
             services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
             services.AddScoped<IMapService, GoogleMapsServiceAdapter>();
+            services.AddScoped<ICachingService, CachingService>();
 
             return services;
         }
@@ -65,6 +66,8 @@ namespace ZealousMindedPeopleGeo
             // Регистрация сервисов с зависимостями
             services.AddScoped<IParticipantRepository, InMemoryParticipantRepository>();
             services.AddScoped<IThreeJsGlobeService, ThreeJsGlobeService>();
+            services.AddScoped<IGlobeMediator, GlobeMediatorService>();
+            services.AddScoped<ICachingService, CachingService>();
             services.AddScoped<IGeoJsonService, FileGeoJsonService>();
 
             // Регистрация основного сервиса участников
@@ -95,6 +98,7 @@ namespace ZealousMindedPeopleGeo
             services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
             services.AddScoped<IGoogleMapsService, GoogleMapsService>();
             services.AddScoped<IParticipantService, ParticipantService>();
+            services.AddScoped<ICachingService, CachingService>();
 
             return services;
         }

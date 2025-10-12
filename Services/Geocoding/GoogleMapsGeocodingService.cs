@@ -1,21 +1,25 @@
 using Microsoft.Extensions.Logging;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services;
 
 namespace ZealousMindedPeopleGeo.Services.Geocoding
 {
     /// <summary>
-    /// Реализация сервиса геокодирования с использованием Google Maps API
+    /// Реализация сервиса геокодирования с использованием Google Maps API и кэшированием
     /// </summary>
     public class GoogleMapsGeocodingService : IGeocodingService
     {
         private readonly IGoogleMapsService _googleMapsService;
+        private readonly ICachingService _cachingService;
         private readonly ILogger<GoogleMapsGeocodingService> _logger;
 
         public GoogleMapsGeocodingService(
             IGoogleMapsService googleMapsService,
+            ICachingService cachingService,
             ILogger<GoogleMapsGeocodingService> logger)
         {
             _googleMapsService = googleMapsService;
+            _cachingService = cachingService;
             _logger = logger;
         }
 
@@ -23,7 +27,15 @@ namespace ZealousMindedPeopleGeo.Services.Geocoding
         {
             try
             {
-                return await _googleMapsService.GeocodeAddressAsync(address);
+                // Используем кэширование для избежания повторных запросов к API
+                return await _cachingService.GetOrCreateGeocodingResultAsync(
+                    address,
+                    async (cancellationToken) =>
+                    {
+                        _logger.LogDebug("Geocoding address (not cached): {Address}", address);
+                        return await _googleMapsService.GeocodeAddressAsync(address);
+                    },
+                    ct);
             }
             catch (Exception ex)
             {

@@ -1,21 +1,70 @@
 // wwwroot/js/community-globe.js
-import * as THREE from './libs/three.module.js';
-import { OrbitControls } from './libs/OrbitControls.js';
+//import * as THREE from './libs/three.module.js';
+//import { OrbitControls } from './libs/OrbitControls.js';
 
-// Проверяем доступность Three.js
-if (typeof THREE === 'undefined') {
-    console.error('Three.js library not loaded. Check if three.module.js is available at ./libs/three.module.js');
+// Глобальные переменные для библиотек
+let THREE, OrbitControls;
+
+// Функция для загрузки скрипта
+async function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        script.src = src;
+        document.head.appendChild(script);
+    });
 }
 
-// Проверяем доступность OrbitControls
-if (typeof OrbitControls === 'undefined') {
-    console.error('OrbitControls not loaded. Check if OrbitControls.js is available at ./libs/OrbitControls.js');
+// Загружаем зависимости асинхронно при инициализации модуля
+async function initializeDependencies() {
+    try {
+        console.log('🔄 Загрузка зависимостей...');
+
+        // Загружаем Three.js
+        const threeModule = await import('./libs/three.module.js');
+        THREE = threeModule.default || threeModule;
+        console.log('✅ Three.js загружен:', THREE.REVISION);
+
+        // Загружаем OrbitControls
+        const controlsModule = await import('./libs/OrbitControls.js');
+        OrbitControls = controlsModule.OrbitControls;
+        console.log('✅ OrbitControls загружен');
+
+        return true;
+    } catch (error) {
+        console.error('❌ Ошибка загрузки зависимостей:', error);
+        return false;
+    }
 }
+
+// Инициализируем зависимости
+let dependenciesLoaded = false;
+
+initializeDependencies().then(success => {
+    dependenciesLoaded = success;
+    if (success) {
+        console.log('🎉 Все зависимости загружены успешно');
+    } else {
+        console.error('💥 Не удалось загрузить зависимости');
+    }
+});
 
 // Глобальный реестр экземпляров глобуса
 const globeInstances = new Map();
 
+/**
+ * Класс для создания и управления интерактивным 3D глобусом сообщества
+ * Поддерживает добавление/удаление участников, настройку освещения,
+ * управление камерой и визуализацию географических данных
+ */
 class CommunityGlobe {
+    /**
+     * Конструктор 3D глобуса
+     * @param {string} containerId - ID HTML элемента-контейнера
+     * @param {Object} options - Настройки глобуса
+     */
     constructor(containerId, options = {}) {
         this.containerId = containerId;
         this.container = null; // Будет инициализирован позже
@@ -50,11 +99,11 @@ class CommunityGlobe {
             countryLineColor: '#444444',
             countryLineWidth: 0.5,
             // Настройки освещения
-            sunLightIntensity: 2.0,
+            sunLightIntensity: 3.0,
             sunLightColor: '#ffffff',
-            ambientLightIntensity: 0.4,
+            ambientLightIntensity: 3,
             ambientLightColor: '#404040',
-            atmosphereLightIntensity: 0.5,
+            atmosphereLightIntensity: 1,
             atmosphereLightColor: '#00aaff',
         };
 
@@ -91,8 +140,24 @@ class CommunityGlobe {
         this.init();
     }
 
+    /**
+     * Асинхронная инициализация глобуса
+     * Создает сцену, камеру, освещение, загружает текстуры
+     * @returns {Promise<void>}
+     */
     async init() {
         try {
+            // Ждем загрузки зависимостей
+            let attempts = 0;
+            while (!dependenciesLoaded && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!dependenciesLoaded) {
+                throw new Error('Не удалось загрузить зависимости Three.js');
+            }
+
             if (!this.isWebGLSupported()) {
                 throw new Error('WebGL is not supported in this browser');
             }
@@ -121,6 +186,10 @@ class CommunityGlobe {
         }
     }
 
+    /**
+     * Проверяет поддержку WebGL в браузере
+     * @returns {boolean} true если WebGL поддерживается
+     */
     isWebGLSupported() {
         try {
             const canvas = document.createElement('canvas');
@@ -154,6 +223,10 @@ class CommunityGlobe {
     }
 
     setupScene() {
+        if (typeof THREE === 'undefined') {
+            throw new Error('Three.js не загружен. setupScene не может быть выполнен.');
+        }
+
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(this.options.backgroundColor);
 
@@ -225,7 +298,7 @@ class CommunityGlobe {
     createAtmosphere() {
         if (!this.options.enableAtmosphereGlow) return;
 
-        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 32, 32);
+        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 64, 64);
         const atmosphereMaterial = new THREE.MeshPhongMaterial({
             color: this.options.atmosphereColor,
             transparent: true,
@@ -240,7 +313,7 @@ class CommunityGlobe {
     createClouds() {
         if (!this.options.enableClouds || !this.options.cloudsTextureUrl) return;
 
-        const cloudsGeometry = new THREE.SphereGeometry(1.01, 32, 32);
+        const cloudsGeometry = new THREE.SphereGeometry(1.01, 64, 64);
         const textureLoader = new THREE.TextureLoader();
 
         console.log('☁️ Загрузка текстуры облаков:', this.options.cloudsTextureUrl);
@@ -294,6 +367,11 @@ class CommunityGlobe {
 
     setupControls() {
         if (!this.options.enableMouseControls) return;
+
+        if (typeof OrbitControls === 'undefined') {
+            console.error('OrbitControls не загружен');
+            return;
+        }
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
@@ -352,6 +430,10 @@ class CommunityGlobe {
         }
     }
 
+    /**
+     * Добавляет массив участников на глобус
+     * @param {Array} participants - Массив объектов участников с координатами
+     */
     addParticipants(participants) {
         if (!this.state.isInitialized) return;
 
@@ -408,6 +490,10 @@ class CommunityGlobe {
         console.log(`Added ${participants.length} participants to globe`);
     }
 
+    /**
+     * Очищает всех участников с глобуса
+     * Удаляет точки участников и очищает метаданные
+     */
     clearParticipants() {
         this.participantPoints.forEach(points => {
             this.scene.remove(points);
@@ -610,6 +696,11 @@ class CommunityGlobe {
         geometry.attributes.position.needsUpdate = true;
     }
 
+    /**
+     * Удаляет участника по ID (старый метод)
+     * @param {number} participantId - ID участника для удаления
+     * @deprecated Рекомендуется использовать removeParticipantById
+     */
     removeParticipant(participantId) {
         const index = Array.from(this.pointMetadata.keys()).findIndex(key => this.pointMetadata.get(key).id === participantId);
         if (index === -1) return;
@@ -618,6 +709,53 @@ class CommunityGlobe {
         const participants = Array.from(this.pointMetadata.values());
         this.addParticipants(participants);
     }
+
+    /**
+     * Удаляет участника по ID (оптимизированный метод)
+     * @param {number} participantId - ID участника для удаления
+     * @returns {boolean} true если участник найден и удален
+     */
+    removeParticipantById(participantId) {
+        // Находим и удаляем участника с указанным ID
+        const participants = Array.from(this.pointMetadata.values());
+        const filteredParticipants = participants.filter(p => p.id !== participantId);
+
+        if (filteredParticipants.length < participants.length) {
+            this.clearParticipants();
+            if (filteredParticipants.length > 0) {
+                this.addParticipants(filteredParticipants);
+            }
+            console.log(`Участник с ID ${participantId} удален`);
+            return true;
+        }
+
+        console.log(`Участник с ID ${participantId} не найден`);
+        return false;
+    }
+
+    /**
+     * Добавляет одного участника на глобус с проверкой уникальности ID
+     * @param {Object} participant - Объект участника с полями id, name, latitude, longitude
+     * @returns {boolean} true если участник успешно добавлен
+     */
+    addTestParticipant(participant) {
+        if (!this.state.isInitialized) return;
+
+        // Проверяем, существует ли уже участник с таким ID
+        const existingIndex = Array.from(this.pointMetadata.values()).findIndex(p => p.id === participant.id);
+        if (existingIndex !== -1) {
+            console.log(`Участник с ID ${participant.id} уже существует`);
+            return false;
+        }
+
+        // Добавляем нового участника
+        const participants = Array.from(this.pointMetadata.values());
+        participants.push(participant);
+
+        this.addParticipants(participants);
+        console.log(`Добавлен новый участник: ${participant.name} (${participant.latitude}, ${participant.longitude})`);
+        return true;
+    }
 }
 
 export async function initializeScripts() {
@@ -625,6 +763,12 @@ export async function initializeScripts() {
     return true;
 }
 
+/**
+ * Создает экземпляр 3D глобуса в указанном контейнере
+ * @param {string} containerId - ID HTML элемента-контейнера
+ * @param {Object} options - Настройки глобуса
+ * @returns {boolean} true если глобус успешно создан
+ */
 export function createGlobe(containerId, options) {
     try {
         console.log('Creating globe for container:', containerId);
@@ -638,6 +782,11 @@ export function createGlobe(containerId, options) {
     }
 }
 
+/**
+ * Добавляет массив участников на глобус
+ * @param {Array} participants - Массив объектов участников
+ * @returns {boolean} true если участники успешно добавлены
+ */
 export function addParticipants(participants) {
     try {
         const globe = globeInstances.values().next().value;
@@ -666,12 +815,16 @@ export function updateParticipantPosition(participantId, latitude, longitude) {
     }
 }
 
+/**
+ * Удаляет участника по ID с глобуса
+ * @param {number} participantId - ID участника для удаления
+ * @returns {boolean} true если участник успешно удален
+ */
 export function removeParticipant(participantId) {
     try {
         const globe = globeInstances.values().next().value;
         if (globe) {
-            globe.removeParticipant(participantId);
-            return true;
+            return globe.removeParticipantById(participantId);
         }
         return false;
     } catch (error) {
@@ -680,6 +833,13 @@ export function removeParticipant(participantId) {
     }
 }
 
+/**
+ * Центрирует камеру глобуса на указанных координатах
+ * @param {number} latitude - Широта для центрирования
+ * @param {number} longitude - Долгота для центрирования
+ * @param {number} zoom - Уровень масштабирования (по умолчанию 2.0)
+ * @returns {boolean} true если центрирование выполнено успешно
+ */
 export function centerOn(latitude, longitude, zoom) {
     try {
         const globe = globeInstances.values().next().value;
@@ -780,6 +940,10 @@ export async function loadCountriesData() {
     }
 }
 
+/**
+ * Очищает всех участников с глобуса
+ * @returns {boolean} true если очистка выполнена успешно
+ */
 export function clear() {
     try {
         const globe = globeInstances.values().next().value;
@@ -820,6 +984,32 @@ export function dispose() {
     }
 }
 
+/**
+ * Добавляет одного участника на глобус с проверкой уникальности
+ * @param {Object} participant - Объект участника с полями id, name, latitude, longitude
+ * @returns {boolean} true если участник успешно добавлен
+ */
+export function addTestParticipant(participant) {
+    try {
+        const globe = globeInstances.values().next().value;
+        if (globe) {
+            return globe.addTestParticipant(participant);
+        }
+        return false;
+    } catch (error) {
+        console.error('Error adding test participant:', error);
+        return false;
+    }
+}
+
 export function getThreeJsVersion() {
-    return THREE.REVISION;
+    try {
+        if (typeof THREE !== 'undefined' && THREE.REVISION) {
+            return THREE.REVISION;
+        }
+        return 'unknown';
+    } catch (error) {
+        console.error('Error getting Three.js version:', error);
+        return 'error';
+    }
 }

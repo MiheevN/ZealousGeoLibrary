@@ -2,8 +2,6 @@
 @using ZealousMindedPeopleGeo.Models
 @using ZealousMindedPeopleGeo.Services.Mapping
 @using ZealousMindedPeopleGeo.Services.Repositories
-@inject IThreeJsGlobeService ThreeJsGlobeService
-@inject IParticipantRepository ParticipantRepository
 @implements IDisposable
 
 <div class="community-globe-container">
@@ -78,6 +76,143 @@
                     🎯
                 </button>
             </div>
+            <div>
+                <button @onclick="InitializeGlobeScriptsAsync">
+                    Init Scripts
+                </button>
+            </div>
+        </div>
+    }
+
+    <!-- Панель добавления участников -->
+    @if (_isInitialized && ShowParticipantManagement)
+    {
+        <div class="participant-management-panel">
+            <div class="panel-header">
+                <h3>👤 Управление участниками</h3>
+                <button class="panel-toggle" @onclick="ToggleParticipantPanel">
+                    @(_isParticipantPanelCollapsed ? "▼" : "▲")
+                </button>
+            </div>
+
+            @if (!_isParticipantPanelCollapsed)
+            {
+                <div class="panel-content">
+                    <!-- Форма добавления участника -->
+                    <EditForm Model="_newParticipant" OnValidSubmit="AddParticipantAsync" class="participant-form">
+                        <DataAnnotationsValidator />
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="participant-name">Имя:</label>
+                                <InputText id="participant-name" @bind-Value="_newParticipant.Name"
+                                           placeholder="Введите имя участника" class="form-input" />
+                                <ValidationMessage For="@(() => _newParticipant.Name)" />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="participant-latitude">Широта:</label>
+                                <InputNumber id="participant-latitude" @bind-Value="_newParticipant.Latitude"
+                                             placeholder="55.7558" step="0.0001" class="form-input" />
+                                <ValidationMessage For="@(() => _newParticipant.Latitude)" />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="participant-longitude">Долгота:</label>
+                                <InputNumber id="participant-longitude" @bind-Value="_newParticipant.Longitude"
+                                             placeholder="37.6173" step="0.0001" class="form-input" />
+                                <ValidationMessage For="@(() => _newParticipant.Longitude)" />
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-success" disabled="@_isAddingParticipant">
+                                @if (_isAddingParticipant)
+                                {
+                                    <span>⏳ Добавление...</span>
+                                }
+                                else
+                                {
+                                    <span>✅ Добавить участника</span>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="ClearParticipantForm">
+                                🗑️ Очистить
+                            </button>
+                            <button type="button" class="btn btn-info" @onclick="CenterOnFormCoordinates">
+                                🎯 Центрировать
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    <!-- Быстрое добавление -->
+                    <div class="quick-add-section">
+                        <h4>⚡ Быстрое добавление:</h4>
+                        <div class="quick-add-buttons">
+                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Москва", 55.7558, 37.6173))">
+                                🏛️ Москва
+                            </button>
+                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("СПб", 59.9343, 30.3351))">
+                                🏛️ СПб
+                            </button>
+                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Новосибирск", 55.0084, 82.9357))">
+                                🏛️ Новосибирск
+                            </button>
+                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Екатеринбург", 56.8389, 60.6057))">
+                                🏛️ Екатеринбург
+                            </button>
+                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Казань", 55.7961, 49.1064))">
+                                🏛️ Казань
+                            </button>
+                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Краснодар", 45.0355, 38.9753))">
+                                🏛️ Краснодар
+                            </button>
+                            <button class="quick-btn" @onclick="() => AddRandomParticipantAsync()">
+                                🎲 Случайный
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Удаление участника -->
+                    <div class="remove-section">
+                        <h4>🗑️ Удалить участника:</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="remove-participant-id">ID участника:</label>
+                                <InputNumber id="remove-participant-id" @bind-Value="_participantIdToRemove"
+                                             placeholder="Введите ID" class="form-input" />
+                            </div>
+                            <div class="form-group">
+                                <button class="btn btn-danger" @onclick="RemoveParticipantAsync" disabled="@_isRemovingParticipant">
+                                    @if (_isRemovingParticipant)
+                                    {
+                                        <span>⏳ Удаление...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>❌ Удалить</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Сообщение о статусе операции -->
+            @if (!string.IsNullOrEmpty(_operationMessage))
+            {
+                <div class="operation-status @(string.IsNullOrEmpty(_operationError) ? "success" : "error")">
+                    @if (string.IsNullOrEmpty(_operationError))
+                    {
+                        <span>✅ @_operationMessage</span>
+                    }
+                    else
+                    {
+                        <span>❌ @_operationMessage</span>
+                    }
+                </div>
+            }
         </div>
     }
 
@@ -113,272 +248,6 @@
         </div>
     }
 </div>
-
-@code {
-    /// <summary>
-    /// Уникальный идентификатор контейнера для глобуса
-    /// </summary>
-    [Parameter] public string ContainerId { get; set; } = $"globe-{Guid.NewGuid():N}";
-
-    /// <summary>
-    /// Ширина контейнера глобуса в пикселях
-    /// </summary>
-    [Parameter] public int Width { get; set; } = 800;
-
-    /// <summary>
-    /// Высота контейнера глобуса в пикселях
-    /// </summary>
-    [Parameter] public int Height { get; set; } = 600;
-
-    /// <summary>
-    /// Показывать панель управления
-    /// </summary>
-    [Parameter] public bool ShowControls { get; set; } = true;
-
-    /// <summary>
-    /// Показывать информацию об участниках при клике
-    /// </summary>
-    [Parameter] public bool ShowParticipantInfo { get; set; } = true;
-
-    /// <summary>
-    /// Параметры глобуса
-    /// </summary>
-    [Parameter] public GlobeOptions? Options { get; set; }
-
-    /// <summary>
-    /// Событие клика по участнику
-    /// </summary>
-    [Parameter] public EventCallback<Participant> OnParticipantClick { get; set; }
-
-    /// <summary>
-    /// Событие инициализации глобуса
-    /// </summary>
-    [Parameter] public EventCallback<GlobeInitializationResult> OnGlobeInitialized { get; set; }
-
-    /// <summary>
-    /// Событие изменения состояния глобуса
-    /// </summary>
-    [Parameter] public EventCallback<GlobeState> OnStateChanged { get; set; }
-
-    private bool _isInitializing = false;
-    private bool _isInitialized = false;
-    private string? _errorMessage;
-    private Participant? _selectedParticipant;
-    private int _participantCount;
-    private int _countryCount;
-    private int _currentLod = 2;
-    private bool _isAutoRotating = true;
-    private GlobeState? _currentState;
-    private System.Timers.Timer? _updateTimer;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Добавляем небольшую задержку для полной инициализации DOM
-            await Task.Delay(100);
-
-            await InitializeGlobeAsync();
-            await LoadParticipantsAsync();
-
-            // Настраиваем таймер для периодического обновления данных
-            _updateTimer = new System.Timers.Timer(30000); // Каждые 30 секунд
-            _updateTimer.Elapsed += async (s, e) => {
-                try {
-                    // Используем InvokeAsync для корректного обновления состояния в Blazor Server
-                    await InvokeAsync(async () => {
-                        await LoadParticipantsAsync();
-                    });
-                } catch (Exception ex) {
-                    Console.WriteLine($"Ошибка в таймере обновления участников: {ex.Message}");
-                }
-            };
-            _updateTimer.Start();
-        }
-    }
-
-    private async Task InitializeGlobeAsync()
-    {
-        _isInitializing = true;
-        _errorMessage = null;
-        StateHasChanged();
-
-        const int maxRetries = 3;
-        const int retryDelay = 200; // миллисекунды
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
-        {
-            try
-            {
-                // Добавляем дополнительную задержку между попытками
-                if (attempt > 1)
-                {
-                    await Task.Delay(retryDelay * attempt);
-                }
-
-                var globeOptions = Options ?? new GlobeOptions
-                {
-                    Width = Width,
-                    Height = Height,
-                    AutoRotate = true,
-                    EnableMouseControls = true,
-                    LevelOfDetail = _currentLod
-                };
-
-                var result = await ThreeJsGlobeService.InitializeGlobeAsync(ContainerId, globeOptions);
-
-                if (result.Success)
-                {
-                    _isInitialized = true;
-                    await OnGlobeInitialized.InvokeAsync(result);
-                    await UpdateGlobeStateAsync();
-                    return; // Успешная инициализация, выходим из цикла
-                }
-                else
-                {
-                    _errorMessage = result.ErrorMessage ?? "Неизвестная ошибка инициализации";
-                    if (attempt == maxRetries)
-                    {
-                        break; // Последняя попытка неудачна
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _errorMessage = $"Ошибка инициализации (попытка {attempt}/{maxRetries}): {ex.Message}";
-                if (attempt == maxRetries)
-                {
-                    break; // Последняя попытка неудачна
-                }
-            }
-        }
-
-        _isInitializing = false;
-        InvokeAsync(StateHasChanged);
-    }
-
-    private async Task LoadParticipantsAsync()
-    {
-        if (!_isInitialized) return;
-
-        try
-        {
-            var participants = await ParticipantRepository.GetAllParticipantsAsync();
-
-            var result = await ThreeJsGlobeService.AddParticipantsAsync(participants);
-
-            if (result.Success)
-            {
-                _participantCount = participants.Count();
-                await UpdateGlobeStateAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Ошибка загрузки участников: {ex.Message}";
-            StateHasChanged();
-        }
-    }
-
-    private async Task RetryInitializationAsync()
-    {
-        if (_isInitializing || _isInitialized) return;
-
-        await InitializeGlobeAsync();
-    }
-
-    private async Task ToggleRotationAsync()
-    {
-        if (!_isInitialized) return;
-
-        var result = await ThreeJsGlobeService.SetAutoRotationAsync(!_isAutoRotating);
-
-        if (result.Success)
-        {
-            _isAutoRotating = !_isAutoRotating;
-            await UpdateGlobeStateAsync();
-        }
-    }
-
-    private async Task OnLodChanged(ChangeEventArgs e)
-    {
-        if (!_isInitialized || !int.TryParse(e.Value?.ToString(), out var lod)) return;
-
-        _currentLod = lod;
-        var result = await ThreeJsGlobeService.SetLevelOfDetailAsync(lod);
-
-        if (result.Success)
-        {
-            await UpdateGlobeStateAsync();
-        }
-    }
-
-    private async Task RefreshDataAsync()
-    {
-        await LoadParticipantsAsync();
-    }
-
-    private async Task CenterOnUserAsync()
-    {
-        if (!_isInitialized) return;
-
-        // Центрируем на Москву по умолчанию
-        var result = await ThreeJsGlobeService.CenterOnAsync(55.7558, 37.6176);
-
-        if (result.Success)
-        {
-            await UpdateGlobeStateAsync();
-        }
-    }
-
-    private void CloseParticipantInfo()
-    {
-        _selectedParticipant = null;
-        StateHasChanged();
-    }
-
-    private async Task UpdateGlobeStateAsync()
-    {
-        if (!_isInitialized) return;
-
-        try
-        {
-            _currentState = await ThreeJsGlobeService.GetStateAsync();
-
-            if (_currentState != null)
-            {
-                _participantCount = _currentState.ParticipantCount;
-                _countryCount = _currentState.CountryCount;
-                _isAutoRotating = _currentState.IsAutoRotating;
-                _currentLod = _currentState.CurrentLevelOfDetail;
-
-                await OnStateChanged.InvokeAsync(_currentState);
-                StateHasChanged();
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Ошибка обновления состояния: {ex.Message}";
-            StateHasChanged();
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _updateTimer?.Stop();
-        _updateTimer?.Dispose();
-
-        if (_isInitialized)
-        {
-            await ThreeJsGlobeService.DisposeAsync();
-        }
-    }
-
-    void IDisposable.Dispose()
-    {
-        _ = DisposeAsync();
-    }
-}
 
 <style>
     .community-globe-container {
@@ -593,5 +462,225 @@
 
         .participant-detail span {
             color: #fff;
+        }
+
+    /* Стили для панели управления участниками */
+    .participant-management-panel {
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        margin: 1rem 0;
+        backdrop-filter: blur(10px);
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .panel-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .panel-header h3 {
+            color: #00aaff;
+            margin: 0;
+            font-size: 1rem;
+        }
+
+    .panel-toggle {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 4px;
+        transition: background 0.2s ease;
+    }
+
+        .panel-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+    .panel-content {
+        padding: 1rem;
+    }
+
+    .participant-form {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+        .form-group label {
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+    .form-input {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00aaff;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+    .form-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        background: #00aaff;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: bold;
+        transition: background 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+        .btn:hover:not(:disabled) {
+            background: #0088cc;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .btn-success {
+        background: #28a745;
+    }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+    .btn-secondary {
+        background: #6c757d;
+    }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+    .btn-info {
+        background: #17a2b8;
+    }
+
+        .btn-info:hover:not(:disabled) {
+            background: #138496;
+        }
+
+    .btn-danger {
+        background: #dc3545;
+    }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+    .quick-add-section {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+
+        .quick-add-section h4 {
+            color: #fff;
+            margin: 0 0 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+    .quick-add-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .quick-btn {
+        background: rgba(0, 170, 255, 0.2);
+        border: 1px solid rgba(0, 170, 255, 0.5);
+        color: #fff;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .quick-btn:hover {
+            background: rgba(0, 170, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+    .remove-section {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+
+        .remove-section h4 {
+            color: #fff;
+            margin: 0 0 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+    .operation-status {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        text-align: center;
+        font-weight: bold;
+    }
+
+        .operation-status.success {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid #28a745;
+            color: #28a745;
+        }
+
+        .operation-status.error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #dc3545;
         }
 </style>
