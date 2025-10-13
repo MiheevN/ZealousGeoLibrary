@@ -1,0 +1,169 @@
+/* Стили для 3D глобуса */
+.globe-canvas-container {
+    position: relative;
+    background: linear-gradient(135deg, #0f0f23, #1a1a2e);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.globe-loading-overlay, .globe-error-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(2px);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #333;
+    border-top: 3px solid #00aaff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.globe-controls {
+    background: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.participant-info-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    max-width: 300px;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.participant-management-panel {
+    background: rgba(0, 0, 0, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(10px);
+    color: white !important;
+}
+
+.participant-management-panel .form-control {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+}
+
+.participant-management-panel .form-control:focus {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: #00aaff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 170, 255, 0.25) !important;
+}
+
+.participant-management-panel .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.participant-management-panel .form-label {
+    color: white !important;
+    font-weight: bold;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    user-select: none;
+}
+
+.panel-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.panel-header h3 {
+    color: #00aaff;
+    margin: 0;
+    font-size: 1rem;
+}
+
+.panel-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+}
+
+.panel-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.panel-content {
+    padding: 1rem;
+}
+
+.participant-form {
+    margin-bottom: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.form-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #00aaff;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.form-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}

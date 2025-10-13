@@ -126,6 +126,7 @@ class CommunityGlobe {
         this.atmosphere = null;
         this.clouds = null;
         this.participantPoints = [];
+        this.participantLabels = [];
         this.countryPolygons = [];
         this.raycaster = null;
         this.mouse = { x: 0, y: 0 };
@@ -489,6 +490,9 @@ class CommunityGlobe {
             const points = new THREE.Points(geometry, material);
             this.earthGroup.add(points); // Добавляем в earthGroup чтобы точки вращались с глобусом
             this.participantPoints.push(points);
+
+            // Создаем текстовые метки
+            this.createParticipantLabels(participants);
             
             console.log(`🎯 Создано ${participants.length} точек участников`);
             console.log('Позиции точек:', positions.slice(0, 9)); // Первые 3 точки
@@ -514,7 +518,11 @@ class CommunityGlobe {
             points.geometry.dispose();
             if (points.material instanceof THREE.Material) points.material.dispose();
         });
+        this.participantLabels.forEach(label => {
+            this.earthGroup.remove(label);
+        });
         this.participantPoints = [];
+        this.participantLabels = [];
         this.pointMetadata.clear();
         this.state.participantCount = 0;
         console.log('🧹 Очищены все точки участников');
@@ -551,6 +559,39 @@ class CommunityGlobe {
         ctx.fill();
 
         return new THREE.CanvasTexture(canvas);
+    }
+
+    createParticipantLabels(participants) {
+        participants.forEach((participant, index) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const fontSize = 24;
+            const scale = 2;
+            
+            ctx.font = `${fontSize}px Arial`;
+            const textWidth = ctx.measureText(participant.name).width;
+            canvas.width = (textWidth + 20) * scale;
+            canvas.height = (fontSize + 10) * scale;
+            ctx.scale(scale, scale);
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.07)';
+            ctx.fillRect(0, 0, textWidth + 20, fontSize + 10);
+            ctx.fillStyle = 'white';
+            ctx.font = `${fontSize}px Arial`;
+            ctx.fillText(participant.name, 10, fontSize + 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            
+            const radius = 1 + this.options.participantPointOffset + 0.03;
+            const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
+            sprite.position.set(position.x, position.y, position.z);
+            sprite.scale.set(0.2, 0.1, 1);
+            
+            this.earthGroup.add(sprite);
+            this.participantLabels.push(sprite);
+        });
     }
 
     animate() {

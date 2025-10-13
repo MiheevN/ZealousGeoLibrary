@@ -4,59 +4,54 @@
 @using ZealousMindedPeopleGeo.Services.Repositories
 @implements IDisposable
 
-<div class="community-globe-container">
-    <!-- Контейнер для 3D глобуса -->
+
+<HeadContent>
+    <link href="/_content/ZealousMindedPeopleGeo/css/community-globe.css" rel="stylesheet" />
+</HeadContent>
+
+<div class="d-flex flex-column align-items-center gap-3">
     <div id="@ContainerId" class="globe-canvas-container"
          style="width: @(Width)px; height: @(Height)px;">
 
-        <!-- Индикатор загрузки -->
         @if (_isInitializing)
         {
-            <div class="globe-loading-overlay">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Загрузка глобуса</div>
+            <div class="globe-loading-overlay text-white text-center">
+                <div class="loading-spinner mb-3"></div>
+                <div>Загрузка глобуса</div>
             </div>
         }
 
-        <!-- Сообщение об ошибке -->
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <div class="globe-error-overlay">
-                <div class="error-icon">⚠️</div>
-                <div class="error-message">@_errorMessage</div>
-                <button class="retry-button" @onclick="RetryInitializationAsync">
+            <div class="globe-error-overlay text-center p-4">
+                <div class="fs-1 mb-3">⚠️</div>
+                <div class="text-danger mb-3">@_errorMessage</div>
+                <button class="btn btn-primary" @onclick="RetryInitializationAsync">
                     Повторить
                 </button>
             </div>
         }
     </div>
 
-    <!-- Панель управления глобусом -->
     @if (_isInitialized && ShowControls)
     {
-        <div class="globe-controls">
-            <div class="control-group">
-                <label class="control-label">Вращение:</label>
-                <button class="control-button @(_isAutoRotating ? "active" : "")"
-                        @onclick="ToggleRotationAsync"
-                        title="Включить/выключить автоповорот">
+        <div class="globe-controls d-flex gap-3 align-items-center p-2 rounded text-white">
+            <div class="d-flex align-items-center gap-2">
+                <small>Вращение:</small>
+                <button class="btn btn-sm @(_isAutoRotating ? "btn-info" : "btn-outline-light")"
+                        @onclick="ToggleRotationAsync">
                     🔄
                 </button>
             </div>
 
-            <div class="control-group">
-                <label class="control-label">Участники:</label>
-                <span class="participant-count">@_participantCount</span>
+            <div class="d-flex align-items-center gap-2">
+                <small>Участники:</small>
+                <span class="badge bg-info">@_participantCount</span>
             </div>
 
-            <div class="control-group">
-                <label class="control-label">Страны:</label>
-                <span class="country-count">@_countryCount</span>
-            </div>
-
-            <div class="control-group">
-                <label class="control-label">Детализация:</label>
-                <select class="control-select" @bind="_currentLod" @bind:event="oninput">
+            <div class="d-flex align-items-center gap-2">
+                <small>Детализация:</small>
+                <select class="form-select form-select-sm" @bind="_currentLod" style="width: auto;">
                     <option value="0">Низкая</option>
                     <option value="1">Средняя</option>
                     <option value="2">Высокая</option>
@@ -64,15 +59,11 @@
                 </select>
             </div>
 
-            <div class="control-group">
-                <button class="control-button"
-                        @onclick="RefreshDataAsync"
-                        title="Обновить данные">
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-light" @onclick="RefreshDataAsync" title="Обновить данные">
                     🔄
                 </button>
-                <button class="control-button"
-                        @onclick="CenterOnUserAsync"
-                        title="Центрировать на пользователе">
+                <button class="btn btn-sm btn-outline-light" @onclick="CenterOnUserAsync" title="Центрировать">
                     🎯
                 </button>
             </div>
@@ -93,118 +84,52 @@
             @if (!_isParticipantPanelCollapsed)
             {
                 <div class="panel-content">
-                    <!-- Форма добавления участника -->
                     <div class="participant-form">
-
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="participant-name">Имя:</label>
-                                <InputText id="participant-name" @bind-Value="_newParticipant.Name"
-                                           placeholder="Введите имя участника" class="form-input" />
-
+                                <label>Имя:</label>
+                                <InputText @bind-Value="_newParticipant.Name" placeholder="Введите имя участника" class="form-input" />
                             </div>
-
                             <div class="form-group">
-                                <label for="participant-latitude">Широта:</label>
-                                <InputNumber id="participant-latitude" @bind-Value="_newParticipant.Latitude"
-                                             placeholder="55.7558" step="0.0001" class="form-input" />
-
+                                <label>Широта:</label>
+                                <InputNumber @bind-Value="_newParticipant.Latitude" placeholder="Например 55.7558" step="0.0001" class="form-input" />
                             </div>
-
                             <div class="form-group">
-                                <label for="participant-longitude">Долгота:</label>
-                                <InputNumber id="participant-longitude" @bind-Value="_newParticipant.Longitude"
-                                             placeholder="37.6173" step="0.0001" class="form-input" />
-
+                                <label>Долгота:</label>
+                                <InputNumber @bind-Value="_newParticipant.Longitude" placeholder="Например 37.6173" step="0.0001" class="form-input" />
                             </div>
                         </div>
 
                         <div class="form-actions">
                             <button type="button" class="btn btn-success" @onclick="AddParticipantAsync" disabled="@_isAddingParticipant">
-                                @if (_isAddingParticipant)
-                                {
-                                    <span>⏳ Добавление...</span>
-                                }
-                                else
-                                {
-                                    <span>✅ Добавить участника</span>
-                                }
+                                @if (_isAddingParticipant) { <span>⏳ Добавление...</span> } else { <span>✅ Добавить участника</span> }
                             </button>
-                            <button type="button" class="btn btn-secondary" @onclick="ClearParticipantForm">
-                                🗑️ Очистить
-                            </button>
-                            <button type="button" class="btn btn-info" @onclick="CenterOnFormCoordinates">
-                                🎯 Центрировать
-                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="ClearParticipantForm">🗑️ Очистить</button>
+                            <button type="button" class="btn btn-info" @onclick="CenterOnFormCoordinates">🎯 Центрировать</button>
                         </div>
                     </div>
 
-                    <!-- Быстрое добавление -->
-                    <div class="quick-add-section">
-                        <h4>⚡ Быстрое добавление:</h4>
-                        <div class="quick-add-buttons">
-                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Москва", 55.7558, 37.6173))">
-                                🏛️ Москва
-                            </button>
-                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("СПб", 59.9343, 30.3351))">
-                                🏛️ СПб
-                            </button>
-                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Новосибирск", 55.0084, 82.9357))">
-                                🏛️ Новосибирск
-                            </button>
-                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Екатеринбург", 56.8389, 60.6057))">
-                                🏛️ Екатеринбург
-                            </button>
-                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Казань", 55.7961, 49.1064))">
-                                🏛️ Казань
-                            </button>
-                            <button class="quick-btn" @onclick="@(() => AddQuickParticipantAsync("Краснодар", 45.0355, 38.9753))">
-                                🏛️ Краснодар
-                            </button>
-                            <button class="quick-btn" @onclick="() => AddRandomParticipantAsync()">
-                                🎲 Случайный
-                            </button>
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="text-white mb-2">⚡ Быстрое добавление:</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Москва", 55.7558, 37.6173))">🏛️ Москва</button>
+                            <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("СПб", 59.9343, 30.3351))">🏛️ СПб</button>
+                            <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Новосибирск", 55.0084, 82.9357))">🏛️ Новосибирск</button>
+                            <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Екатеринбург", 56.8389, 60.6057))">🏛️ Екатеринбург</button>
+                            <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Казань", 55.7961, 49.1064))">🏛️ Казань</button>
+                            <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Краснодар", 45.0355, 38.9753))">🏛️ Краснодар</button>
+                            <button class="btn btn-sm btn-outline-info" @onclick="() => AddRandomParticipantAsync()">🎲 Случайный</button>
                         </div>
                     </div>
 
-                    <!-- Удаление участника -->
-                    <div class="remove-section">
-                        <h4>🗑️ Удалить участника:</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="remove-participant-id">ID участника:</label>
-                                <InputNumber id="remove-participant-id" @bind-Value="_participantIdToRemove"
-                                             placeholder="Введите ID" class="form-input" />
-                            </div>
-                            <div class="form-group">
-                                <button class="btn btn-danger" @onclick="RemoveParticipantAsync" disabled="@_isRemovingParticipant">
-                                    @if (_isRemovingParticipant)
-                                    {
-                                        <span>⏳ Удаление...</span>
-                                    }
-                                    else
-                                    {
-                                        <span>❌ Удалить</span>
-                                    }
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             }
 
-            <!-- Сообщение о статусе операции -->
             @if (!string.IsNullOrEmpty(_operationMessage))
             {
-                <div class="operation-status @(string.IsNullOrEmpty(_operationError) ? "success" : "error")">
-                    @if (string.IsNullOrEmpty(_operationError))
-                    {
-                        <span>✅ @_operationMessage</span>
-                    }
-                    else
-                    {
-                        <span>❌ @_operationMessage</span>
-                    }
+                <div class="alert @(string.IsNullOrEmpty(_operationError) ? "alert-success" : "alert-danger") mt-3">
+                    @if (string.IsNullOrEmpty(_operationError)) { <span>✅ @_operationMessage</span> } else { <span>❌ @_operationMessage</span> }
                 </div>
             }
         </div>
@@ -243,438 +168,3 @@
     }
 </div>
 
-<style>
-    .community-globe-container {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .globe-canvas-container {
-        position: relative;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        background: linear-gradient(135deg, #0f0f23, #1a1a2e);
-    }
-
-    .globe-loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(2px);
-    }
-
-    .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #333;
-        border-top: 3px solid #00aaff;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 1rem;
-    }
-
-    @@keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    .loading-text {
-        color: #fff;
-        font-size: 0.9rem;
-    }
-
-    .globe-error-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.8);
-        text-align: center;
-        padding: 2rem;
-    }
-
-    .error-icon {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    .error-message {
-        color: #ff6b6b;
-        margin-bottom: 1.5rem;
-        max-width: 300px;
-    }
-
-    .retry-button {
-        background: #00aaff;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
-
-        .retry-button:hover {
-            background: #0088cc;
-        }
-
-    .globe-controls {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        padding: 0.5rem;
-        background: rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .control-group {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .control-label {
-        color: #fff;
-        font-size: 0.8rem;
-        white-space: nowrap;
-    }
-
-    .control-button {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #fff;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-        .control-button:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .control-button.active {
-            background: #00aaff;
-            border-color: #00aaff;
-        }
-
-    .control-select {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #fff;
-        padding: 0.25rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-    }
-
-    .participant-count,
-    .country-count {
-        color: #00aaff;
-        font-weight: bold;
-        font-size: 0.8rem;
-    }
-
-    .participant-info-panel {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: rgba(0, 0, 0, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
-        padding: 1rem;
-        max-width: 300px;
-        backdrop-filter: blur(10px);
-    }
-
-    .participant-info-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding-bottom: 0.5rem;
-    }
-
-        .participant-info-header h4 {
-            color: #00aaff;
-            margin: 0;
-            font-size: 1rem;
-        }
-
-    .close-button {
-        background: none;
-        border: none;
-        color: #fff;
-        cursor: pointer;
-        font-size: 1.2rem;
-        padding: 0;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-        .close-button:hover {
-            color: #ff6b6b;
-        }
-
-    .participant-detail {
-        margin-bottom: 0.5rem;
-        font-size: 0.8rem;
-    }
-
-        .participant-detail strong {
-            color: #aaa;
-            display: inline-block;
-            min-width: 80px;
-        }
-
-        .participant-detail span {
-            color: #fff;
-        }
-
-    /* Стили для панели управления участниками */
-    .participant-management-panel {
-        background: rgba(0, 0, 0, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
-        margin: 1rem 0;
-        backdrop-filter: blur(10px);
-    }
-
-    .panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        cursor: pointer;
-        user-select: none;
-    }
-
-        .panel-header:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .panel-header h3 {
-            color: #00aaff;
-            margin: 0;
-            font-size: 1rem;
-        }
-
-    .panel-toggle {
-        background: none;
-        border: none;
-        color: #fff;
-        font-size: 1rem;
-        cursor: pointer;
-        padding: 0.25rem;
-        border-radius: 4px;
-        transition: background 0.2s ease;
-    }
-
-        .panel-toggle:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-    .panel-content {
-        padding: 1rem;
-    }
-
-    .participant-form {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-        .form-group label {
-            color: #fff;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-    .form-input {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #fff;
-        padding: 0.5rem;
-        border-radius: 4px;
-        font-size: 0.9rem;
-    }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #00aaff;
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .form-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-    .form-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .btn {
-        background: #00aaff;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        font-weight: bold;
-        transition: background 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-        .btn:hover:not(:disabled) {
-            background: #0088cc;
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-    .btn-success {
-        background: #28a745;
-    }
-
-        .btn-success:hover:not(:disabled) {
-            background: #218838;
-        }
-
-    .btn-secondary {
-        background: #6c757d;
-    }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: #5a6268;
-        }
-
-    .btn-info {
-        background: #17a2b8;
-    }
-
-        .btn-info:hover:not(:disabled) {
-            background: #138496;
-        }
-
-    .btn-danger {
-        background: #dc3545;
-    }
-
-        .btn-danger:hover:not(:disabled) {
-            background: #c82333;
-        }
-
-    .quick-add-section {
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: 1rem;
-        margin-top: 1rem;
-    }
-
-        .quick-add-section h4 {
-            color: #fff;
-            margin: 0 0 0.5rem 0;
-            font-size: 0.9rem;
-        }
-
-    .quick-add-buttons {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 0.5rem;
-    }
-
-    .quick-btn {
-        background: rgba(0, 170, 255, 0.2);
-        border: 1px solid rgba(0, 170, 255, 0.5);
-        color: #fff;
-        padding: 0.5rem;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-        .quick-btn:hover {
-            background: rgba(0, 170, 255, 0.3);
-            transform: translateY(-1px);
-        }
-
-    .remove-section {
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: 1rem;
-        margin-top: 1rem;
-    }
-
-        .remove-section h4 {
-            color: #fff;
-            margin: 0 0 0.5rem 0;
-            font-size: 0.9rem;
-        }
-
-    .operation-status {
-        margin-top: 1rem;
-        padding: 0.75rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        text-align: center;
-        font-weight: bold;
-    }
-
-        .operation-status.success {
-            background: rgba(40, 167, 69, 0.2);
-            border: 1px solid #28a745;
-            color: #28a745;
-        }
-
-        .operation-status.error {
-            background: rgba(220, 53, 69, 0.2);
-            border: 1px solid #dc3545;
-            color: #dc3545;
-        }
-</style>
