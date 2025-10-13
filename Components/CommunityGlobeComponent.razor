@@ -76,11 +76,6 @@
                     🎯
                 </button>
             </div>
-            <div>
-                <button @onclick="InitializeGlobeScriptsAsync">
-                    Init Scripts
-                </button>
-            </div>
         </div>
     }
 
@@ -99,34 +94,33 @@
             {
                 <div class="panel-content">
                     <!-- Форма добавления участника -->
-                    <EditForm Model="_newParticipant" OnValidSubmit="AddParticipantAsync" class="participant-form">
-                        <DataAnnotationsValidator />
+                    <div class="participant-form">
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="participant-name">Имя:</label>
                                 <InputText id="participant-name" @bind-Value="_newParticipant.Name"
                                            placeholder="Введите имя участника" class="form-input" />
-                                <ValidationMessage For="@(() => _newParticipant.Name)" />
+
                             </div>
 
                             <div class="form-group">
                                 <label for="participant-latitude">Широта:</label>
                                 <InputNumber id="participant-latitude" @bind-Value="_newParticipant.Latitude"
                                              placeholder="55.7558" step="0.0001" class="form-input" />
-                                <ValidationMessage For="@(() => _newParticipant.Latitude)" />
+
                             </div>
 
                             <div class="form-group">
                                 <label for="participant-longitude">Долгота:</label>
                                 <InputNumber id="participant-longitude" @bind-Value="_newParticipant.Longitude"
                                              placeholder="37.6173" step="0.0001" class="form-input" />
-                                <ValidationMessage For="@(() => _newParticipant.Longitude)" />
+
                             </div>
                         </div>
 
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-success" disabled="@_isAddingParticipant">
+                            <button type="button" class="btn btn-success" @onclick="AddParticipantAsync" disabled="@_isAddingParticipant">
                                 @if (_isAddingParticipant)
                                 {
                                     <span>⏳ Добавление...</span>
@@ -143,7 +137,7 @@
                                 🎯 Центрировать
                             </button>
                         </div>
-                    </EditForm>
+                    </div>
 
                     <!-- Быстрое добавление -->
                     <div class="quick-add-section">

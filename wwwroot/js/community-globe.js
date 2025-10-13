@@ -76,8 +76,9 @@ class CommunityGlobe {
             backgroundColor: '#000011',
             atmosphereColor: '#00aaff',
             atmosphereOpacity: 0.2,
-            participantPointSize: 0.5,
+            participantPointSize: 0.2,
             participantPointColor: '#ffff00',
+            participantPointOffset: 0.02, // Расстояние точек от поверхности глобуса
             highlightedPointColor: '#ff6600',
             autoRotate: true,
             autoRotateSpeed: 0.1,
@@ -101,7 +102,7 @@ class CommunityGlobe {
             // Настройки освещения
             sunLightIntensity: 3.0,
             sunLightColor: '#ffffff',
-            ambientLightIntensity: 3,
+            ambientLightIntensity: 4,
             ambientLightColor: '#404040',
             atmosphereLightIntensity: 1,
             atmosphereLightColor: '#00aaff',
@@ -263,7 +264,7 @@ class CommunityGlobe {
     }
 
     createEarth() {
-        const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+        const earthGeometry = new THREE.SphereGeometry(1, 128, 128); // Увеличиваем количество сегментов
         const textureLoader = new THREE.TextureLoader();
 
         console.log('🌍 Загрузка текстур глобуса:');
@@ -283,11 +284,12 @@ class CommunityGlobe {
             }
         };
 
-        const earthMaterial = new THREE.MeshPhongMaterial({
+        const earthMaterial = new THREE.MeshStandardMaterial({
             map: loadTexture(this.options.earthTextureUrl),
             normalMap: loadTexture(this.options.normalTextureUrl),
-            specularMap: loadTexture(this.options.specularTextureUrl),
-            shininess: 0.1
+            roughnessMap: loadTexture(this.options.specularTextureUrl),
+            roughness: 0.8,
+            metalness: 0.1
         });
 
         const earth = new THREE.Mesh(earthGeometry, earthMaterial);
@@ -298,7 +300,7 @@ class CommunityGlobe {
     createAtmosphere() {
         if (!this.options.enableAtmosphereGlow) return;
 
-        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 64, 64);
+        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 128, 128);
         const atmosphereMaterial = new THREE.MeshPhongMaterial({
             color: this.options.atmosphereColor,
             transparent: true,
@@ -313,7 +315,7 @@ class CommunityGlobe {
     createClouds() {
         if (!this.options.enableClouds || !this.options.cloudsTextureUrl) return;
 
-        const cloudsGeometry = new THREE.SphereGeometry(1.01, 64, 64);
+        const cloudsGeometry = new THREE.SphereGeometry(1.01, 128, 128);
         const textureLoader = new THREE.TextureLoader();
 
         console.log('☁️ Загрузка текстуры облаков:', this.options.cloudsTextureUrl);
@@ -447,7 +449,8 @@ class CommunityGlobe {
             const sizes = [];
 
             participants.forEach((participant, index) => {
-                const position = this.latLngToVector3(participant.latitude, participant.longitude, 1.001);
+                const radius = 1 + this.options.participantPointOffset;
+                const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
                 positions.push(position.x, position.y, position.z);
                 const color = new THREE.Color(this.options.participantPointColor);
                 colors.push(color.r, color.g, color.b);
@@ -468,7 +471,7 @@ class CommunityGlobe {
                     void main() {
                         vColor = color;
                         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                        gl_PointSize = size * (300.0 / -mvPosition.z);
+                        gl_PointSize = size * (150.0 / -mvPosition.z);
                         gl_Position = projectionMatrix * mvPosition;
                     }
                 `,
@@ -484,11 +487,16 @@ class CommunityGlobe {
             });
 
             const points = new THREE.Points(geometry, material);
-            this.scene.add(points);
+            this.earthGroup.add(points); // Добавляем в earthGroup чтобы точки вращались с глобусом
             this.participantPoints.push(points);
+            
+            console.log(`🎯 Создано ${participants.length} точек участников`);
+            console.log('Позиции точек:', positions.slice(0, 9)); // Первые 3 точки
+            console.log('Размеры точек:', sizes.slice(0, 3));
             this.state.participantCount = participants.length;
 
-            console.log(`Added ${participants.length} participants to globe`);
+            console.log(`✅ Добавлено ${participants.length} участников на глобус`);
+        console.log(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
             return true;
         } catch (error) {
             console.error('Error adding participants:', error);
@@ -502,13 +510,14 @@ class CommunityGlobe {
      */
     clearParticipants() {
         this.participantPoints.forEach(points => {
-            this.scene.remove(points);
+            this.earthGroup.remove(points); // Удаляем из earthGroup
             points.geometry.dispose();
             if (points.material instanceof THREE.Material) points.material.dispose();
         });
         this.participantPoints = [];
         this.pointMetadata.clear();
         this.state.participantCount = 0;
+        console.log('🧹 Очищены все точки участников');
     }
 
     latLngToVector3(lat, lng, radius = 1) {
@@ -550,7 +559,7 @@ class CommunityGlobe {
         this.animationId = requestAnimationFrame(() => this.animate());
         const deltaTime = this.clock.getDelta();
 
-        if (this.earthGroup) {
+        if (this.earthGroup && this.state.isAutoRotating) {
             this.earthRotation += deltaTime * 0.1;
             this.earthGroup.rotation.y = this.earthRotation;
         }
@@ -718,7 +727,8 @@ class CommunityGlobe {
         participant.latitude = latitude;
         participant.longitude = longitude;
 
-        const position = this.latLngToVector3(latitude, longitude, 1.001);
+        const radius = 1 + this.options.participantPointOffset;
+        const position = this.latLngToVector3(latitude, longitude, radius);
         const geometry = this.participantPoints[0].geometry;
         const positions = geometry.attributes.position.array;
         positions[index * 3] = position.x;
@@ -771,7 +781,10 @@ class CommunityGlobe {
      * @returns {boolean} true если участник успешно добавлен
      */
     addTestParticipant(participant) {
-        if (!this.state.isInitialized) return;
+        if (!this.state.isInitialized) {
+            console.log('❌ Глобус не инициализирован');
+            return false;
+        }
 
         // Проверяем, существует ли уже участник с таким ID
         const existingIndex = Array.from(this.pointMetadata.values()).findIndex(p => p.id === participant.id);
@@ -784,9 +797,11 @@ class CommunityGlobe {
         const participants = Array.from(this.pointMetadata.values());
         participants.push(participant);
 
-        this.addParticipants(participants);
-        console.log(`Добавлен новый участник: ${participant.name} (${participant.latitude}, ${participant.longitude})`);
-        return true;
+        const result = this.addParticipants(participants);
+        if (result) {
+            console.log(`✅ Добавлен новый участник: ${participant.name} (${participant.latitude}, ${participant.longitude})`);
+        }
+        return result;
     }
 }
 
@@ -821,11 +836,14 @@ export function createGlobe(containerId, options) {
  */
 export function addParticipants(participants) {
     try {
+        console.log('🔄 Добавление участников:', participants?.length || 0);
         const globe = globeInstances.values().next().value;
         if (globe && globe.state && globe.state.isInitialized) {
-            globe.addParticipants(participants);
-            return true;
+            const result = globe.addParticipants(participants);
+            console.log('✅ Результат добавления участников:', result);
+            return result;
         }
+        console.log('❌ Глобус не инициализирован');
         return false;
     } catch (error) {
         console.error('Error adding participants:', error);
@@ -1067,5 +1085,37 @@ export function getThreeJsVersion() {
     } catch (error) {
         console.error('Error getting Three.js version:', error);
         return 'error';
+    }
+}
+
+/**
+ * Отладочная функция для проверки состояния глобуса
+ */
+export function debugGlobeState() {
+    try {
+        console.log('🔍 Отладка состояния глобуса:');
+        console.log('Зависимости загружены:', dependenciesLoaded);
+        console.log('Количество экземпляров глобуса:', globeInstances.size);
+        
+        const globe = globeInstances.values().next().value;
+        if (globe) {
+            console.log('Состояние глобуса:', globe.state);
+            console.log('Количество точек участников:', globe.participantPoints.length);
+            console.log('Метаданные участников:', globe.pointMetadata.size);
+            
+            if (globe.earthGroup) {
+                console.log('Объекты в earthGroup:', globe.earthGroup.children.length);
+                globe.earthGroup.children.forEach((child, index) => {
+                    console.log(`  ${index}: ${child.type} (${child.constructor.name})`);
+                });
+            }
+        } else {
+            console.log('❌ Глобус не найден');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error in debug function:', error);
+        return false;
     }
 }

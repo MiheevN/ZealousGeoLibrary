@@ -237,13 +237,9 @@ public partial class CommunityGlobeComponent
             try
             {
 
-                await JSRuntime.InvokeVoidAsync("import", "_content/ZealousMindedPeopleGeo/js/community-globe-global.js");
+                await JSRuntime.InvokeVoidAsync("import", "_content/ZealousMindedPeopleGeo/js/community-globe.js");
 
                 Console.WriteLine("✅ Community Globe загружен");
-
-                // Загружаем инициализатор последним
-                await JSRuntime.InvokeVoidAsync("import", "_content/ZealousMindedPeopleGeo/js/globe-initializer.js");
-                Console.WriteLine("✅ Globe Initializer загружен");
 
                 // Даем время на полную инициализацию
                 await Task.Delay(1000);
@@ -325,11 +321,13 @@ public partial class CommunityGlobeComponent
     {
         if (!_isInitialized) return;
 
-        var result = await GlobeMediator.SetAutoRotationAsync(!_isAutoRotating);
+        var newRotationState = !_isAutoRotating;
+        var speed = newRotationState ? 0.5 : 0.0;
+        var result = await GlobeMediator.SetAutoRotationAsync(newRotationState, speed);
 
         if (result.Success)
         {
-            _isAutoRotating = !_isAutoRotating;
+            _isAutoRotating = newRotationState;
             await UpdateGlobeStateAsync();
         }
     }
@@ -461,86 +459,35 @@ public partial class CommunityGlobeComponent
                 location = $"{_newParticipant.Name} ({_newParticipant.Latitude.Value:F4}, {_newParticipant.Longitude.Value:F4})"
             };
 
-            // Добавляем участника на глобус через JavaScript или репозиторий (fallback для тестов)
-            Console.WriteLine($"🔍 Перед добавлением участника: {_newParticipant.Name} ({jsParticipant.latitude}, {jsParticipant.longitude})");
-
-            // Проверяем доступность функции перед вызовом
-            bool isFunctionAvailable = false;
-            try
+            // Создаем участника для репозитория
+            var participant = new Participant
             {
-                isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule && typeof window.globeModule.safeAddTestParticipant === 'function'");
-                Console.WriteLine($"Функция safeAddTestParticipant доступна: {isFunctionAvailable}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"⚠️ JavaScript недоступен в тестовом окружении: {ex.Message}");
-                isFunctionAvailable = false;
-            }
+                Id = Guid.NewGuid(),
+                Name = _newParticipant.Name,
+                Address = $"{_newParticipant.Latitude.Value:F4}, {_newParticipant.Longitude.Value:F4}",
+                Email = "user@example.com",
+                Location = _newParticipant.Name,
+                City = _newParticipant.City ?? _newParticipant.Name,
+                Country = _newParticipant.Country ?? "Россия",
+                Latitude = _newParticipant.Latitude.Value,
+                Longitude = _newParticipant.Longitude.Value,
+                Message = _newParticipant.Message ?? $"Добавлен через форму: {_newParticipant.Name}",
+                RegisteredAt = DateTime.UtcNow,
+                Timestamp = DateTime.UtcNow
+            };
 
-            bool result = false;
-            if (isFunctionAvailable)
-            {
-                // JavaScript доступен - используем его
-                if (!isFunctionAvailable)
-                {
-                    // Пробуем инициализировать скрипты заново
-                    Console.WriteLine("🔄 Повторная инициализация скриптов...");
-                    await InitializeGlobeScriptsAsync();
-                    await Task.Delay(1000); // Даем дополнительное время на загрузку
-
-                    // Проверяем еще раз
-                    try
-                    {
-                        isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule && typeof window.globeModule.safeAddTestParticipant === 'function'");
-                        Console.WriteLine($"После повторной инициализации функция доступна: {isFunctionAvailable}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"⚠️ Повторная проверка не удалась: {ex.Message}");
-                        isFunctionAvailable = false;
-                    }
-                }
-
-                if (isFunctionAvailable)
-                {
-                    result = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule.safeAddTestParticipant({System.Text.Json.JsonSerializer.Serialize(jsParticipant)})");
-                    Console.WriteLine($"Результат добавления участника через JS: {result}");
-                }
-                else
-                {
-                    Console.WriteLine("❌ JavaScript функции недоступны после всех попыток");
-                    result = false;
-                }
-            }
-
-            if (!result && !isFunctionAvailable)
-            {
-                // JavaScript недоступен (тестовое окружение) - используем репозиторий напрямую
-                Console.WriteLine("🔄 JS недоступен, добавляем участника через репозиторий");
-                var participant = new Participant
-                {
-                    Id = Guid.NewGuid(),
-                    Name = _newParticipant.Name,
-                    City = _newParticipant.City ?? _newParticipant.Name,
-                    Country = _newParticipant.Country ?? "Россия",
-                    Latitude = _newParticipant.Latitude.Value,
-                    Longitude = _newParticipant.Longitude.Value,
-                    Message = _newParticipant.Message ?? $"Добавлен через форму: {_newParticipant.Name}",
-                    RegisteredAt = DateTime.UtcNow,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                var addResult = await ParticipantRepository.AddParticipantAsync(participant);
-                result = addResult.Success;
-                Console.WriteLine($"Результат добавления участника через репозиторий: {result}");
-            }
+            // Добавляем в репозиторий
+            var addResult = await ParticipantRepository.AddParticipantAsync(participant);
+            bool result = addResult.Success;
+            
+            Console.WriteLine($"Результат добавления участника: {result}");
 
             if (result)
             {
                 ShowOperationMessage($"✅ Участник '{_newParticipant.Name}' добавлен!", false);
                 ClearParticipantForm();
-                await LoadParticipantsAsync(); // Обновляем счетчик
-                await OnParticipantAdded.InvokeAsync(_newParticipant);
+                await LoadParticipantsAsync(); // Обновляем глобус через сервис
+                await OnParticipantAdded.InvokeAsync(participant);
             }
             else
             {
@@ -608,8 +555,11 @@ public partial class CommunityGlobeComponent
                 {
                     Id = Guid.NewGuid(),
                     Name = name,
+                    Address = $"{latitude:F4}, {longitude:F4}", // Обязательное поле
+                    Email = "user@example.com", // Обязательное поле
+                    Location = name, // Обязательное поле
                     City = name,
-                    Country = "Россия", // Для быстрого добавления используем Россию по умолчанию
+                    Country = "Россия",
                     Latitude = latitude,
                     Longitude = longitude,
                     Message = $"Быстро добавлен: {name}",
