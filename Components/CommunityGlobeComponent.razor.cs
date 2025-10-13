@@ -468,7 +468,7 @@ public partial class CommunityGlobeComponent
             bool isFunctionAvailable = false;
             try
             {
-                isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"typeof window.safeAddTestParticipant === 'function'");
+                isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule && typeof window.globeModule.safeAddTestParticipant === 'function'");
                 Console.WriteLine($"Функция safeAddTestParticipant доступна: {isFunctionAvailable}");
             }
             catch (Exception ex)
@@ -491,7 +491,7 @@ public partial class CommunityGlobeComponent
                     // Проверяем еще раз
                     try
                     {
-                        isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"typeof window.safeAddTestParticipant === 'function'");
+                        isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule && typeof window.globeModule.safeAddTestParticipant === 'function'");
                         Console.WriteLine($"После повторной инициализации функция доступна: {isFunctionAvailable}");
                     }
                     catch (Exception ex)
@@ -503,7 +503,7 @@ public partial class CommunityGlobeComponent
 
                 if (isFunctionAvailable)
                 {
-                    result = await JSRuntime.InvokeAsync<bool>("safeAddTestParticipant", jsParticipant);
+                    result = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule.safeAddTestParticipant({System.Text.Json.JsonSerializer.Serialize(jsParticipant)})");
                     Console.WriteLine($"Результат добавления участника через JS: {result}");
                 }
                 else
@@ -584,7 +584,7 @@ public partial class CommunityGlobeComponent
             bool isFunctionAvailable = false;
             try
             {
-                isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"typeof window.safeAddTestParticipant === 'function'");
+                isFunctionAvailable = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule && typeof window.globeModule.safeAddTestParticipant === 'function'");
                 Console.WriteLine($"Функция safeAddTestParticipant доступна: {isFunctionAvailable}");
             }
             catch (Exception ex)
@@ -596,8 +596,8 @@ public partial class CommunityGlobeComponent
             bool result = false;
             if (isFunctionAvailable)
             {
-                // JavaScript доступен - используем его
-                result = await JSRuntime.InvokeAsync<bool>("safeAddTestParticipant", jsParticipant);
+                // JavaScript доступен - используем модульную функцию
+                result = await JSRuntime.InvokeAsync<bool>("eval", $"window.globeModule.safeAddTestParticipant({System.Text.Json.JsonSerializer.Serialize(jsParticipant)})");
                 Console.WriteLine($"Результат быстрого добавления участника через JS: {result}");
             }
             else

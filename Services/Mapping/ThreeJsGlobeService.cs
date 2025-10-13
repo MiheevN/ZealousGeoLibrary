@@ -10,7 +10,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 {
     private readonly IJSRuntime _jsRuntime;
     private readonly ILogger<ThreeJsGlobeService> _logger;
-    private readonly Dictionary<string, object> _globeInstances = new();
+    private IJSObjectReference? _module;
 
     public ThreeJsGlobeService(IJSRuntime jsRuntime, ILogger<ThreeJsGlobeService> logger)
     {
@@ -28,74 +28,19 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 
         try
         {
-            _logger.LogInformation("Loading modular globe scripts for container: {ContainerId}", containerId);
+            _logger.LogInformation("Loading globe module for container: {ContainerId}", containerId);
 
-            // Загружаем модульную версию скрипта глобуса
-            await _jsRuntime.InvokeVoidAsync("import", $"/_content/ZealousMindedPeopleGeo/js/libs/three.module.js");
-            await _jsRuntime.InvokeVoidAsync("import", $"/_content/ZealousMindedPeopleGeo/js/libs/OrbitControls.js");
-            await _jsRuntime.InvokeVoidAsync("import", $"/_content/ZealousMindedPeopleGeo/js/community-globe.js");
-
-            _logger.LogInformation("Globe scripts loaded for container: {ContainerId}", containerId);
-
-            // Ждем доступности функций модуля
-            int attempts = 0;
-            const int maxAttempts = 50;
-            bool moduleAvailable = false;
-
-            while (attempts < maxAttempts && !moduleAvailable)
+            // Инициализируем модуль если еще не сделали
+            if (_module == null)
             {
-                try
-                {
-                    // Проверяем доступность модуля через eval с динамическим импортом
-                    await _jsRuntime.InvokeVoidAsync("eval", @"
-                        (async function() {
-                            try {
-                                if (typeof window.globeModule === 'undefined') {
-                                    window.globeModule = await import('/_content/ZealousMindedPeopleGeo/js/community-globe.js');
-                                }
-                            } catch (e) {
-                                console.error('Module load error:', e);
-                            }
-                        })();
-                    ");
-
-                    // Проверяем, что функции доступны
-                    moduleAvailable = await _jsRuntime.InvokeAsync<bool>("eval", @"
-                        typeof window.globeModule !== 'undefined' &&
-                        typeof window.globeModule.createGlobe === 'function'
-                    ");
-
-                    if (moduleAvailable)
-                    {
-                        _logger.LogInformation("Globe module is available on attempt {Attempt}", attempts + 1);
-                        break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug("Attempt {Attempt}: Module not available yet: {Message}", attempts + 1, ex.Message);
-                }
-
-                attempts++;
-                if (attempts < maxAttempts)
-                {
-                    await Task.Delay(100);
-                }
-            }
-
-            if (!moduleAvailable)
-            {
-                return new GlobeInitializationResult
-                {
-                    Success = false,
-                    ErrorMessage = "Globe module is not available after maximum attempts"
-                };
+                _module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", 
+                    "/_content/ZealousMindedPeopleGeo/js/community-globe.js");
+                _logger.LogInformation("Globe module loaded successfully");
             }
 
             // Создаем глобус через модуль
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule.createGlobe('{containerId}', {System.Text.Json.JsonSerializer.Serialize(options)})");
-
-            if (!result)
+            var success = await _module.InvokeAsync<bool>("createGlobe", containerId, options);
+            if (!success)
             {
                 return new GlobeInitializationResult
                 {
@@ -104,13 +49,20 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
                 };
             }
 
-            // Сохраняем экземпляр глобуса
-            _globeInstances[containerId] = new object();
+            // Модуль уже сохранен в _module
 
             _logger.LogInformation("3D globe initialized for container: {ContainerId}", containerId);
 
-            // Получаем версию Three.js через модуль
-            var version = await _jsRuntime.InvokeAsync<string>("eval", "typeof window.THREE !== 'undefined' && window.THREE.REVISION ? window.THREE.REVISION : 'unknown'");
+            // Получаем версию Three.js
+            var version = "unknown";
+            try
+            {
+                version = await _module.InvokeAsync<string>("getThreeJsVersion");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Could not get Three.js version: {Message}", ex.Message);
+            }
             return new GlobeInitializationResult
             {
                 Success = true,
@@ -139,23 +91,25 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
         {
             var participantsArray = participants.Select(p => new
             {
-                id = p.Id.GetHashCode(), // Используем hash для простоты
+                id = p.Id.ToString(), // Используем строковый ID
                 p.Name,
                 p.Latitude,
                 p.Longitude,
                 location = $"{p.Name} ({p.Latitude:F4}, {p.Longitude:F4})"
             }).ToArray();
 
-            // Используем модульную функцию с containerId
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule.addParticipants('{containerId}', {System.Text.Json.JsonSerializer.Serialize(participantsArray)})");
-
-            if (result)
+            // Используем модуль напрямую
+            if (_module != null)
             {
-                _logger.LogInformation("Added {Count} participants to the globe", participantsArray.Length);
-                return new GlobeOperationResult { Success = true, ProcessedCount = participantsArray.Length };
+                var success = await _module.InvokeAsync<bool>("addParticipants", (object)participantsArray);
+                if (success)
+                {
+                    _logger.LogInformation("Added {Count} participants to the globe", participantsArray.Length);
+                    return new GlobeOperationResult { Success = true, ProcessedCount = participantsArray.Length };
+                }
             }
 
-            return new GlobeOperationResult { Success = false, ErrorMessage = "Failed to add participants" };
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -168,11 +122,14 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.updateParticipantPosition && window.globeModule.updateParticipantPosition('{containerId}', '{participantId}', {latitude}, {longitude})");
-            return result
-                ? new GlobeOperationResult { Success = true, ProcessedCount = 1 }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to update participant position" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var success = await _module.InvokeAsync<bool>("updateParticipantPosition", participantId.ToString(), latitude, longitude);
+                return new GlobeOperationResult { Success = success, ProcessedCount = success ? 1 : 0 };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -185,11 +142,16 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.removeParticipant ? window.globeModule.removeParticipant('{containerId}', {participantId.GetHashCode()}) : false");
-            return result
-                ? new GlobeOperationResult { Success = true, ProcessedCount = 1 }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to remove participant" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var result = await _module.InvokeAsync<bool>("removeParticipant", participantId.ToString());
+                return result
+                    ? new GlobeOperationResult { Success = true, ProcessedCount = 1 }
+                    : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to remove participant" };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -202,11 +164,14 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.centerOn ? window.globeModule.centerOn('{containerId}', {latitude}, {longitude}, {zoom}) : false");
-            return result
-                ? new GlobeOperationResult { Success = true }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to center globe" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var success = await _module.InvokeAsync<bool>("centerOn", latitude, longitude, zoom);
+                return new GlobeOperationResult { Success = success };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -219,11 +184,14 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.setLevelOfDetail ? window.globeModule.setLevelOfDetail('{containerId}', {lod}) : false");
-            return result
-                ? new GlobeOperationResult { Success = true }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to set level of detail" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var success = await _module.InvokeAsync<bool>("setLevelOfDetail", lod);
+                return new GlobeOperationResult { Success = success };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -236,11 +204,14 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.setAutoRotation ? window.globeModule.setAutoRotation('{containerId}', {enabled.ToString().ToLower()}, {speed}) : false");
-            return result
-                ? new GlobeOperationResult { Success = true }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to set auto-rotation" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var success = await _module.InvokeAsync<bool>("setAutoRotation", enabled, speed);
+                return new GlobeOperationResult { Success = success };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -253,11 +224,16 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.loadCountriesData ? window.globeModule.loadCountriesData('{containerId}') : false");
-            return result
-                ? new GlobeOperationResult { Success = true }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to load countries data" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var result = await _module.InvokeAsync<bool>("loadCountriesData");
+                return result
+                    ? new GlobeOperationResult { Success = true }
+                    : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to load countries data" };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -270,11 +246,14 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.clear ? window.globeModule.clear('{containerId}') : false");
-            return result
-                ? new GlobeOperationResult { Success = true }
-                : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to clear globe" };
+            // Используем модуль напрямую
+            if (_module != null)
+            {
+                var success = await _module.InvokeAsync<bool>("clear");
+                return new GlobeOperationResult { Success = success };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -287,16 +266,29 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var state = await _jsRuntime.InvokeAsync<GlobeState>("eval", $"window.globeModule && window.globeModule.getState ? window.globeModule.getState('{containerId}') : null");
-            if (state == null)
+            // Используем модуль напрямую
+            if (_module != null)
             {
-                _logger.LogWarning("Globe state returned null");
-                return new GlobeState { IsInitialized = false, ParticipantCount = 0, CountryCount = 0, Camera = new CameraState() };
+                try
+                {
+                    var state = await _module.InvokeAsync<GlobeState>("getState");
+                    if (state == null)
+                    {
+                        _logger.LogWarning("Globe state returned null");
+                        return new GlobeState { IsInitialized = false, ParticipantCount = 0, CountryCount = 0, Camera = new CameraState() };
+                    }
+
+                    state.IsInitialized = true;
+                    return state;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Could not get globe state: {Message}", ex.Message);
+                    return new GlobeState { IsInitialized = false, ParticipantCount = 0, CountryCount = 0, Camera = new CameraState() };
+                }
             }
 
-            state.IsInitialized = true;
-            return state;
+            return new GlobeState { IsInitialized = false, ParticipantCount = 0, CountryCount = 0, Camera = new CameraState() };
         }
         catch (Exception ex)
         {
@@ -309,19 +301,15 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модульную функцию
-            var result = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeModule && window.globeModule.dispose ? window.globeModule.dispose('{containerId}') : false");
-
-            // Удаляем из реестра
-            _globeInstances.Remove(containerId);
-
-            if (result)
+            // Используем модуль напрямую
+            if (_module != null)
             {
+                await _module.InvokeVoidAsync("dispose");
                 _logger.LogInformation("Globe {ContainerId} disposed successfully", containerId);
                 return new GlobeOperationResult { Success = true };
             }
 
-            return new GlobeOperationResult { Success = false, ErrorMessage = "Failed to dispose globe" };
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
@@ -332,46 +320,22 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
-        // Освобождаем все созданные глобусы
-        foreach (var containerId in _globeInstances.Keys)
+        if (_module != null)
         {
-            await DisposeAsync(containerId);
+            await _module.DisposeAsync();
+            _module = null;
         }
-        _globeInstances.Clear();
     }
 
     public async ValueTask<bool> IsAvailableAsync(CancellationToken ct = default)
     {
         try
         {
-            // Проверяем, есть ли уже созданные экземпляры глобуса
-            try
+            // Проверяем, инициализирован ли модуль
+            if (_module != null)
             {
-                var hasInstances = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeInstances && window.globeInstances.size > 0");
-                if (hasInstances)
-                {
-                    _logger.LogInformation("Globe instances already exist");
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug("Cannot check globe instances: {Message}", ex.Message);
-            }
-
-            // Проверяем доступность глобальных функций
-            try
-            {
-                var hasInstances = await _jsRuntime.InvokeAsync<bool>("eval", $"window.globeInstances && window.globeInstances.size > 0");
-                if (hasInstances)
-                {
-                    _logger.LogInformation("Globe instances already exist");
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug("Cannot check globe instances: {Message}", ex.Message);
+                _logger.LogInformation("Globe module already initialized");
+                return true;
             }
 
             // Если ничего не инициализировано, проверяем базовую поддержку WebGL

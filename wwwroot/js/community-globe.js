@@ -435,59 +435,65 @@ class CommunityGlobe {
      * @param {Array} participants - Массив объектов участников с координатами
      */
     addParticipants(participants) {
-        if (!this.state.isInitialized) return;
+        if (!this.state.isInitialized) return false;
 
         this.clearParticipants();
-        if (!participants || participants.length === 0) return;
+        if (!participants || participants.length === 0) return true;
 
-        const geometry = new THREE.BufferGeometry();
-        const positions = [];
-        const colors = [];
-        const sizes = [];
+        try {
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const sizes = [];
 
-        participants.forEach((participant, index) => {
-            const position = this.latLngToVector3(participant.latitude, participant.longitude, 1.001);
-            positions.push(position.x, position.y, position.z);
-            const color = new THREE.Color(this.options.participantPointColor);
-            colors.push(color.r, color.g, color.b);
-            sizes.push(this.options.participantPointSize);
-            this.pointMetadata.set(`participant_${index}`, participant);
-        });
+            participants.forEach((participant, index) => {
+                const position = this.latLngToVector3(participant.latitude, participant.longitude, 1.001);
+                positions.push(position.x, position.y, position.z);
+                const color = new THREE.Color(this.options.participantPointColor);
+                colors.push(color.r, color.g, color.b);
+                sizes.push(this.options.participantPointSize);
+                this.pointMetadata.set(`participant_${index}`, participant);
+            });
 
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
 
-        const material = new THREE.ShaderMaterial({
-            uniforms: { pointTexture: { value: this.createCircleTexture() } },
-            vertexShader: `
-                attribute float size;
-                attribute vec3 color;
-                varying vec3 vColor;
-                void main() {
-                    vColor = color;
-                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                    gl_PointSize = size * (300.0 / -mvPosition.z);
-                    gl_Position = projectionMatrix * mvPosition;
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D pointTexture;
-                varying vec3 vColor;
-                void main() {
-                    gl_FragColor = vec4(vColor, 1.0);
-                    gl_FragColor = gl_FragColor * texture2D(pointTexture, gl_PointCoord);
-                }
-            `,
-            transparent: true
-        });
+            const material = new THREE.ShaderMaterial({
+                uniforms: { pointTexture: { value: this.createCircleTexture() } },
+                vertexShader: `
+                    attribute float size;
+                    attribute vec3 color;
+                    varying vec3 vColor;
+                    void main() {
+                        vColor = color;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D pointTexture;
+                    varying vec3 vColor;
+                    void main() {
+                        gl_FragColor = vec4(vColor, 1.0);
+                        gl_FragColor = gl_FragColor * texture2D(pointTexture, gl_PointCoord);
+                    }
+                `,
+                transparent: true
+            });
 
-        const points = new THREE.Points(geometry, material);
-        this.scene.add(points);
-        this.participantPoints.push(points);
-        this.state.participantCount = participants.length;
+            const points = new THREE.Points(geometry, material);
+            this.scene.add(points);
+            this.participantPoints.push(points);
+            this.state.participantCount = participants.length;
 
-        console.log(`Added ${participants.length} participants to globe`);
+            console.log(`Added ${participants.length} participants to globe`);
+            return true;
+        } catch (error) {
+            console.error('Error adding participants:', error);
+            return false;
+        }
     }
 
     /**
@@ -570,9 +576,15 @@ class CommunityGlobe {
     }
 
     centerOn(latitude, longitude, zoom = 2.0) {
-        if (!this.state.isInitialized) return;
-        const position = this.latLngToVector3(latitude, longitude, zoom);
-        this.animateCameraTo(position, 1000);
+        if (!this.state.isInitialized) return false;
+        try {
+            const position = this.latLngToVector3(latitude, longitude, zoom);
+            this.animateCameraTo(position, 1000);
+            return true;
+        } catch (error) {
+            console.error('Error centering camera:', error);
+            return false;
+        }
     }
 
     animateCameraTo(targetPosition, duration = 1000) {
@@ -598,15 +610,27 @@ class CommunityGlobe {
     }
 
     setAutoRotation(enabled, speed) {
-        this.state.isAutoRotating = enabled;
-        if (this.controls) {
-            this.controls.autoRotate = enabled;
-            this.controls.autoRotateSpeed = speed;
+        try {
+            this.state.isAutoRotating = enabled;
+            if (this.controls) {
+                this.controls.autoRotate = enabled;
+                this.controls.autoRotateSpeed = speed;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error setting auto rotation:', error);
+            return false;
         }
     }
 
     setLevelOfDetail(lod) {
-        this.state.currentLod = lod;
+        try {
+            this.state.currentLod = lod;
+            return true;
+        } catch (error) {
+            console.error('Error setting LOD:', error);
+            return false;
+        }
     }
 
     setSunLightIntensity(intensity) {
@@ -654,9 +678,15 @@ class CommunityGlobe {
     }
 
     clear() {
-        this.clearParticipants();
-        this.state.participantCount = 0;
-        this.state.countryCount = 0;
+        try {
+            this.clearParticipants();
+            this.state.participantCount = 0;
+            this.state.countryCount = 0;
+            return true;
+        } catch (error) {
+            console.error('Error clearing globe:', error);
+            return false;
+        }
     }
 
     dispose() {
@@ -680,8 +710,9 @@ class CommunityGlobe {
     }
 
     updateParticipantPosition(participantId, latitude, longitude) {
-        const index = Array.from(this.pointMetadata.keys()).findIndex(key => this.pointMetadata.get(key).id === participantId);
-        if (index === -1) return;
+        const index = Array.from(this.pointMetadata.keys()).findIndex(key => 
+            this.pointMetadata.get(key).id.toString() === participantId.toString());
+        if (index === -1) return false;
 
         const participant = this.pointMetadata.get(`participant_${index}`);
         participant.latitude = latitude;
@@ -694,6 +725,7 @@ class CommunityGlobe {
         positions[index * 3 + 1] = position.y;
         positions[index * 3 + 2] = position.z;
         geometry.attributes.position.needsUpdate = true;
+        return true;
     }
 
     /**
@@ -712,13 +744,13 @@ class CommunityGlobe {
 
     /**
      * Удаляет участника по ID (оптимизированный метод)
-     * @param {number} participantId - ID участника для удаления
+     * @param {string} participantId - ID участника для удаления
      * @returns {boolean} true если участник найден и удален
      */
     removeParticipantById(participantId) {
         // Находим и удаляем участника с указанным ID
         const participants = Array.from(this.pointMetadata.values());
-        const filteredParticipants = participants.filter(p => p.id !== participantId);
+        const filteredParticipants = participants.filter(p => p.id.toString() !== participantId.toString());
 
         if (filteredParticipants.length < participants.length) {
             this.clearParticipants();
@@ -790,7 +822,7 @@ export function createGlobe(containerId, options) {
 export function addParticipants(participants) {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
+        if (globe && globe.state && globe.state.isInitialized) {
             globe.addParticipants(participants);
             return true;
         }
@@ -804,9 +836,8 @@ export function addParticipants(participants) {
 export function updateParticipantPosition(participantId, latitude, longitude) {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
-            globe.updateParticipantPosition(participantId, latitude, longitude);
-            return true;
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.updateParticipantPosition(participantId, latitude, longitude);
         }
         return false;
     } catch (error) {
@@ -817,13 +848,13 @@ export function updateParticipantPosition(participantId, latitude, longitude) {
 
 /**
  * Удаляет участника по ID с глобуса
- * @param {number} participantId - ID участника для удаления
+ * @param {string} participantId - ID участника для удаления
  * @returns {boolean} true если участник успешно удален
  */
 export function removeParticipant(participantId) {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
+        if (globe && globe.state && globe.state.isInitialized) {
             return globe.removeParticipantById(participantId);
         }
         return false;
@@ -843,9 +874,8 @@ export function removeParticipant(participantId) {
 export function centerOn(latitude, longitude, zoom) {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
-            globe.centerOn(latitude, longitude, zoom);
-            return true;
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.centerOn(latitude, longitude, zoom);
         }
         return false;
     } catch (error) {
@@ -857,9 +887,8 @@ export function centerOn(latitude, longitude, zoom) {
 export function setLevelOfDetail(lod) {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
-            globe.setLevelOfDetail(lod);
-            return true;
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.setLevelOfDetail(lod);
         }
         return false;
     } catch (error) {
@@ -871,9 +900,8 @@ export function setLevelOfDetail(lod) {
 export function setAutoRotation(enabled, speed) {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
-            globe.setAutoRotation(enabled, speed);
-            return true;
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.setAutoRotation(enabled, speed);
         }
         return false;
     } catch (error) {
@@ -947,9 +975,8 @@ export async function loadCountriesData() {
 export function clear() {
     try {
         const globe = globeInstances.values().next().value;
-        if (globe) {
-            globe.clear();
-            return true;
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.clear();
         }
         return false;
     } catch (error) {
@@ -998,6 +1025,35 @@ export function addTestParticipant(participant) {
         return false;
     } catch (error) {
         console.error('Error adding test participant:', error);
+        return false;
+    }
+}
+
+export function safeAddTestParticipant(participant) {
+    try {
+        console.log('🔍 Модульная функция safeAddTestParticipant вызвана');
+        console.log('Данные участника:', participant);
+
+        // Проверяем доступность глобуса
+        if (!dependenciesLoaded) {
+            console.error('❌ Зависимости не загружены');
+            return false;
+        }
+
+        if (globeInstances.size === 0) {
+            console.error('❌ Нет созданных экземпляров глобуса');
+            return false;
+        }
+
+        const globe = globeInstances.values().next().value;
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.addTestParticipant(participant);
+        } else {
+            console.error('❌ Глобус не инициализирован');
+            return false;
+        }
+    } catch (error) {
+        console.error('💥 Критическая ошибка в safeAddTestParticipant:', error);
         return false;
     }
 }
