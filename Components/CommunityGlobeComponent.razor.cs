@@ -100,7 +100,6 @@ public partial class CommunityGlobeComponent
             await InitializeGlobeScriptsAsync();
 
             await InitializeGlobeAsync();
-            await LoadParticipantsAsync();
 
             // Настраиваем таймер для периодического обновления данных
             _updateTimer = new System.Timers.Timer(30000); // Каждые 30 секунд
@@ -120,6 +119,11 @@ public partial class CommunityGlobeComponent
                 }
             };
             _updateTimer.Start();
+            await InvokeAsync(async () =>
+            {
+                await Task.Delay(1000);
+                await LoadParticipantsAsync();
+            });
         }
     }
 
@@ -479,7 +483,7 @@ public partial class CommunityGlobeComponent
             // Добавляем в репозиторий
             var addResult = await ParticipantRepository.AddParticipantAsync(participant);
             bool result = addResult.Success;
-            
+
             Console.WriteLine($"Результат добавления участника: {result}");
 
             if (result)
