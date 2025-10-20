@@ -16,47 +16,47 @@ public interface IGlobeMediator
     /// <summary>
     /// Добавляет участника на глобус
     /// </summary>
-    Task<GlobeOperationResult> AddParticipantAsync(Participant participant);
+    Task<GlobeOperationResult> AddParticipantAsync(string containerId, Participant participant);
 
     /// <summary>
     /// Добавляет нескольких участников на глобус
     /// </summary>
-    Task<GlobeOperationResult> AddParticipantsAsync(IEnumerable<Participant> participants);
+    Task<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants);
 
     /// <summary>
     /// Удаляет участника с глобуса
     /// </summary>
-    Task<GlobeOperationResult> RemoveParticipantAsync(Guid participantId);
+    Task<GlobeOperationResult> RemoveParticipantAsync(string containerId, Guid participantId);
 
     /// <summary>
     /// Центрирует глобус на координатах
     /// </summary>
-    Task<GlobeOperationResult> CenterOnAsync(double latitude, double longitude, double zoom = 2.0);
+    Task<GlobeOperationResult> CenterOnAsync(string containerId, double latitude, double longitude, double zoom = 2.0);
 
     /// <summary>
     /// Устанавливает уровень детализации
     /// </summary>
-    Task<GlobeOperationResult> SetLevelOfDetailAsync(int lod);
+    Task<GlobeOperationResult> SetLevelOfDetailAsync(string containerId, int lod);
 
     /// <summary>
     /// Управляет автоповоротом глобуса
     /// </summary>
-    Task<GlobeOperationResult> SetAutoRotationAsync(bool enabled, double speed = 0.5);
+    Task<GlobeOperationResult> SetAutoRotationAsync(string containerId, bool enabled, double speed = 0.5);
 
     /// <summary>
     /// Получает текущее состояние глобуса
     /// </summary>
-    Task<GlobeState> GetStateAsync();
+    Task<GlobeState> GetStateAsync(string containerId);
 
     /// <summary>
     /// Очищает все объекты с глобуса
     /// </summary>
-    Task<GlobeOperationResult> ClearAsync();
+    Task<GlobeOperationResult> ClearAsync(string containerId);
 
     /// <summary>
     /// Освобождает ресурсы глобуса
     /// </summary>
-    Task<GlobeOperationResult> DisposeAsync();
+    Task<GlobeOperationResult> DisposeAsync(string containerId);
 
     /// <summary>
     /// Проверяет доступность сервиса

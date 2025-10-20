@@ -225,7 +225,10 @@ class CommunityGlobe {
     }
 
     setupScene() {
+        console.log('🔧 setupScene: начало для контейнера', this.containerId);
+        console.log('🔍 Проверка THREE.js:', typeof THREE);
         if (typeof THREE === 'undefined') {
+            console.error('❌ Three.js не загружен. setupScene не может быть выполнен.');
             throw new Error('Three.js не загружен. setupScene не может быть выполнен.');
         }
 
@@ -246,14 +249,38 @@ class CommunityGlobe {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        // Получаем контейнер с повторными попытками
+        console.log('🔍 Поиск контейнера:', this.containerId);
         this.container = this.getContainer();
+        console.log('📦 Контейнер найден:', this.container);
+        console.log('📦 Контейнер DOM элемент:', this.container?.tagName, this.container?.id);
+
         if (!this.container) {
+            console.error('❌ Контейнер не найден для ID:', this.containerId);
             throw new Error(`Container with id '${this.containerId}' not found after multiple attempts`);
         }
 
-        this.container.innerHTML = '';
+        console.log('🧹 Селективная очистка старых Three.js canvas элементов');
+        console.log('📦 Контейнер перед очисткой:', this.container?.tagName, this.container?.id);
+        console.log('📦 Дочерних элементов в контейнере:', this.container?.childNodes?.length || 0);
+
+        // Удаляем только старые canvas элементы Three.js, но сохраняем другие элементы Blazor
+        if (this.container && this.container.childNodes) {
+            const canvasElements = this.container.querySelectorAll('canvas');
+            console.log('🧹 Найдено canvas элементов для удаления:', canvasElements.length);
+
+            canvasElements.forEach((canvas, index) => {
+                console.log(`🧹 Удаление canvas элемента ${index}:`, canvas);
+                this.container.removeChild(canvas);
+            });
+
+            console.log('✅ Старые canvas элементы удалены');
+        }
+
+        console.log('📦 Контейнер готов для добавления нового renderer');
+
+        console.log('➕ Добавление renderer в контейнер');
         this.container.appendChild(this.renderer.domElement);
+        console.log('✅ Renderer добавлен в контейнер', this.containerId);
 
         this.earthGroup = new THREE.Group();
         this.scene.add(this.earthGroup);
@@ -262,6 +289,7 @@ class CommunityGlobe {
         this.raycaster.params.Points.threshold = 0.1;
 
         this.clock = new THREE.Clock();
+        console.log('🔧 setupScene: завершено для контейнера', this.containerId);
     }
 
     createEarth() {
@@ -740,23 +768,58 @@ class CommunityGlobe {
     }
 
     dispose() {
-        if (this.animationId) cancelAnimationFrame(this.animationId);
-        if (this.controls) this.controls.dispose();
+        console.log('🗑️ CommunityGlobe.dispose вызван для контейнера:', this.containerId);
+        console.log('🗑️ Состояние перед dispose:', this.state?.isInitialized);
 
-        this.scene.traverse(object => {
-            if (object.geometry) object.geometry.dispose();
-            if (object.material) {
-                if (Array.isArray(object.material)) {
-                    object.material.forEach(material => material.dispose());
-                } else {
-                    object.material.dispose();
-                }
+        try {
+            if (this.animationId) {
+                console.log('🗑️ Отмена animation frame');
+                cancelAnimationFrame(this.animationId);
             }
-        });
 
-        this.renderer.dispose();
-        this.pointMetadata.clear();
-        this.state.isInitialized = false;
+            if (this.controls) {
+                console.log('🗑️ Освобождение controls');
+                this.controls.dispose();
+            }
+
+            console.log('🗑️ Обход сцены для освобождения ресурсов');
+            let disposedObjects = 0;
+            this.scene.traverse(object => {
+                console.log('🗑️ Обработка объекта:', object.type, object.constructor.name);
+                if (object.geometry) {
+                    console.log('  - Освобождение geometry');
+                    object.geometry.dispose();
+                }
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        console.log('  - Освобождение массива materials:', object.material.length);
+                        object.material.forEach(material => material.dispose());
+                    } else {
+                        console.log('  - Освобождение material');
+                        object.material.dispose();
+                    }
+                }
+                disposedObjects++;
+            });
+            console.log('🗑️ Освобождено объектов:', disposedObjects);
+
+            if (this.renderer) {
+                console.log('🗑️ Освобождение renderer');
+                this.renderer.dispose();
+            }
+
+            console.log('🗑️ Очистка pointMetadata');
+            this.pointMetadata.clear();
+
+            this.state.isInitialized = false;
+            console.log('🗑️ Состояние установлено в неинициализированное');
+
+        } catch (error) {
+            console.error('💥 Критическая ошибка в CommunityGlobe.dispose:', error);
+            console.error('💥 Контейнер в момент ошибки:', this.containerId);
+            console.error('💥 Renderer в момент ошибки:', this.renderer);
+            console.error('💥 Scene в момент ошибки:', this.scene);
+        }
     }
 
     updateParticipantPosition(participantId, latitude, longitude) {
@@ -872,148 +935,151 @@ export function createGlobe(containerId, options) {
 
 /**
  * Добавляет массив участников на глобус
+ * @param {string} containerId - ID контейнера глобуса
  * @param {Array} participants - Массив объектов участников
  * @returns {boolean} true если участники успешно добавлены
  */
-export function addParticipants(participants) {
+export function addParticipants(containerId, participants) {
     try {
-        console.log('🔄 Добавление участников:', participants?.length || 0);
-        const globe = globeInstances.values().next().value;
+        console.log('🔄 Добавление участников на глобус', containerId, ':', participants?.length || 0);
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             const result = globe.addParticipants(participants);
-            console.log('✅ Результат добавления участников:', result);
+            console.log('✅ Результат добавления участников на глобус', containerId, ':', result);
             return result;
         }
-        console.log('❌ Глобус не инициализирован');
+        console.log('❌ Глобус', containerId, 'не инициализирован');
         return false;
     } catch (error) {
-        console.error('Error adding participants:', error);
+        console.error('Error adding participants to globe', containerId, ':', error);
         return false;
     }
 }
 
-export function updateParticipantPosition(participantId, latitude, longitude) {
+export function updateParticipantPosition(containerId, participantId, latitude, longitude) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             return globe.updateParticipantPosition(participantId, latitude, longitude);
         }
         return false;
     } catch (error) {
-        console.error('Error updating participant position:', error);
+        console.error('Error updating participant position on globe', containerId, ':', error);
         return false;
     }
 }
 
 /**
  * Удаляет участника по ID с глобуса
+ * @param {string} containerId - ID контейнера глобуса
  * @param {string} participantId - ID участника для удаления
  * @returns {boolean} true если участник успешно удален
  */
-export function removeParticipant(participantId) {
+export function removeParticipant(containerId, participantId) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             return globe.removeParticipantById(participantId);
         }
         return false;
     } catch (error) {
-        console.error('Error removing participant:', error);
+        console.error('Error removing participant from globe', containerId, ':', error);
         return false;
     }
 }
 
 /**
  * Центрирует камеру глобуса на указанных координатах
+ * @param {string} containerId - ID контейнера глобуса
  * @param {number} latitude - Широта для центрирования
  * @param {number} longitude - Долгота для центрирования
  * @param {number} zoom - Уровень масштабирования (по умолчанию 2.0)
  * @returns {boolean} true если центрирование выполнено успешно
  */
-export function centerOn(latitude, longitude, zoom) {
+export function centerOn(containerId, latitude, longitude, zoom) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             return globe.centerOn(latitude, longitude, zoom);
         }
         return false;
     } catch (error) {
-        console.error('Error centering globe:', error);
+        console.error('Error centering globe', containerId, ':', error);
         return false;
     }
 }
 
-export function setLevelOfDetail(lod) {
+export function setLevelOfDetail(containerId, lod) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             return globe.setLevelOfDetail(lod);
         }
         return false;
     } catch (error) {
-        console.error('Error setting LOD:', error);
+        console.error('Error setting LOD for globe', containerId, ':', error);
         return false;
     }
 }
 
-export function setAutoRotation(enabled, speed) {
+export function setAutoRotation(containerId, enabled, speed) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             return globe.setAutoRotation(enabled, speed);
         }
         return false;
     } catch (error) {
-        console.error('Error setting auto rotation:', error);
+        console.error('Error setting auto rotation for globe', containerId, ':', error);
         return false;
     }
 }
 
-export function setSunLightIntensity(intensity) {
+export function setSunLightIntensity(containerId, intensity) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe) {
             globe.setSunLightIntensity(intensity);
             return true;
         }
         return false;
     } catch (error) {
-        console.error('Error setting sun light intensity:', error);
+        console.error('Error setting sun light intensity for globe', containerId, ':', error);
         return false;
     }
 }
 
-export function setSunLightColor(colorHex) {
+export function setSunLightColor(containerId, colorHex) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe) {
             globe.setSunLightColor(colorHex);
             return true;
         }
         return false;
     } catch (error) {
-        console.error('Error setting sun light color:', error);
+        console.error('Error setting sun light color for globe', containerId, ':', error);
         return false;
     }
 }
 
-export function setAmbientLightIntensity(intensity) {
+export function setAmbientLightIntensity(containerId, intensity) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe) {
             globe.setAmbientLightIntensity(intensity);
             return true;
         }
         return false;
     } catch (error) {
-        console.error('Error setting ambient light intensity:', error);
+        console.error('Error setting ambient light intensity for globe', containerId, ':', error);
         return false;
     }
 }
 
-export async function loadCountriesData() {
+export async function loadCountriesData(containerId) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe) {
             const response = await fetch('/_content/ZealousMindedPeopleGeo/data/countries.geojson');
             const data = await response.json();
@@ -1022,68 +1088,94 @@ export async function loadCountriesData() {
         }
         return false;
     } catch (error) {
-        console.error('Error loading countries data:', error);
+        console.error('Error loading countries data for globe', containerId, ':', error);
         return false;
     }
 }
 
 /**
  * Очищает всех участников с глобуса
+ * @param {string} containerId - ID контейнера глобуса
  * @returns {boolean} true если очистка выполнена успешно
  */
-export function clear() {
+export function clear(containerId) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             return globe.clear();
         }
         return false;
     } catch (error) {
-        console.error('Error clearing globe:', error);
+        console.error('Error clearing globe', containerId, ':', error);
         return false;
     }
 }
 
-export function getState() {
+export function getState(containerId) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe) {
             return globe.getState();
         }
         return null;
     } catch (error) {
-        console.error('Error getting globe state:', error);
+        console.error('Error getting globe', containerId, 'state:', error);
         return null;
     }
 }
 
-export function dispose() {
+export function dispose(containerId) {
     try {
-        for (const [containerId, globe] of globeInstances) {
-            globe.dispose();
+        console.log('🗑️ JavaScript dispose вызван для containerId:', containerId);
+        console.log('🗑️ Количество экземпляров глобуса перед dispose:', globeInstances.size);
+        console.log('🗑️ Доступные контейнеры:', Array.from(globeInstances.keys()));
+
+        if (containerId) {
+            console.log('🗑️ Удаление конкретного глобуса:', containerId);
+            const globe = globeInstances.get(containerId);
+            if (globe) {
+                console.log('🗑️ Найден глобус для удаления:', containerId, 'состояние:', globe.state?.isInitialized);
+                globe.dispose();
+                globeInstances.delete(containerId);
+                console.log('🗑️ Глобус удален успешно:', containerId);
+                return true;
+            } else {
+                console.log('🗑️ Глобус не найден для containerId:', containerId);
+            }
+            return false;
+        } else {
+            console.log('🗑️ Удаление всех глобусов (containerId не указан)');
+            // Если containerId не указан, очищаем все глобусы (для обратной совместимости)
+            for (const [id, globe] of globeInstances) {
+                console.log('🗑️ Удаление глобуса:', id, 'состояние:', globe.state?.isInitialized);
+                globe.dispose();
+            }
+            globeInstances.clear();
+            console.log('🗑️ Все глобусы удалены');
+            return true;
         }
-        globeInstances.clear();
-        return true;
     } catch (error) {
-        console.error('Error disposing globe:', error);
+        console.error('💥 Критическая ошибка в dispose для containerId:', containerId, error);
+        console.error('💥 Stack trace:', error.stack);
         return false;
     }
 }
 
 /**
  * Добавляет одного участника на глобус с проверкой уникальности
+ * @param {string} containerId - ID контейнера глобуса
  * @param {Object} participant - Объект участника с полями id, name, latitude, longitude
  * @returns {boolean} true если участник успешно добавлен
  */
-export function addTestParticipant(participant) {
+export function addTestParticipant(containerId, participant) {
     try {
-        const globe = globeInstances.values().next().value;
+        const globe = globeInstances.get(containerId);
         if (globe) {
             return globe.addTestParticipant(participant);
         }
         return false;
     } catch (error) {
-        console.error('Error adding test participant:', error);
+        console.error('Error adding test participant to globe', containerId, ':', error);
         return false;
     }
 }
@@ -1104,11 +1196,18 @@ export function safeAddTestParticipant(participant) {
             return false;
         }
 
-        const globe = globeInstances.values().next().value;
-        if (globe && globe.state && globe.state.isInitialized) {
-            return globe.addTestParticipant(participant);
+        // Поскольку containerId не передан, используем первый доступный глобус для обратной совместимости
+        if (globeInstances.size > 0) {
+            const containerId = globeInstances.keys().next().value;
+            const globe = globeInstances.get(containerId);
+            if (globe && globe.state && globe.state.isInitialized) {
+                return globe.addTestParticipant(participant);
+            } else {
+                console.error('❌ Глобус не инициализирован');
+                return false;
+            }
         } else {
-            console.error('❌ Глобус не инициализирован');
+            console.error('❌ Нет созданных экземпляров глобуса');
             return false;
         }
     } catch (error) {
@@ -1131,29 +1230,37 @@ export function getThreeJsVersion() {
 
 /**
  * Отладочная функция для проверки состояния глобуса
+ * @param {string} containerId - ID контейнера глобуса (опционально)
  */
-export function debugGlobeState() {
+export function debugGlobeState(containerId) {
     try {
         console.log('🔍 Отладка состояния глобуса:');
         console.log('Зависимости загружены:', dependenciesLoaded);
         console.log('Количество экземпляров глобуса:', globeInstances.size);
-        
-        const globe = globeInstances.values().next().value;
-        if (globe) {
-            console.log('Состояние глобуса:', globe.state);
-            console.log('Количество точек участников:', globe.participantPoints.length);
-            console.log('Метаданные участников:', globe.pointMetadata.size);
-            
-            if (globe.earthGroup) {
-                console.log('Объекты в earthGroup:', globe.earthGroup.children.length);
-                globe.earthGroup.children.forEach((child, index) => {
-                    console.log(`  ${index}: ${child.type} (${child.constructor.name})`);
-                });
+
+        if (containerId) {
+            const globe = globeInstances.get(containerId);
+            if (globe) {
+                console.log(`🔍 Состояние глобуса ${containerId}:`, globe.state);
+                console.log(`Количество точек участников в ${containerId}:`, globe.participantPoints.length);
+                console.log(`Метаданные участников в ${containerId}:`, globe.pointMetadata.size);
+
+                if (globe.earthGroup) {
+                    console.log(`Объекты в earthGroup ${containerId}:`, globe.earthGroup.children.length);
+                    globe.earthGroup.children.forEach((child, index) => {
+                        console.log(`  ${index}: ${child.type} (${child.constructor.name})`);
+                    });
+                }
+            } else {
+                console.log(`❌ Глобус ${containerId} не найден`);
             }
         } else {
-            console.log('❌ Глобус не найден');
+            // Если containerId не указан, показываем все глобусы
+            for (const [id, globe] of globeInstances) {
+                console.log(`Глобус ${id}:`, globe.state);
+            }
         }
-        
+
         return true;
     } catch (error) {
         console.error('Error in debug function:', error);

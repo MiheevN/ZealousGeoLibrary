@@ -1,0 +1,188 @@
+@using ZealousMindedPeopleGeo.Services.Mapping
+@using ZealousMindedPeopleGeo.Services.Repositories
+@inject IJSRuntime JSRuntime
+@inject GlobeStateService GlobeStateService
+@inject IGlobeMediator GlobeMediator
+@inject IParticipantRepository ParticipantRepository
+@implements IDisposable
+
+<HeadContent>
+    <link href="~/_content/ZealousMindedPeopleGeo/css/community-globe.css" rel="stylesheet" />
+</HeadContent>
+
+<div id="@ContainerId" class="globe-canvas-container" style="width: @(Width)px; height: @(Height)px;">
+    @if (_isInitializing)
+    {
+        <div class="globe-loading-overlay text-white text-center">
+            <div class="loading-spinner mb-3"></div>
+            <div>Загрузка глобуса</div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="globe-error-overlay text-center p-4">
+            <div class="fs-1 mb-3">⚠️</div>
+            <div class="text-danger mb-3">@_errorMessage</div>
+            <button class="btn btn-primary" @onclick="RetryInitializationAsync">
+                Повторить
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string GlobeId { get; set; } = "default";
+    [Parameter] public int Width { get; set; } = 800;
+    [Parameter] public int Height { get; set; } = 600;
+    
+    private string ContainerId => $"globe-{GlobeId}";
+    private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
+    
+    private bool _isInitializing;
+    private string? _errorMessage;
+    private bool _isRendering;
+    
+    protected override void OnInitialized()
+    {
+        GlobeStateService.OnStateChanged += HandleStateChanged;
+    }
+    
+    private void HandleStateChanged(string globeId)
+    {
+        if (globeId == GlobeId)
+        {
+            StateHasChanged();
+        }
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_isRendering)
+        {
+            _isRendering = true;
+            try
+            {
+                await Task.Delay(100);
+                await InitializeGlobeScriptsAsync();
+                await InitializeGlobeAsync();
+            }
+            finally
+            {
+                _isRendering = false;
+            }
+        }
+    }
+    
+    private async Task InitializeGlobeScriptsAsync()
+    {
+        try
+        {
+            Console.WriteLine($"[{GlobeId}] InitializeGlobeScriptsAsync: начало");
+
+            // Проверяем доступность сервиса глобуса через IThreeJsGlobeService
+            var isAvailable = await GlobeMediator.IsAvailableAsync();
+
+            if (isAvailable)
+            {
+                Console.WriteLine($"[{GlobeId}] Сервис глобуса доступен");
+                return;
+            }
+            else
+            {
+                Console.WriteLine($"[{GlobeId}] Сервис глобуса недоступен, ждем инициализации...");
+                // Даем время на инициализацию модуля
+                await Task.Delay(500);
+            }
+
+            Console.WriteLine($"[{GlobeId}] InitializeGlobeScriptsAsync: завершено");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{GlobeId}] Ошибка инициализации скриптов: {ex.Message}");
+        }
+    }
+    
+    private async Task InitializeGlobeAsync()
+    {
+        Console.WriteLine($"[{GlobeId}] InitializeGlobeAsync: начало");
+        if (State.IsInitialized)
+        {
+            Console.WriteLine($"[{GlobeId}] Глобус уже инициализирован");
+            return;
+        }
+        
+        _isInitializing = true;
+        await InvokeAsync(StateHasChanged);
+        
+        try
+        {
+            Console.WriteLine($"[{GlobeId}] Вызов GlobeMediator.InitializeGlobeAsync, ContainerId={ContainerId}");
+            var result = await GlobeMediator.InitializeGlobeAsync(ContainerId, new GlobeOptions
+            {
+                Width = Width,
+                Height = Height
+            });
+            
+            Console.WriteLine($"[{GlobeId}] Результат инициализации: Success={result.Success}");
+            
+            if (result.Success)
+            {
+                GlobeStateService.UpdateState(GlobeId, s => s.IsInitialized = true);
+                Console.WriteLine($"[{GlobeId}] Загрузка участников...");
+                await LoadParticipantsAsync();
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage;
+                Console.WriteLine($"[{GlobeId}] Ошибка: {_errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Ошибка инициализации: {ex.Message}";
+            Console.WriteLine($"[{GlobeId}] Исключение: {ex}");
+        }
+        finally
+        {
+            _isInitializing = false;
+            if (!_isRendering)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+            Console.WriteLine($"[{GlobeId}] InitializeGlobeAsync: завершено");
+        }
+    }
+    
+    private async Task LoadParticipantsAsync()
+    {
+        try
+        {
+            var participants = await ParticipantRepository.GetAllParticipantsAsync();
+            var participantsList = participants.ToList();
+            
+            await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
+            
+            GlobeStateService.UpdateState(GlobeId, s =>
+            {
+                s.Participants = participantsList;
+                s.ParticipantCount = participantsList.Count;
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки участников: {ex.Message}");
+        }
+    }
+    
+    private async Task RetryInitializationAsync()
+    {
+        _errorMessage = null;
+        await InitializeGlobeAsync();
+    }
+    
+    public void Dispose()
+    {
+        GlobeStateService.OnStateChanged -= HandleStateChanged;
+    }
+}

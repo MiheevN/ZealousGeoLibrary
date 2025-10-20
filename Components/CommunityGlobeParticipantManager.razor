@@ -1,0 +1,234 @@
+@using ZealousMindedPeopleGeo.Models
+@using ZealousMindedPeopleGeo.Services.Mapping
+@using ZealousMindedPeopleGeo.Services.Repositories
+@inject GlobeStateService GlobeStateService
+@inject IGlobeMediator GlobeMediator
+@inject IParticipantRepository ParticipantRepository
+@implements IDisposable
+
+<HeadContent>
+    <link href="/_content/ZealousMindedPeopleGeo/css/participant-registration.css" rel="stylesheet" />
+</HeadContent>
+
+<div class="participant-management-panel rounded p-3 text-white">
+    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2" @onclick="TogglePanel" style="cursor: pointer;">
+        <h5 class="mb-0">👤 Управление участниками</h5>
+        <button class="btn btn-sm btn-outline-light">@(_isCollapsed ? "▼" : "▲")</button>
+    </div>
+
+    @if (!_isCollapsed)
+    {
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Имя:</label>
+                <InputText @bind-Value="_newParticipant.Name" placeholder="Введите имя" class="form-control" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Широта:</label>
+                <InputNumber @bind-Value="_newParticipant.Latitude" placeholder="55.7558" step="0.0001" class="form-control" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Долгота:</label>
+                <InputNumber @bind-Value="_newParticipant.Longitude" placeholder="37.6173" step="0.0001" class="form-control" />
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mb-3">
+            <button class="btn btn-success" @onclick="AddParticipantAsync" disabled="@_isAddingParticipant">
+                @if (_isAddingParticipant)
+                {
+                    <span>⏳ Добавление...</span>
+                }
+                else
+                {
+
+                    <span>✅ Добавить</span>
+                }
+            </button>
+            <button class="btn btn-secondary" @onclick="ClearForm">🗑️ Очистить</button>
+            <button class="btn btn-info" @onclick="CenterOnFormCoordinates">🎯 Центрировать</button>
+        </div>
+
+        <div class="border-top pt-3 mt-3">
+            <h6 class="text-white mb-2">⚡ Быстрое добавление:</h6>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Москва", 55.7558, 37.6173))">🏛️ Москва</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("СПб", 59.9343, 30.3351))">🏛️ СПб</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Новосибирск", 55.0084, 82.9357))">🏛️ Новосибирск</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Екатеринбург", 56.8389, 60.6057))">🏛️ Екатеринбург</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Казань", 55.7961, 49.1064))">🏛️ Казань</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Краснодар", 45.0355, 38.9753))">🏛️ Краснодар</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="AddRandomParticipantAsync">🎲 Случайный</button>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_operationMessage))
+    {
+        <div class="alert @(string.IsNullOrEmpty(_operationError) ? "alert-success" : "alert-danger") mt-3">
+            @if (string.IsNullOrEmpty(_operationError))
+            {
+                <span>✅ @_operationMessage</span>
+            }
+            else
+            {
+
+                <span>❌ @_operationMessage</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string GlobeId { get; set; } = "default";
+
+    private string ContainerId => $"globe-{GlobeId}";
+    private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
+    private Participant _newParticipant = new();
+    private bool _isCollapsed;
+    private bool _isAddingParticipant;
+    private string? _operationMessage;
+    private string? _operationError;
+
+    protected override void OnInitialized()
+    {
+        GlobeStateService.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged(string globeId)
+    {
+        if (globeId == GlobeId)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void TogglePanel()
+    {
+        _isCollapsed = !_isCollapsed;
+    }
+
+    private void ClearForm()
+    {
+        _newParticipant = new Participant();
+    }
+
+    private async Task CenterOnFormCoordinates()
+    {
+        if (!State.IsInitialized || !_newParticipant.Latitude.HasValue || !_newParticipant.Longitude.HasValue) return;
+
+        var result = await GlobeMediator.CenterOnAsync(ContainerId, _newParticipant.Latitude.Value, _newParticipant.Longitude.Value);
+
+        if (result.Success)
+        {
+            ShowMessage("✅ Центрировано на координатах формы", false);
+        }
+        else
+        {
+            ShowMessage($"❌ Ошибка центрирования: {result.ErrorMessage}", true);
+        }
+    }
+
+    private async Task AddParticipantAsync()
+    {
+        if (!State.IsInitialized || _isAddingParticipant) return;
+
+        _isAddingParticipant = true;
+        _operationMessage = null;
+        _operationError = null;
+        StateHasChanged();
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_newParticipant.Name))
+            {
+                ShowMessage("❌ Введите имя участника", true);
+                return;
+            }
+
+            if (!_newParticipant.Latitude.HasValue || !_newParticipant.Longitude.HasValue)
+            {
+                ShowMessage("❌ Введите координаты", true);
+                return;
+            }
+
+            if (_newParticipant.Latitude < -90 || _newParticipant.Latitude > 90)
+            {
+                ShowMessage("❌ Широта должна быть от -90 до 90", true);
+                return;
+            }
+
+            if (_newParticipant.Longitude < -180 || _newParticipant.Longitude > 180)
+            {
+                ShowMessage("❌ Долгота должна быть от -180 до 180", true);
+                return;
+            }
+
+            var participant = new Participant
+            {
+                Id = Guid.NewGuid(),
+                Name = _newParticipant.Name,
+                Address = $"{_newParticipant.Latitude.Value:F4}, {_newParticipant.Longitude.Value:F4}",
+                Email = "user@example.com",
+                Location = _newParticipant.Name,
+                City = _newParticipant.City ?? _newParticipant.Name,
+                Country = _newParticipant.Country ?? "Россия",
+                Latitude = _newParticipant.Latitude.Value,
+                Longitude = _newParticipant.Longitude.Value,
+                RegisteredAt = DateTime.UtcNow
+            };
+
+            await ParticipantRepository.AddParticipantAsync(participant);
+
+            var participants = await ParticipantRepository.GetAllParticipantsAsync();
+            var participantsList = participants.ToList();
+            await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
+
+            GlobeStateService.UpdateState(GlobeId, s =>
+            {
+                s.Participants = participantsList;
+                s.ParticipantCount = participantsList.Count;
+            });
+
+            ShowMessage($"✅ Участник {participant.Name} добавлен", false);
+            ClearForm();
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"❌ Ошибка: {ex.Message}", true);
+        }
+        finally
+        {
+            _isAddingParticipant = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddQuickParticipantAsync(string name, double latitude, double longitude)
+    {
+        _newParticipant.Name = name;
+        _newParticipant.Latitude = latitude;
+        _newParticipant.Longitude = longitude;
+        await AddParticipantAsync();
+    }
+
+    private async Task AddRandomParticipantAsync()
+    {
+        var random = new Random();
+        var latitude = random.NextDouble() * 180 - 90;
+        var longitude = random.NextDouble() * 360 - 180;
+        await AddQuickParticipantAsync($"Участник {random.Next(1000, 9999)}", latitude, longitude);
+    }
+
+    private void ShowMessage(string message, bool isError)
+    {
+        _operationMessage = message;
+        _operationError = isError ? message : null;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        GlobeStateService.OnStateChanged -= HandleStateChanged;
+    }
+}

@@ -84,8 +84,13 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 
     public async ValueTask<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
     {
+        _logger.LogInformation("👥 AddParticipantsAsync вызван для контейнера: {ContainerId}, участников: {Count}", containerId, participants?.Count() ?? 0);
+
         if (participants == null)
+        {
+            _logger.LogWarning("👥 Participants равен null для контейнера: {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = "Participants cannot be null" };
+        }
 
         try
         {
@@ -98,22 +103,29 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
                 location = $"{p.Name} ({p.Latitude:F4}, {p.Longitude:F4})"
             }).ToArray();
 
+            _logger.LogInformation("👥 Подготовлено участников для контейнера {ContainerId}: {Count}", containerId, participantsArray.Length);
+            _logger.LogInformation("👥 Проверка модуля: {_module != null}", _module != null);
+
             // Используем модуль напрямую
             if (_module != null)
             {
-                var success = await _module.InvokeAsync<bool>("addParticipants", (object)participantsArray);
+                _logger.LogInformation("👥 Вызов JavaScript addParticipants для контейнера: {ContainerId}", containerId);
+                var success = await _module.InvokeAsync<bool>("addParticipants", containerId, (object)participantsArray);
+                _logger.LogInformation("👥 JavaScript addParticipants вернул: {Success} для контейнера: {ContainerId}", success, containerId);
+
                 if (success)
                 {
-                    _logger.LogInformation("Added {Count} participants to the globe", participantsArray.Length);
+                    _logger.LogInformation("✅ Добавлено {Count} участников в глобус {ContainerId}", participantsArray.Length, containerId);
                     return new GlobeOperationResult { Success = true, ProcessedCount = participantsArray.Length };
                 }
             }
 
+            _logger.LogWarning("❌ Модуль недоступен для контейнера: {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding {Count} participants to the globe", participants.Count());
+            _logger.LogError(ex, "❌ Критическая ошибка при добавлении участников в контейнер {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
         }
     }
@@ -125,7 +137,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var success = await _module.InvokeAsync<bool>("updateParticipantPosition", participantId.ToString(), latitude, longitude);
+                var success = await _module.InvokeAsync<bool>("updateParticipantPosition", containerId, participantId.ToString(), latitude, longitude);
                 return new GlobeOperationResult { Success = success, ProcessedCount = success ? 1 : 0 };
             }
 
@@ -145,7 +157,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var result = await _module.InvokeAsync<bool>("removeParticipant", participantId.ToString());
+                var result = await _module.InvokeAsync<bool>("removeParticipant", containerId, participantId.ToString());
                 return result
                     ? new GlobeOperationResult { Success = true, ProcessedCount = 1 }
                     : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to remove participant" };
@@ -167,7 +179,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var success = await _module.InvokeAsync<bool>("centerOn", latitude, longitude, zoom);
+                var success = await _module.InvokeAsync<bool>("centerOn", containerId, latitude, longitude, zoom);
                 return new GlobeOperationResult { Success = success };
             }
 
@@ -187,7 +199,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var success = await _module.InvokeAsync<bool>("setLevelOfDetail", lod);
+                var success = await _module.InvokeAsync<bool>("setLevelOfDetail", containerId, lod);
                 return new GlobeOperationResult { Success = success };
             }
 
@@ -207,7 +219,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var success = await _module.InvokeAsync<bool>("setAutoRotation", enabled, speed);
+                var success = await _module.InvokeAsync<bool>("setAutoRotation", containerId, enabled, speed);
                 return new GlobeOperationResult { Success = success };
             }
 
@@ -227,7 +239,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var result = await _module.InvokeAsync<bool>("loadCountriesData");
+                var result = await _module.InvokeAsync<bool>("loadCountriesData", containerId);
                 return result
                     ? new GlobeOperationResult { Success = true }
                     : new GlobeOperationResult { Success = false, ErrorMessage = "Failed to load countries data" };
@@ -249,7 +261,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             // Используем модуль напрямую
             if (_module != null)
             {
-                var success = await _module.InvokeAsync<bool>("clear");
+                var success = await _module.InvokeAsync<bool>("clear", containerId);
                 return new GlobeOperationResult { Success = success };
             }
 
@@ -271,7 +283,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             {
                 try
                 {
-                    var state = await _module.InvokeAsync<GlobeState>("getState");
+                    var state = await _module.InvokeAsync<GlobeState>("getState", containerId);
                     if (state == null)
                     {
                         _logger.LogWarning("Globe state returned null");
@@ -301,19 +313,24 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            // Используем модуль напрямую
+            _logger.LogInformation("🚮 DisposeAsync вызван для контейнера: {ContainerId}", containerId);
+            _logger.LogInformation("🚮 Проверка доступности модуля: {_module != null}", _module != null);
+
+            // Используем модуль напрямую с правильным containerId
             if (_module != null)
             {
-                await _module.InvokeVoidAsync("dispose");
-                _logger.LogInformation("Globe {ContainerId} disposed successfully", containerId);
-                return new GlobeOperationResult { Success = true };
+                _logger.LogInformation("🚮 Вызов JavaScript dispose для контейнера: {ContainerId}", containerId);
+                var success = await _module.InvokeAsync<bool>("dispose", containerId);
+                _logger.LogInformation("🚮 JavaScript dispose вернул: {Success} для контейнера: {ContainerId}", success, containerId);
+                return new GlobeOperationResult { Success = success };
             }
 
+            _logger.LogWarning("🚮 Модуль недоступен для контейнера: {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error disposing globe {ContainerId}", containerId);
+            _logger.LogError(ex, "🚮 Критическая ошибка при dispose контейнера {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
         }
     }

@@ -1,0 +1,110 @@
+@using ZealousMindedPeopleGeo.Services.Mapping
+@inject GlobeStateService GlobeStateService
+@inject IGlobeMediator GlobeMediator
+@implements IDisposable
+
+<div class="globe-controls d-flex gap-3 align-items-center p-2 rounded text-white">
+    <div class="d-flex align-items-center gap-2">
+        <small>Вращение:</small>
+        <button class="btn btn-sm @(State.IsAutoRotating ? "btn-info" : "btn-outline-light")"
+                @onclick="ToggleRotation"
+                disabled="@(!State.IsInitialized)">
+            🔄
+        </button>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+        <small>Участники:</small>
+        <span class="badge bg-info">@State.ParticipantCount</span>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+        <small>Детализация:</small>
+        <select class="form-select form-select-sm" 
+                @bind="State.CurrentLod" 
+                @bind:after="OnLodChanged"
+                style="width: auto;"
+                disabled="@(!State.IsInitialized)">
+            <option value="0">Низкая</option>
+            <option value="1">Средняя</option>
+            <option value="2">Высокая</option>
+            <option value="3">Ультра</option>
+        </select>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-light" 
+                @onclick="CenterOnUserAsync" 
+                title="Центрировать"
+                disabled="@(!State.IsInitialized)">
+            🎯
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string GlobeId { get; set; } = "default";
+
+    private string ContainerId => $"globe-{GlobeId}";
+    private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
+    
+    protected override void OnInitialized()
+    {
+        GlobeStateService.OnStateChanged += HandleStateChanged;
+    }
+    
+    private void HandleStateChanged(string globeId)
+    {
+        if (globeId == GlobeId)
+        {
+            StateHasChanged();
+        }
+    }
+    
+    private async Task ToggleRotation()
+    {
+        if (!State.IsInitialized) return;
+        
+        var newState = !State.IsAutoRotating;
+        var result = await GlobeMediator.SetAutoRotationAsync(ContainerId, newState, newState ? 0.5 : 0.0);
+        
+        if (result.Success)
+        {
+            GlobeStateService.UpdateState(GlobeId, s => s.IsAutoRotating = newState);
+        }
+    }
+    
+    private async Task OnLodChanged()
+    {
+        if (!State.IsInitialized) return;
+        
+        var result = await GlobeMediator.SetLevelOfDetailAsync(ContainerId, State.CurrentLod);
+        
+        if (result.Success)
+        {
+            GlobeStateService.UpdateState(GlobeId, s => s.CurrentLod = State.CurrentLod);
+        }
+    }
+    
+    private async Task CenterOnUserAsync()
+    {
+        if (!State.IsInitialized) return;
+        
+        // Центрируем на Москву по умолчанию
+        var result = await GlobeMediator.CenterOnAsync(ContainerId, 55.7558, 37.6176);
+        
+        if (result.Success)
+        {
+            GlobeStateService.UpdateState(GlobeId, s =>
+            {
+                s.CameraLatitude = 55.7558;
+                s.CameraLongitude = 37.6176;
+            });
+        }
+    }
+    
+    public void Dispose()
+    {
+        GlobeStateService.OnStateChanged -= HandleStateChanged;
+    }
+}

@@ -67,6 +67,7 @@ namespace ZealousMindedPeopleGeo
             services.AddScoped<IParticipantRepository, InMemoryParticipantRepository>();
             services.AddScoped<IThreeJsGlobeService, ThreeJsGlobeService>();
             services.AddScoped<IGlobeMediator, GlobeMediatorService>();
+            services.AddScoped<GlobeStateService>();
             services.AddScoped<ICachingService, CachingService>();
             services.AddScoped<IGeoJsonService, FileGeoJsonService>();
 

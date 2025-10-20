@@ -19,6 +19,7 @@
     justify-content: center;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(2px);
+    color: #fff;
 }
 
 .loading-spinner {
@@ -31,16 +32,58 @@
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .globe-controls {
-    background: rgba(0, 0, 0, 0.8) !important;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.9);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    min-width: fit-content;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    pointer-events: auto;
+    font-family: inherit;
 }
 
+    .globe-controls button {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .globe-controls button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 170, 255, 0.3);
+        }
+
+        .globe-controls button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    .globe-controls select {
+        cursor: pointer;
+    }
+
+    .globe-controls .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
 .participant-info-panel {
     position: absolute;
     top: 10px;
@@ -55,10 +98,13 @@
 }
 
 .participant-management-panel {
-    background: rgba(0, 0, 0, 0.9) !important;
+    background: rgba(0, 0, 0, 0.95) !important;
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
     color: white !important;
+    position: relative !important;
 }
 
 .participant-management-panel .form-control {

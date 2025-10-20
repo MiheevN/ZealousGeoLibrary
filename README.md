@@ -8,7 +8,7 @@
 ## 🌟 Возможности
 
 - **Интерактивная карта сообщества** - Отображение участников на Google Maps с информационными окнами
-- **3D глобус** - Трехмерная визуализация планеты с интерактивными элементами управления
+- **3D глобус** - Трехмерная визуализация планеты с текстовыми метками участников и интерактивными элементами управления
 - **Геокодирование** - Автоматическое определение координат по адресу через Nominatim OpenStreetMap API
 - **Гибкие источники данных** - Поддержка различных репозиториев (In-Memory, Google Sheets, JSON файлы)
 - **PWA поддержка** - Полноценное прогрессивное веб-приложение с оффлайн функциональностью
@@ -107,32 +107,17 @@ var app = builder.Build();
 <PageTitle>3D глобус сообщества</PageTitle>
 
 <CommunityGlobeComponent
-    ContainerId="community-globe"
     Width="800"
     Height="600"
     ShowControls="true"
-    ShowParticipantInfo="true"
-    OnParticipantClick="HandleParticipantClick"
-    OnGlobeInitialized="HandleGlobeInitialized" />
+    ShowParticipantManagement="true"
+    OnParticipantClick="HandleParticipantClick" />
 
 @code {
     private async Task HandleParticipantClick(Participant participant)
     {
         // Обработка клика по участнику на глобусе
         Console.WriteLine($"Clicked on participant: {participant.Name}");
-    }
-
-    private async Task HandleGlobeInitialized(GlobeInitializationResult result)
-    {
-        // Глобус инициализирован
-        if (result.Success)
-        {
-            Console.WriteLine("Globe initialized successfully");
-        }
-        else
-        {
-            Console.WriteLine($"Globe initialization failed: {result.ErrorMessage}");
-        }
     }
 }
 ```
