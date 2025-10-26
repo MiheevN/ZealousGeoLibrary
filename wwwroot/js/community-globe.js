@@ -139,6 +139,7 @@ class CommunityGlobe {
             onParticipantClick: null
         };
 
+        console.log(`🔧 Создание глобуса для контейнера: ${containerId}`);
         this.init();
     }
 
@@ -174,11 +175,20 @@ class CommunityGlobe {
 
             this.state.isInitialized = true;
 
-            if (this.callbacks.onGlobeReady) {
-                this.callbacks.onGlobeReady(this.state);
-            }
+            console.log(`🌍 Глобус ${this.containerId} инициализирован и готов к работе`);
+            console.log(`📊 Состояние глобуса ${this.containerId}:`, this.state);
 
             this.animate();
+            
+            // Вызываем callback после задержки
+            setTimeout(() => {
+                if (this.callbacks.onGlobeReady) {
+                    console.log(`📞 Вызов callback onGlobeReady для ${this.containerId}`);
+                    this.callbacks.onGlobeReady(this.state);
+                } else {
+                    console.log(`⚠️ Callback не установлен для ${this.containerId}`);
+                }
+            }, 200);
         } catch (error) {
             console.error('Failed to initialize globe:', error);
             if (this.callbacks.onError) {
@@ -462,22 +472,38 @@ class CommunityGlobe {
     }
 
     /**
-     * Добавляет массив участников на глобус
-     * @param {Array} participants - Массив объектов участников с координатами
-     */
-    addParticipants(participants) {
-        if (!this.state.isInitialized) return false;
+      * Добавляет массив участников на глобус
+      * @param {Array} participants - Массив объектов участников с координатами
+      */
+     addParticipants(participants) {
+         console.log(`🎯 addParticipants вызван для контейнера ${this.containerId}:`, participants?.length || 0, 'участников');
 
-        this.clearParticipants();
-        if (!participants || participants.length === 0) return true;
+         if (!this.state.isInitialized) {
+             console.log(`❌ Глобус ${this.containerId} не инициализирован, планирую повтор через 500ms`);
+             setTimeout(() => this.addParticipants(participants), 500);
+             return false;
+         }
 
-        try {
+         this.clearParticipants();
+         if (!participants || participants.length === 0) {
+             console.log(`📊 Нет участников для добавления на глобус ${this.containerId}`);
+             return true;
+         }
+
+         try {
             const geometry = new THREE.BufferGeometry();
             const positions = [];
             const colors = [];
             const sizes = [];
 
             participants.forEach((participant, index) => {
+                // Валидация координат
+                if (typeof participant.latitude !== 'number' || typeof participant.longitude !== 'number' ||
+                    isNaN(participant.latitude) || isNaN(participant.longitude)) {
+                    console.warn(`⚠️ Пропускаем участника ${participant.name}: некорректные координаты (${participant.latitude}, ${participant.longitude})`);
+                    return;
+                }
+
                 const radius = 1 + this.options.participantPointOffset;
                 const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
                 positions.push(position.x, position.y, position.z);
@@ -529,6 +555,18 @@ class CommunityGlobe {
 
             console.log(`✅ Добавлено ${participants.length} участников на глобус`);
         console.log(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
+
+            // Принудительно обновляем рендер для немедленного отображения точек
+            if (this.renderer && this.scene && this.camera) {
+                console.log(`🔄 Принудительный рендер сцены для контейнера ${this.containerId}`);
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            console.log(`📈 Финальное состояние для контейнера ${this.containerId}:`);
+            console.log(`   - Точек участников: ${this.state.participantCount}`);
+            console.log(`   - Объектов в сцене: ${this.scene.children.length}`);
+            console.log(`   - Объектов в earthGroup: ${this.earthGroup.children.length}`);
+
             return true;
         } catch (error) {
             console.error('Error adding participants:', error);
@@ -590,36 +628,60 @@ class CommunityGlobe {
     }
 
     createParticipantLabels(participants) {
+        console.log(`🏷️ Создание меток для ${participants.length} участников`);
+
         participants.forEach((participant, index) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const fontSize = 24;
-            const scale = 2;
-            
-            ctx.font = `${fontSize}px Arial`;
-            const textWidth = ctx.measureText(participant.name).width;
-            canvas.width = (textWidth + 20) * scale;
-            canvas.height = (fontSize + 10) * scale;
-            ctx.scale(scale, scale);
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.07)';
-            ctx.fillRect(0, 0, textWidth + 20, fontSize + 10);
-            ctx.fillStyle = 'white';
-            ctx.font = `${fontSize}px Arial`;
-            ctx.fillText(participant.name, 10, fontSize + 2);
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.SpriteMaterial({ map: texture });
-            const sprite = new THREE.Sprite(material);
-            
-            const radius = 1 + this.options.participantPointOffset + 0.03;
-            const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
-            sprite.position.set(position.x, position.y, position.z);
-            sprite.scale.set(0.2, 0.1, 1);
-            
-            this.earthGroup.add(sprite);
-            this.participantLabels.push(sprite);
+            // Проверка валидности данных
+            if (!participant.name || participant.name.trim() === '') {
+                console.warn(`⚠️ Пропускаем метку для участника без имени (index ${index})`);
+                return;
+            }
+
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const fontSize = 24;
+                const scale = 2;
+
+                ctx.font = `${fontSize}px Arial`;
+                const textWidth = ctx.measureText(participant.name).width;
+                canvas.width = (textWidth + 20) * scale;
+                canvas.height = (fontSize + 10) * scale;
+                ctx.scale(scale, scale);
+
+                // Полупрозрачный фон для лучшей читаемости
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, textWidth + 20, fontSize + 10);
+
+                // Белая рамка
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, 0, textWidth + 20, fontSize + 10);
+
+                // Текст
+                ctx.fillStyle = 'white';
+                ctx.font = `${fontSize}px Arial`;
+                ctx.fillText(participant.name, 10, fontSize + 2);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(material);
+
+                const radius = 1 + this.options.participantPointOffset + 0.03;
+                const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
+                sprite.position.set(position.x, position.y, position.z);
+                sprite.scale.set(0.2, 0.1, 1);
+
+                this.earthGroup.add(sprite);
+                this.participantLabels.push(sprite);
+
+                console.log(`🏷️ Создана метка для ${participant.name} на позиции (${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`);
+            } catch (error) {
+                console.error(`❌ Ошибка создания метки для участника ${participant.name}:`, error);
+            }
         });
+
+        console.log(`✅ Создано ${this.participantLabels.length} меток участников`);
     }
 
     animate() {
@@ -1264,6 +1326,26 @@ export function debugGlobeState(containerId) {
         return true;
     } catch (error) {
         console.error('Error in debug function:', error);
+        return false;
+    }
+}
+
+export function setGlobeReadyCallbackDirect(containerId, dotNetReference) {
+    try {
+        console.log(`📞 Установка прямого callback для ${containerId}`);
+        const globe = globeInstances.get(containerId);
+        if (globe) {
+            globe.callbacks.onGlobeReady = async (state) => {
+                console.log(`📞 Вызов .NET callback для ${containerId}`, state);
+                await dotNetReference.invokeMethodAsync('Invoke', state);
+            };
+            console.log(`✅ Прямой callback установлен для ${containerId}`);
+            return true;
+        }
+        console.error(`❌ Глобус ${containerId} не найден`);
+        return false;
+    } catch (error) {
+        console.error('💥 Ошибка установки callback:', error);
         return false;
     }
 }

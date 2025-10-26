@@ -113,4 +113,21 @@ public interface IThreeJsGlobeService
     /// <param name="ct">Токен отмены операции</param>
     /// <returns>Результат проверки</returns>
     ValueTask<bool> IsAvailableAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Проверяет доступность конкретного глобуса
+    /// </summary>
+    /// <param name="containerId">ID контейнера глобуса</param>
+    /// <param name="ct">Токен отмены операции</param>
+    /// <returns>Результат проверки</returns>
+    ValueTask<bool> IsGlobeAvailableAsync(string containerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Устанавливает callback для уведомления о готовности глобуса
+    /// </summary>
+    /// <param name="containerId">ID контейнера глобуса</param>
+    /// <param name="callback">Callback функция</param>
+    /// <param name="ct">Токен отмены операции</param>
+    /// <returns>Результат установки</returns>
+    ValueTask<Models.GlobeOperationResult> SetReadyCallbackAsync(string containerId, Func<Models.GlobeState, Task> callback, CancellationToken ct = default);
 }

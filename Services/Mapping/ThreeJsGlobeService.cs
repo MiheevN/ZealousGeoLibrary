@@ -11,6 +11,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     private readonly IJSRuntime _jsRuntime;
     private readonly ILogger<ThreeJsGlobeService> _logger;
     private IJSObjectReference? _module;
+    private readonly Dictionary<string, (Func<GlobeState, Task> callback, DotNetObjectReference<CallbackWrapper> reference)> _callbacks = new();
 
     public ThreeJsGlobeService(IJSRuntime jsRuntime, ILogger<ThreeJsGlobeService> logger)
     {
@@ -38,15 +39,18 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
                 _logger.LogInformation("Globe module loaded successfully");
             }
 
-            // Создаем глобус через модуль
+            // Создаем глобус
             var success = await _module.InvokeAsync<bool>("createGlobe", containerId, options);
             if (!success)
             {
-                return new GlobeInitializationResult
-                {
-                    Success = false,
-                    ErrorMessage = "Failed to create globe instance"
-                };
+                return new GlobeInitializationResult { Success = false, ErrorMessage = "Failed to create globe instance" };
+            }
+
+            // Устанавливаем callback если он был сохранен
+            if (_callbacks.TryGetValue(containerId, out var callbackData))
+            {
+                await _module.InvokeVoidAsync("setGlobeReadyCallbackDirect", containerId, callbackData.reference);
+                _logger.LogInformation("Callback установлен для {ContainerId}", containerId);
             }
 
             // Модуль уже сохранен в _module
@@ -84,48 +88,36 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 
     public async ValueTask<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
     {
-        _logger.LogInformation("👥 AddParticipantsAsync вызван для контейнера: {ContainerId}, участников: {Count}", containerId, participants?.Count() ?? 0);
-
         if (participants == null)
-        {
-            _logger.LogWarning("👥 Participants равен null для контейнера: {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = "Participants cannot be null" };
-        }
 
         try
         {
+            if (_module == null)
+                return new GlobeOperationResult { Success = false, ErrorMessage = "Globe module not initialized" };
+
             var participantsArray = participants.Select(p => new
             {
-                id = p.Id.ToString(), // Используем строковый ID
+                id = p.Id.ToString(),
                 p.Name,
                 p.Latitude,
                 p.Longitude,
                 location = $"{p.Name} ({p.Latitude:F4}, {p.Longitude:F4})"
             }).ToArray();
 
-            _logger.LogInformation("👥 Подготовлено участников для контейнера {ContainerId}: {Count}", containerId, participantsArray.Length);
-            _logger.LogInformation("👥 Проверка модуля: {_module != null}", _module != null);
-
-            // Используем модуль напрямую
-            if (_module != null)
+            var success = await _module.InvokeAsync<bool>("addParticipants", containerId, (object)participantsArray);
+            
+            if (success)
             {
-                _logger.LogInformation("👥 Вызов JavaScript addParticipants для контейнера: {ContainerId}", containerId);
-                var success = await _module.InvokeAsync<bool>("addParticipants", containerId, (object)participantsArray);
-                _logger.LogInformation("👥 JavaScript addParticipants вернул: {Success} для контейнера: {ContainerId}", success, containerId);
-
-                if (success)
-                {
-                    _logger.LogInformation("✅ Добавлено {Count} участников в глобус {ContainerId}", participantsArray.Length, containerId);
-                    return new GlobeOperationResult { Success = true, ProcessedCount = participantsArray.Length };
-                }
+                _logger.LogInformation("✅ Добавлено {Count} участников в глобус {ContainerId}", participantsArray.Length, containerId);
+                return new GlobeOperationResult { Success = true, ProcessedCount = participantsArray.Length };
             }
 
-            _logger.LogWarning("❌ Модуль недоступен для контейнера: {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Критическая ошибка при добавлении участников в контейнер {ContainerId}", containerId);
+            _logger.LogError(ex, "❌ Ошибка при добавлении участников в контейнер {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
         }
     }
@@ -344,22 +336,56 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
         }
     }
 
-    public async ValueTask<bool> IsAvailableAsync(CancellationToken ct = default)
+    public async ValueTask<GlobeOperationResult> SetReadyCallbackAsync(string containerId, Func<GlobeState, Task> callback, CancellationToken ct = default)
     {
         try
         {
-            // Проверяем, инициализирован ли модуль
-            if (_module != null)
+            var wrapper = new CallbackWrapper(callback);
+            var reference = DotNetObjectReference.Create(wrapper);
+            _callbacks[containerId] = (callback, reference);
+            _logger.LogInformation("Callback сохранен для {ContainerId}", containerId);
+            return new GlobeOperationResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting ready callback for globe {ContainerId}", containerId);
+            return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public class CallbackWrapper
+    {
+        private readonly Func<GlobeState, Task> _callback;
+        public CallbackWrapper(Func<GlobeState, Task> callback) => _callback = callback;
+
+        [JSInvokable]
+        public async Task Invoke(GlobeState state)
+        {
+            Console.WriteLine($"📞 CallbackWrapper.Invoke вызван");
+            await _callback(state);
+        }
+    }
+
+    public async ValueTask<bool> IsAvailableAsync(CancellationToken ct = default)
+    {
+        return await IsGlobeAvailableAsync(null, ct);
+    }
+
+    public async ValueTask<bool> IsGlobeAvailableAsync(string containerId, CancellationToken ct = default)
+    {
+        try
+        {
+            // Сначала проверяем базовую доступность модуля
+            if (_module == null)
             {
-                _logger.LogInformation("Globe module already initialized");
-                return true;
+                _logger.LogDebug("Globe module not initialized");
+                return false;
             }
 
-            // Если ничего не инициализировано, проверяем базовую поддержку WebGL
-            bool isWebGLSupported = true; // По умолчанию предполагаем поддержку
+            // Проверяем базовую поддержку WebGL
+            bool isWebGLSupported = true;
             try
             {
-                // Простая проверка через eval, без зависимостей от внешних функций
                 var webGLCheck = await _jsRuntime.InvokeAsync<bool>("eval", @"
                     (function() {
                         try {
@@ -376,8 +402,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             catch (Exception ex)
             {
                 _logger.LogDebug("Cannot check WebGL support: {Message}", ex.Message);
-                // В тестовом окружении или при ошибках предполагаем поддержку
-                isWebGLSupported = true;
+                isWebGLSupported = true; // Предполагаем поддержку
             }
 
             if (!isWebGLSupported)
@@ -386,31 +411,31 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
                 return false;
             }
 
-            // Проверяем доступность Three.js
+            // Если containerId не указан, проверяем только модуль
+            if (string.IsNullOrEmpty(containerId))
+            {
+                return true;
+            }
+
+            // Проверяем состояние конкретного глобуса
             try
             {
-                var threeJsAvailable = await _jsRuntime.InvokeAsync<bool>("eval", $"typeof window.THREE !== 'undefined'");
-                if (threeJsAvailable)
-                {
-                    _logger.LogInformation("Three.js is available");
-                    return true;
-                }
-                else
-                {
-                    _logger.LogWarning("Three.js is not available");
-                    return false;
-                }
+                var state = await GetStateAsync(containerId, ct);
+                var isInitialized = state?.IsInitialized ?? false;
+
+                _logger.LogDebug("Globe {ContainerId} initialized: {IsInitialized}", containerId, isInitialized);
+                return isInitialized;
             }
             catch (Exception ex)
             {
-                _logger.LogDebug("Cannot check Three.js availability: {Message}", ex.Message);
-                // Если не можем проверить, предполагаем доступность (для тестового окружения)
-                return true;
+                _logger.LogDebug("Cannot get state for globe {ContainerId}: {Message}", containerId, ex.Message);
+                // Если не можем получить состояние, предполагаем что глобус не готов
+                return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking globe service availability");
+            _logger.LogError(ex, "Error checking globe availability");
             return false;
         }
     }

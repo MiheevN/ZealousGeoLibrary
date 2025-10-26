@@ -62,9 +62,9 @@ public class GlobeMediatorService : IGlobeMediator
         {
             _logger.LogInformation("🎯 GlobeMediator.AddParticipantAsync вызван для контейнера: {ContainerId}, участник: {Name}", containerId, participant.Name);
 
-            // Проверяем доступность 3D глобуса
+            // Проверяем доступность конкретного 3D глобуса
             _logger.LogInformation("🎯 Проверка доступности глобуса для контейнера: {ContainerId}", containerId);
-            var isGlobeAvailable = await _globeService.IsAvailableAsync();
+            var isGlobeAvailable = await _globeService.IsGlobeAvailableAsync(containerId);
             _logger.LogInformation("🎯 Доступность глобуса для контейнера {ContainerId}: {Available}", containerId, isGlobeAvailable);
 
             GlobeOperationResult result;
@@ -114,8 +114,8 @@ public class GlobeMediatorService : IGlobeMediator
             var participantList = participants.ToList();
             _logger.LogInformation("Adding {Count} participants to globe {ContainerId}", participantList.Count, containerId);
 
-            // Проверяем доступность 3D глобуса
-            var isGlobeAvailable = await _globeService.IsAvailableAsync();
+            // Проверяем доступность конкретного 3D глобуса
+            var isGlobeAvailable = await _globeService.IsGlobeAvailableAsync(containerId);
 
             GlobeOperationResult result;
             if (isGlobeAvailable)
@@ -372,6 +372,69 @@ public class GlobeMediatorService : IGlobeMediator
         {
             _logger.LogError(ex, "Error checking globe availability");
             return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsGlobeAvailableAsync(string containerId)
+    {
+        try
+        {
+            return await _globeService.IsGlobeAvailableAsync(containerId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking globe {ContainerId} availability", containerId);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<GlobeOperationResult> SetReadyCallbackAsync(string containerId, Func<GlobeState, Task> callback)
+    {
+        try
+        {
+            _logger.LogInformation("Setting ready callback for globe {ContainerId}", containerId);
+            var result = await _globeService.SetReadyCallbackAsync(containerId, callback);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("Ready callback set successfully for globe {ContainerId}", containerId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to set ready callback for globe {ContainerId}: {Error}", containerId, result.ErrorMessage);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting ready callback for globe {ContainerId}", containerId);
+            return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Callback метод, вызываемый из JavaScript при готовности глобуса
+    /// </summary>
+    [JSInvokable]
+    public static Task OnGlobeReady(string containerId, string stateJson)
+    {
+        try
+        {
+            Console.WriteLine($"📞 JavaScript callback: глобус {containerId} готов");
+            Console.WriteLine($"📊 Состояние: {stateJson}");
+
+            // Здесь можно добавить дополнительную логику, например,
+            // уведомить Blazor компоненты или обновить состояние
+
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"💥 Ошибка в callback OnGlobeReady: {ex.Message}");
+            return Task.FromException(ex);
         }
     }
 }

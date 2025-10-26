@@ -62,4 +62,14 @@ public interface IGlobeMediator
     /// Проверяет доступность сервиса
     /// </summary>
     Task<bool> IsAvailableAsync();
+
+    /// <summary>
+    /// Проверяет доступность конкретного глобуса
+    /// </summary>
+    Task<bool> IsGlobeAvailableAsync(string containerId);
+
+    /// <summary>
+    /// Устанавливает callback для уведомления о готовности глобуса
+    /// </summary>
+    Task<GlobeOperationResult> SetReadyCallbackAsync(string containerId, Func<GlobeState, Task> callback);
 }
