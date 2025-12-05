@@ -51,8 +51,6 @@ public class Participant
     public SocialContacts? SocialContacts { get; set; }
 
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
-
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>

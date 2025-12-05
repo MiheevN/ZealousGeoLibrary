@@ -7,6 +7,15 @@
 
 ## [Unreleased] - 2024-12-XX
 
+### Удалено
+- **Устранены дубликаты функциональности (Issue #4)**
+  - Удален компонент `ParticipantRegistrationComponent.razor` - заменен на более продвинутый `GeoDataParticipantForm.razor`
+  - Удалено дублирующееся поле `Timestamp` из модели `Participant.cs` - используется `RegisteredAt`
+  - Мигрированы все ссылки на `Timestamp` на `RegisteredAt` в:
+    - `GoogleSheetsService.cs`
+    - `community-map.js`
+    - `GeoJson.cs`
+
 ### Добавлено
 - **Компонент настроек глобуса** (`CommunityGlobeSettings.razor`)
   - Полная настройка параметров глобуса через UI
@@ -86,7 +95,7 @@
   - `CommunityGlobeControls` - панель управления
   - `CommunityGlobeParticipantManager` - управление участниками
   - `CommunityMapComponent` - компонент карты Google Maps
-  - `ParticipantRegistrationComponent` - форма регистрации
+  - `GeoDataParticipantForm` - форма для добавления точек на глобус
   - `PwaManagerComponent` - управление PWA функциональностью
 
 - **Сервисы**

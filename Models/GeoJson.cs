@@ -177,7 +177,7 @@ public class GeoJsonFeature
                 LifeGoals = participant.LifeGoals,
                 Skills = participant.Skills,
                 RegisteredAt = participant.RegisteredAt,
-                Timestamp = participant.Timestamp
+                Timestamp = participant.RegisteredAt
             }
         };
     }
@@ -246,8 +246,7 @@ public class GeoJsonFeatureCollection
                     Message = feature.Properties?.Message,
                     LifeGoals = feature.Properties?.LifeGoals,
                     Skills = feature.Properties?.Skills,
-                    RegisteredAt = feature.Properties?.RegisteredAt ?? DateTime.UtcNow,
-                    Timestamp = feature.Properties?.Timestamp ?? DateTime.UtcNow
+                    RegisteredAt = feature.Properties?.RegisteredAt ?? feature.Properties?.Timestamp ?? DateTime.UtcNow
                 };
 
                 yield return participant;

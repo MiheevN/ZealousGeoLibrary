@@ -77,7 +77,7 @@ namespace ZealousMindedPeopleGeo.Services
                 {
                     new List<object>
                     {
-                        participant.Timestamp.ToString("O"),
+                        participant.RegisteredAt.ToString("O"),
                         participant.Name,
                         participant.Address,
                         participant.Latitude ?? 0,
@@ -141,7 +141,7 @@ namespace ZealousMindedPeopleGeo.Services
                             {
                                 var participant = new Participant
                                 {
-                                    Timestamp = DateTime.TryParse(row[0]?.ToString(), out var timestamp) ? timestamp : DateTime.UtcNow,
+                                    RegisteredAt = DateTime.TryParse(row[0]?.ToString(), out var timestamp) ? timestamp : DateTime.UtcNow,
                                     Name = row[1]?.ToString() ?? "",
                                     Address = row[2]?.ToString() ?? "",
                                     Latitude = double.TryParse(row[3]?.ToString(), out var lat) ? lat : 0,
