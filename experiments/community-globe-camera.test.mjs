@@ -39,6 +39,7 @@ function createGlobePrototypeInstance(CommunityGlobe, options = {}) {
         participantMarkerMinScale: 0.35,
         participantMarkerMaxScale: 1.2,
         participantLabelLoweringDistance: 1.1,
+        participantClickZoom: 1.35,
         ...options
     };
 
@@ -101,4 +102,41 @@ test('participant label anchor lowers toward the marker base near close zoom', a
     assert.equal(round(nearAnchor, 3), round(dimensions.labelGap * nearScale, 3));
     assert.equal(round(farAnchor, 3), round((dimensions.tipHeight + dimensions.bodyHeight + dimensions.labelGap) * farScale, 3));
     assert.ok(nearAnchor < farAnchor, 'close zoom should move label text down from marker end toward marker start');
+});
+
+test('participant marker click centers camera on marker at close zoom', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+    const participant = {
+        id: 'participant-1',
+        name: 'Test participant',
+        latitude: 55.7558,
+        longitude: 37.6173
+    };
+    let callbackMetadata = null;
+    let centeredCall = null;
+
+    globe.state = { isInitialized: true };
+    globe.callbacks = {
+        onParticipantClick: metadata => {
+            callbackMetadata = metadata;
+        }
+    };
+    globe.getIntersectedParticipantMarker = () => ({
+        userData: { participant }
+    });
+    globe.updateMousePosition = () => {};
+    globe.centerOn = (latitude, longitude, zoom) => {
+        centeredCall = { latitude, longitude, zoom };
+        return true;
+    };
+
+    globe.onMouseClick({});
+
+    assert.deepEqual(callbackMetadata, participant);
+    assert.deepEqual(centeredCall, {
+        latitude: participant.latitude,
+        longitude: participant.longitude,
+        zoom: 1.35
+    });
 });
