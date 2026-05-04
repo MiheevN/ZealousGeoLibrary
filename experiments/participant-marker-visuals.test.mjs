@@ -55,6 +55,35 @@ test('participant labels stay renderable during close zoom', async () => {
     assert.match(source, /label\.renderOrder\s*=/, 'labels should render after the 3D marker body');
 });
 
+test('participant labels fade when their markers are hidden behind the globe', async () => {
+    const { CommunityGlobe, source } = await loadCommunityGlobeClass();
+    const globe = Object.create(CommunityGlobe.prototype);
+
+    globe.options = {
+        participantLabelHiddenOpacity: 0.12,
+        participantLabelHorizonFade: 0.25
+    };
+
+    const frontOpacity = globe.calculateParticipantLabelVisibilityOpacity(
+        { x: 0, y: 0, z: 1 },
+        { x: 0, y: 0, z: 2.5 }
+    );
+    const hiddenOpacity = globe.calculateParticipantLabelVisibilityOpacity(
+        { x: 0, y: 0, z: -1 },
+        { x: 0, y: 0, z: 2.5 }
+    );
+    const horizonOpacity = globe.calculateParticipantLabelVisibilityOpacity(
+        { x: 1.02, y: 0, z: 0 },
+        { x: 0, y: 0, z: 2.5 }
+    );
+
+    assert.equal(frontOpacity, 1, 'front-side labels should remain fully bright');
+    assert.equal(hiddenOpacity, 0.12, 'back-side labels should become much dimmer');
+    assert.ok(horizonOpacity > hiddenOpacity, 'horizon labels should be brighter than hidden labels');
+    assert.ok(horizonOpacity < frontOpacity, 'horizon labels should fade before becoming fully bright');
+    assert.match(source, /updateParticipantLabelOpacity\(label\);/, 'label opacity should update every frame as the globe rotates');
+});
+
 test('marker facet count is configurable and pyramid-like by default', async () => {
     const { CommunityGlobe } = await loadCommunityGlobeClass();
     const globe = Object.create(CommunityGlobe.prototype);

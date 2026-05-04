@@ -96,10 +96,16 @@ class CommunityGlobe {
             participantMarkerReferenceDistance: 2.6,
             participantMarkerMinScale: 0.35,
             participantMarkerMaxScale: 1.2,
+<<<<<<< issue-22-e21d3bae3760
             participantMarkerLabelSideOffset: 0.02,
             participantMarkerLabelUpOffset: 0.055,
             participantMarkerLabelCloseLift: 0.06,
             participantLabelLiftDistance: 1.1,
+=======
+            participantLabelLoweringDistance: 1.1,
+            participantLabelHiddenOpacity: 0.12,
+            participantLabelHorizonFade: 0.25,
+>>>>>>> master
             preserveDrawingBuffer: false,
             highlightedPointColor: '#e0fcff',
             autoRotate: true,
@@ -150,6 +156,7 @@ class CommunityGlobe {
             isInitialized: false,
             isAutoRotating: this.options.autoRotate,
             isUserInteracting: false,
+            isPointerOverGlobe: false,
             currentLod: this.options.levelOfDetail,
             participantCount: 0,
             countryCount: 0,
@@ -485,9 +492,14 @@ class CommunityGlobe {
     }
 
     setupEventListeners() {
-        this.renderer.domElement.addEventListener('click', (event) => this.onMouseClick(event));
-        this.renderer.domElement.addEventListener('mousemove', (event) => this.onMouseMove(event));
-        this.renderer.domElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
+        const globeElement = this.renderer.domElement;
+        globeElement.addEventListener('click', (event) => this.onMouseClick(event));
+        globeElement.addEventListener('mousemove', (event) => this.onMouseMove(event));
+        globeElement.addEventListener('pointerenter', () => this.handleGlobePointerEnter());
+        globeElement.addEventListener('pointerleave', () => this.handleGlobePointerLeave());
+        globeElement.addEventListener('pointerup', (event) => this.handleGlobePointerRelease(event));
+        globeElement.addEventListener('pointercancel', () => this.handleGlobePointerLeave());
+        globeElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -502,6 +514,7 @@ class CommunityGlobe {
     }
 
     onMouseMove(event) {
+        this.handleGlobePointerEnter();
         this.updateMousePosition(event);
 
         const marker = this.getIntersectedParticipantMarker();
@@ -1149,6 +1162,69 @@ class CommunityGlobe {
         label.scale.set(scale.width, scale.height, 1);
     }
 
+    calculateParticipantLabelVisibilityOpacity(markerWorldPosition, cameraPosition) {
+        const markerX = this.getFiniteNumber(markerWorldPosition?.x, 0);
+        const markerY = this.getFiniteNumber(markerWorldPosition?.y, 0);
+        const markerZ = this.getFiniteNumber(markerWorldPosition?.z, 0);
+        const cameraX = this.getFiniteNumber(cameraPosition?.x, 0);
+        const cameraY = this.getFiniteNumber(cameraPosition?.y, 0);
+        const cameraZ = this.getFiniteNumber(cameraPosition?.z, 0);
+        const markerLength = Math.hypot(markerX, markerY, markerZ);
+        const cameraLength = Math.hypot(cameraX, cameraY, cameraZ);
+        const visibleOpacity = 1;
+        const hiddenOpacity = this.getClampedNumber(this.options.participantLabelHiddenOpacity, 0.12, 0, visibleOpacity);
+        const fadeBand = this.getClampedNumber(this.options.participantLabelHorizonFade, 0.25, 0.001, 1);
+        const earthRadius = this.getPositiveNumber(this.options.earthRadius, 1);
+
+        if (markerLength <= 0.000001 || cameraLength <= 0.000001) {
+            return visibleOpacity;
+        }
+
+        const facing = (markerX * cameraX + markerY * cameraY + markerZ * cameraZ) / (markerLength * cameraLength);
+        const horizonFacing = this.calculateParticipantLabelHorizonFacing(markerLength, cameraLength, earthRadius);
+        const visibility = facing - horizonFacing;
+        if (visibility >= fadeBand) {
+            return visibleOpacity;
+        }
+        if (visibility <= -fadeBand) {
+            return hiddenOpacity;
+        }
+
+        const progress = (visibility + fadeBand) / (fadeBand * 2);
+        const easedProgress = progress * progress * (3 - 2 * progress);
+        return hiddenOpacity + (visibleOpacity - hiddenOpacity) * easedProgress;
+    }
+
+    calculateParticipantLabelHorizonFacing(markerDistance, cameraDistance, earthRadius) {
+        const safeMarkerDistance = this.getPositiveNumber(markerDistance, 1);
+        const safeCameraDistance = this.getPositiveNumber(cameraDistance, 1);
+        const safeEarthRadius = Math.min(
+            this.getPositiveNumber(earthRadius, 1),
+            safeMarkerDistance - 0.000001,
+            safeCameraDistance - 0.000001
+        );
+        const markerTerm = Math.max(0, safeMarkerDistance * safeMarkerDistance - safeEarthRadius * safeEarthRadius);
+        const cameraTerm = Math.max(0, safeCameraDistance * safeCameraDistance - safeEarthRadius * safeEarthRadius);
+        const numerator = safeEarthRadius * safeEarthRadius - Math.sqrt(markerTerm * cameraTerm);
+
+        return this.clamp(numerator / (safeMarkerDistance * safeCameraDistance), -1, 1);
+    }
+
+    updateParticipantLabelOpacity(label) {
+        if (!this.camera || !label?.parent) return;
+
+        const markerWorldPosition = label.parent.getWorldPosition(new THREE.Vector3());
+        const opacity = this.calculateParticipantLabelVisibilityOpacity(markerWorldPosition, this.camera.position);
+        const materials = Array.isArray(label.material) ? label.material : [label.material];
+
+        materials.forEach(material => {
+            if (!material) return;
+
+            material.transparent = true;
+            material.opacity = opacity;
+        });
+    }
+
     updateParticipantLabelBillboard(label) {
         if (!this.camera || !label?.parent) return;
 
@@ -1161,6 +1237,7 @@ class CommunityGlobe {
         this.participantLabels.forEach(label => {
             this.updateParticipantLabelBillboard(label);
             this.updateParticipantLabelScale(label);
+            this.updateParticipantLabelOpacity(label);
         });
     }
 
@@ -1344,6 +1421,7 @@ class CommunityGlobe {
     initializeAutoRotationInteractionState() {
         this.clearAutoRotationResumeTimer();
         this.state.isUserInteracting = false;
+        this.state.isPointerOverGlobe = false;
     }
 
     clearAutoRotationResumeTimer() {
@@ -1366,10 +1444,60 @@ class CommunityGlobe {
     pauseAutoRotationForInteraction() {
         this.clearAutoRotationResumeTimer();
         this.state.isUserInteracting = true;
+        this.state.isPointerOverGlobe = true;
 
         if (this.options.autoRotate) {
             this.applyAutoRotationState(false);
         }
+    }
+
+    handleGlobePointerEnter() {
+        this.state.isPointerOverGlobe = true;
+
+        if (this.options.autoRotate && !this.state.isAutoRotating) {
+            this.clearAutoRotationResumeTimer();
+        }
+    }
+
+    handleGlobePointerLeave() {
+        this.state.isPointerOverGlobe = false;
+        this.setHoveredParticipantMarker(null);
+
+        if (this.renderer?.domElement) {
+            this.renderer.domElement.style.cursor = '';
+        }
+
+        if (!this.state.isUserInteracting && this.options.autoRotate && !this.state.isAutoRotating) {
+            this.scheduleAutoRotationResume();
+        }
+    }
+
+    handleGlobePointerRelease(event) {
+        if (this.isPointerEventInsideGlobe(event)) {
+            this.handleGlobePointerEnter();
+            return;
+        }
+
+        this.handleGlobePointerLeave();
+    }
+
+    isPointerEventInsideGlobe(event) {
+        const element = this.renderer?.domElement;
+        if (!element || typeof element.getBoundingClientRect !== 'function') {
+            return true;
+        }
+
+        const clientX = Number(event?.clientX);
+        const clientY = Number(event?.clientY);
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+            return true;
+        }
+
+        const rect = element.getBoundingClientRect();
+        const right = Number.isFinite(rect.right) ? rect.right : rect.left + rect.width;
+        const bottom = Number.isFinite(rect.bottom) ? rect.bottom : rect.top + rect.height;
+
+        return clientX >= rect.left && clientX <= right && clientY >= rect.top && clientY <= bottom;
     }
 
     scheduleAutoRotationResume() {
@@ -1381,9 +1509,13 @@ class CommunityGlobe {
             return;
         }
 
+        if (this.state.isPointerOverGlobe) {
+            return;
+        }
+
         this.autoRotationResumeTimer = setTimeout(() => {
             this.autoRotationResumeTimer = null;
-            if (!this.state.isUserInteracting && this.options.autoRotate) {
+            if (!this.state.isUserInteracting && !this.state.isPointerOverGlobe && this.options.autoRotate) {
                 this.applyAutoRotationState(true);
             }
         }, this.getAutoRotationResumeDelay());
@@ -1510,10 +1642,16 @@ class CommunityGlobe {
                 'participantMarkerReferenceDistance',
                 'participantMarkerMinScale',
                 'participantMarkerMaxScale',
+<<<<<<< issue-22-e21d3bae3760
                 'participantMarkerLabelSideOffset',
                 'participantMarkerLabelUpOffset',
                 'participantMarkerLabelCloseLift',
                 'participantLabelLiftDistance',
+=======
+                'participantLabelLoweringDistance',
+                'participantLabelHiddenOpacity',
+                'participantLabelHorizonFade',
+>>>>>>> master
                 'highlightedPointColor',
                 'autoRotateSpeed',
                 'cloudsOpacity',
