@@ -10,7 +10,9 @@
     
     @if (ShowControls)
     {
-        <CommunityGlobeControls GlobeId="@GlobeId" />
+        <CommunityGlobeControls GlobeId="@GlobeId"
+                                CurrentLatitude="@CurrentLatitude"
+                                CurrentLongitude="@CurrentLongitude" />
     }
     
     @if (ShowParticipantManagement)
@@ -28,6 +30,8 @@
     [Parameter] public string GlobeId { get; set; } = "default";
     [Parameter] public int Width { get; set; } = 800;
     [Parameter] public int Height { get; set; } = 600;
+    [Parameter] public double? CurrentLatitude { get; set; }
+    [Parameter] public double? CurrentLongitude { get; set; }
     [Parameter] public bool ShowControls { get; set; } = true;
     [Parameter] public bool ShowParticipantManagement { get; set; } = true;
     [Parameter] public bool ShowParticipantInfo { get; set; } = true;
