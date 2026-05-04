@@ -254,7 +254,7 @@ public class GlobeOptions
     public double AutoRotateSpeed { get; set; } = 0.5;
     public bool EnableMouseControls { get; set; } = true;
     public bool EnableZoom { get; set; } = true;
-    public double MinZoom { get; set; } = 1.25;
+    public double MinZoom { get; set; } = 1.1;
     public double MaxZoom { get; set; } = 4.0;
     public int LevelOfDetail { get; set; } = 2;
 }

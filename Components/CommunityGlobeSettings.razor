@@ -46,7 +46,7 @@
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Размер метки: @Settings.ParticipantPointSize</label>
-                            <input type="range" class="form-range" min="0.05" max="2.0" step="0.05" @bind="Settings.ParticipantPointSize" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="0.04" max="2.0" step="0.04" @bind="Settings.ParticipantPointSize" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Отступ от поверхности: @Settings.ParticipantPointOffset</label>
@@ -178,7 +178,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Минимальное приближение: @Settings.MinZoom</label>
-                            <input type="range" class="form-range" min="1.25" max="2.0" step="0.05" @bind="Settings.MinZoom" />
+                            <input type="range" class="form-range" min="1.1" max="2.0" step="0.05" @bind="Settings.MinZoom" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Максимальное приближение: @Settings.MaxZoom</label>
@@ -236,7 +236,7 @@
             BackgroundColor = "#000011",
             AtmosphereColor = "#00aaff",
             AtmosphereOpacity = 0.2,
-            ParticipantPointSize = 0.12,
+            ParticipantPointSize = 0.06,
             ParticipantPointColor = "#24dce7",
             ParticipantPointOffset = 0.02,
             ParticipantMarkerOpacity = 0.72,
@@ -247,7 +247,7 @@
             AutoRotateSpeed = 0.1,
             EnableMouseControls = true,
             EnableZoom = true,
-            MinZoom = 1.25,
+            MinZoom = 1.1,
             MaxZoom = 4.0,
             EnableClouds = true,
             CloudsOpacity = 0.1,
