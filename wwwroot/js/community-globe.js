@@ -82,6 +82,7 @@ class CommunityGlobe {
             highlightedPointColor: '#ff6600',
             autoRotate: true,
             autoRotateSpeed: 0.1,
+            autoRotateResumeDelay: 3000,
             enableMouseControls: true,
             enableZoom: true,
             minZoom: 0.5,
@@ -111,6 +112,7 @@ class CommunityGlobe {
         this.state = {
             isInitialized: false,
             isAutoRotating: this.options.autoRotate,
+            isUserInteracting: false,
             currentLod: this.options.levelOfDetail,
             participantCount: 0,
             countryCount: 0,
@@ -133,11 +135,14 @@ class CommunityGlobe {
         this.animationId = null;
         this.clock = null;
         this.pointMetadata = new Map();
+        this.autoRotationResumeTimer = null;
         this.callbacks = { // Инициализация callbacks
             onGlobeReady: null,
             onError: null,
             onParticipantClick: null
         };
+
+        this.initializeAutoRotationInteractionState();
 
         console.log(`🔧 Создание глобуса для контейнера: ${containerId}`);
         this.init();
@@ -420,8 +425,10 @@ class CommunityGlobe {
         this.controls.enableZoom = this.options.enableZoom;
         this.controls.minDistance = this.options.minZoom;
         this.controls.maxDistance = this.options.maxZoom;
-        this.controls.autoRotate = this.options.autoRotate;
+        this.controls.autoRotate = this.state.isAutoRotating;
         this.controls.autoRotateSpeed = this.options.autoRotateSpeed;
+        this.controls.addEventListener('start', () => this.pauseAutoRotationForInteraction());
+        this.controls.addEventListener('end', () => this.scheduleAutoRotationResume());
     }
 
     setupEventListeners() {
@@ -691,7 +698,10 @@ class CommunityGlobe {
         const deltaTime = this.clock.getDelta();
 
         if (this.earthGroup && this.state.isAutoRotating) {
-            this.earthRotation += deltaTime * 0.1;
+            const rotationSpeed = Number.isFinite(Number(this.options.autoRotateSpeed))
+                ? Number(this.options.autoRotateSpeed)
+                : 0.1;
+            this.earthRotation += deltaTime * rotationSpeed;
             this.earthGroup.rotation.y = this.earthRotation;
         }
 
@@ -749,13 +759,69 @@ class CommunityGlobe {
         animate();
     }
 
+    getAutoRotationResumeDelay() {
+        const delay = Number(this.options.autoRotateResumeDelay);
+        return Number.isFinite(delay) && delay >= 0 ? delay : 3000;
+    }
+
+    initializeAutoRotationInteractionState() {
+        this.clearAutoRotationResumeTimer();
+        this.state.isUserInteracting = false;
+    }
+
+    clearAutoRotationResumeTimer() {
+        if (this.autoRotationResumeTimer) {
+            clearTimeout(this.autoRotationResumeTimer);
+            this.autoRotationResumeTimer = null;
+        }
+    }
+
+    applyAutoRotationState(enabled) {
+        const isEnabled = Boolean(enabled);
+        this.state.isAutoRotating = isEnabled;
+
+        if (this.controls) {
+            this.controls.autoRotate = isEnabled;
+            this.controls.autoRotateSpeed = this.options.autoRotateSpeed;
+        }
+    }
+
+    pauseAutoRotationForInteraction() {
+        this.clearAutoRotationResumeTimer();
+        this.state.isUserInteracting = true;
+
+        if (this.options.autoRotate) {
+            this.applyAutoRotationState(false);
+        }
+    }
+
+    scheduleAutoRotationResume() {
+        this.clearAutoRotationResumeTimer();
+        this.state.isUserInteracting = false;
+
+        if (!this.options.autoRotate) {
+            this.applyAutoRotationState(false);
+            return;
+        }
+
+        this.autoRotationResumeTimer = setTimeout(() => {
+            this.autoRotationResumeTimer = null;
+            if (!this.state.isUserInteracting && this.options.autoRotate) {
+                this.applyAutoRotationState(true);
+            }
+        }, this.getAutoRotationResumeDelay());
+    }
+
     setAutoRotation(enabled, speed) {
         try {
-            this.state.isAutoRotating = enabled;
-            if (this.controls) {
-                this.controls.autoRotate = enabled;
-                this.controls.autoRotateSpeed = speed;
+            this.options.autoRotate = Boolean(enabled);
+            const parsedSpeed = Number(speed);
+            if (speed !== undefined && speed !== null && Number.isFinite(parsedSpeed)) {
+                this.options.autoRotateSpeed = parsedSpeed;
             }
+            this.clearAutoRotationResumeTimer();
+            this.state.isUserInteracting = false;
+            this.applyAutoRotationState(this.options.autoRotate);
             return true;
         } catch (error) {
             console.error('Error setting auto rotation:', error);
@@ -915,6 +981,8 @@ class CommunityGlobe {
                 console.log('🗑️ Отмена animation frame');
                 cancelAnimationFrame(this.animationId);
             }
+
+            this.clearAutoRotationResumeTimer();
 
             if (this.controls) {
                 console.log('🗑️ Освобождение controls');
