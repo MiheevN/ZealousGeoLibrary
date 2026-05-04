@@ -84,6 +84,7 @@ test('automatic rotation pauses during interaction and resumes after the configu
         globe.initializeAutoRotationInteractionState();
 
         globe.pauseAutoRotationForInteraction();
+        globe.handleGlobePointerLeave();
 
         assert.equal(globe.state.isAutoRotating, false);
         assert.equal(globe.state.isUserInteracting, true);
@@ -107,6 +108,79 @@ test('automatic rotation pauses during interaction and resumes after the configu
     }
 });
 
+test('automatic rotation waits for the pointer to leave after interaction ends', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+    const fakeTimers = createFakeTimers();
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+
+    globalThis.setTimeout = fakeTimers.setTimeout;
+    globalThis.clearTimeout = fakeTimers.clearTimeout;
+
+    try {
+        globe.initializeAutoRotationInteractionState();
+        globe.handleGlobePointerEnter();
+
+        globe.pauseAutoRotationForInteraction();
+        globe.scheduleAutoRotationResume();
+
+        assert.equal(globe.state.isAutoRotating, false);
+        assert.equal(globe.state.isUserInteracting, false);
+        assert.equal(globe.state.isPointerOverGlobe, true);
+        assert.equal(fakeTimers.activeTimers.length, 0);
+
+        globe.handleGlobePointerLeave();
+
+        assert.equal(globe.state.isPointerOverGlobe, false);
+        assert.equal(fakeTimers.activeTimers.length, 1);
+
+        fakeTimers.runTimer(fakeTimers.activeTimers[0]);
+
+        assert.equal(globe.state.isAutoRotating, true);
+        assert.equal(globe.controls.autoRotate, true);
+    } finally {
+        globalThis.setTimeout = originalSetTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
+    }
+});
+
+test('automatic rotation can resume when captured pointer is released outside the globe', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+    const fakeTimers = createFakeTimers();
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+
+    globe.renderer = {
+        domElement: {
+            style: {},
+            getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 })
+        }
+    };
+
+    globalThis.setTimeout = fakeTimers.setTimeout;
+    globalThis.clearTimeout = fakeTimers.clearTimeout;
+
+    try {
+        globe.initializeAutoRotationInteractionState();
+        globe.pauseAutoRotationForInteraction();
+
+        globe.handleGlobePointerRelease({ clientX: 120, clientY: 50 });
+        globe.scheduleAutoRotationResume();
+
+        assert.equal(globe.state.isPointerOverGlobe, false);
+        assert.equal(fakeTimers.activeTimers.length, 1);
+
+        fakeTimers.runTimer(fakeTimers.activeTimers[0]);
+
+        assert.equal(globe.state.isAutoRotating, true);
+    } finally {
+        globalThis.setTimeout = originalSetTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
+    }
+});
+
 test('a new interaction cancels the pending automatic-rotation resume timer', async () => {
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
@@ -121,11 +195,13 @@ test('a new interaction cancels the pending automatic-rotation resume timer', as
         globe.initializeAutoRotationInteractionState();
 
         globe.pauseAutoRotationForInteraction();
+        globe.handleGlobePointerLeave();
         globe.scheduleAutoRotationResume();
 
         const firstResumeTimer = fakeTimers.activeTimers[0];
 
         globe.pauseAutoRotationForInteraction();
+        globe.handleGlobePointerLeave();
         globe.scheduleAutoRotationResume();
 
         assert.equal(firstResumeTimer.cancelled, true);
@@ -158,6 +234,7 @@ test('automatic rotation stays disabled when the user turns it off before the id
         globe.initializeAutoRotationInteractionState();
 
         globe.pauseAutoRotationForInteraction();
+        globe.handleGlobePointerLeave();
         globe.scheduleAutoRotationResume();
         globe.setAutoRotation(false, 0.1);
 
