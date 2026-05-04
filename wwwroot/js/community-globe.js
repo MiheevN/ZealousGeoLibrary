@@ -76,7 +76,7 @@ class CommunityGlobe {
             backgroundColor: '#000011',
             atmosphereColor: '#00aaff',
             atmosphereOpacity: 0.2,
-            participantPointSize: 0.2,
+            participantPointSize: 0.12,
             participantPointColor: '#24dce7',
             participantPointOffset: 0.02, // Расстояние точек от поверхности глобуса
             participantMarkerOpacity: 0.72,
@@ -92,6 +92,9 @@ class CommunityGlobe {
             participantMarkerTiltStartDistance: 2.2,
             participantMarkerTiltFullDistance: 1.1,
             participantMarkerMaxTiltDegrees: 42,
+            participantMarkerReferenceDistance: 2.5,
+            participantMarkerMinScale: 0.5,
+            participantMarkerMaxScale: 1.7,
             preserveDrawingBuffer: false,
             highlightedPointColor: '#e0fcff',
             autoRotate: true,
@@ -99,8 +102,16 @@ class CommunityGlobe {
             autoRotateResumeDelay: 3000,
             enableMouseControls: true,
             enableZoom: true,
-            minZoom: 0.5,
+            minZoom: 1.25,
             maxZoom: 4.0,
+            earthRadius: 1,
+            cloudsRadius: 1.01,
+            atmosphereRadius: 1.05,
+            cameraSurfaceClearance: 0.2,
+            cameraZoomInMinSpeed: 0.16,
+            cameraZoomInMaxSpeed: 0.9,
+            cameraZoomOutSpeed: 1.15,
+            cameraZoomSlowdownDistance: 1.1,
             levelOfDetail: 2,
             earthTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_daymap.jpg",
             normalTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_normal_map.tif",
@@ -450,8 +461,17 @@ class CommunityGlobe {
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.enableZoom = this.options.enableZoom;
-        this.controls.minDistance = this.options.minZoom;
-        this.controls.maxDistance = this.options.maxZoom;
+        this.controls.enablePan = false;
+        this.controls.target.set(0, 0, 0);
+        if (this.controls.cursor) {
+            this.controls.cursor.set(0, 0, 0);
+        }
+        if ('minTargetRadius' in this.controls) {
+            this.controls.minTargetRadius = 0;
+            this.controls.maxTargetRadius = 0;
+        }
+        this.updateCameraControlLimits();
+        this.controls.zoomSpeed = this.calculateCameraZoomSpeed(this.camera.position.length(), false);
         this.controls.autoRotate = this.state.isAutoRotating;
         this.controls.autoRotateSpeed = this.options.autoRotateSpeed;
         this.controls.addEventListener('start', () => this.pauseAutoRotationForInteraction());
@@ -461,6 +481,7 @@ class CommunityGlobe {
     setupEventListeners() {
         this.renderer.domElement.addEventListener('click', (event) => this.onMouseClick(event));
         this.renderer.domElement.addEventListener('mousemove', (event) => this.onMouseMove(event));
+        this.renderer.domElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -581,6 +602,8 @@ class CommunityGlobe {
             });
 
             this.state.participantCount = markerIndex;
+            this.updateParticipantMarkerTransforms();
+            this.updateParticipantLabelBillboards();
 
             console.log(`🎯 Создано ${markerIndex} 3D меток участников`);
             console.log(`✅ Добавлено ${markerIndex} участников на глобус`);
@@ -695,6 +718,7 @@ class CommunityGlobe {
             participant,
             participantIndex: index,
             normal,
+            dimensions,
             visual,
             isHovered: false
         };
@@ -751,7 +775,8 @@ class CommunityGlobe {
 
         const label = this.createParticipantLabelMesh(participant, dimensions);
         if (label) {
-            visual.add(label);
+            marker.add(label);
+            marker.userData.label = label;
             this.participantLabels.push(label);
         }
 
@@ -803,7 +828,6 @@ class CommunityGlobe {
             });
             const label = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
             label.position.set(0, dimensions.tipHeight + dimensions.bodyHeight + dimensions.labelGap, 0);
-            label.rotation.x = -Math.PI / 2;
             label.userData.labelAspectRatio = canvas.width / canvas.height;
             label.userData.targetPixelHeight = this.labelTargetPixelHeight;
             this.updateParticipantLabelScale(label);
@@ -855,7 +879,7 @@ class CommunityGlobe {
     }
 
     getParticipantMarkerDimensions() {
-        const size = this.getClampedNumber(this.options.participantPointSize, 0.2, 0.05, 2);
+        const size = this.getClampedNumber(this.options.participantPointSize, 0.12, 0.05, 2);
         const scale = this.clamp(Math.sqrt(size / 0.2), 0.55, 3);
 
         return {
@@ -895,6 +919,107 @@ class CommunityGlobe {
 
         const progress = this.clamp((startDistance - cameraDistance) / (startDistance - fullDistance), 0, 1);
         return maxTiltRadians * progress;
+    }
+
+    getCameraCollisionRadius() {
+        const earthRadius = this.getPositiveNumber(this.options.earthRadius, 1);
+        const cloudsRadius = this.options.enableClouds
+            ? this.getPositiveNumber(this.options.cloudsRadius, 1.01)
+            : earthRadius;
+        const atmosphereRadius = this.options.enableAtmosphereGlow
+            ? this.getPositiveNumber(this.options.atmosphereRadius, 1.05)
+            : earthRadius;
+
+        return Math.max(earthRadius, cloudsRadius, atmosphereRadius);
+    }
+
+    getCameraDistanceLimits() {
+        const configuredMinDistance = this.getPositiveNumber(this.options.minZoom, 1.25);
+        const surfaceClearance = this.getPositiveNumber(this.options.cameraSurfaceClearance, 0.2);
+        const safeMinDistance = this.getCameraCollisionRadius() + surfaceClearance;
+        const minDistance = Math.max(configuredMinDistance, safeMinDistance);
+        const configuredMaxDistance = this.getPositiveNumber(this.options.maxZoom, 4);
+        const maxDistance = Math.max(configuredMaxDistance, minDistance + 0.1);
+
+        return {
+            minDistance,
+            maxDistance
+        };
+    }
+
+    calculateCameraZoomSpeed(cameraDistance, isZoomingIn) {
+        if (!isZoomingIn) {
+            return this.getPositiveNumber(this.options.cameraZoomOutSpeed, 1.15);
+        }
+
+        const { minDistance } = this.getCameraDistanceLimits();
+        const minSpeed = this.getPositiveNumber(this.options.cameraZoomInMinSpeed, 0.16);
+        const maxSpeed = Math.max(minSpeed, this.getPositiveNumber(this.options.cameraZoomInMaxSpeed, 0.9));
+        const slowdownDistance = this.getPositiveNumber(this.options.cameraZoomSlowdownDistance, 1.1);
+        const progress = this.clamp((cameraDistance - minDistance) / slowdownDistance, 0, 1);
+
+        return minSpeed + (maxSpeed - minSpeed) * progress;
+    }
+
+    updateCameraZoomSpeedForWheel(event) {
+        if (!this.controls || !this.camera || !this.options.enableZoom || !event || event.deltaY === 0) {
+            return;
+        }
+
+        this.controls.zoomSpeed = this.calculateCameraZoomSpeed(this.camera.position.length(), event.deltaY < 0);
+    }
+
+    updateCameraControlLimits() {
+        if (!this.controls) return;
+
+        const { minDistance, maxDistance } = this.getCameraDistanceLimits();
+        this.controls.minDistance = minDistance;
+        this.controls.maxDistance = maxDistance;
+    }
+
+    getClampedCameraDistance(distance) {
+        const { minDistance, maxDistance } = this.getCameraDistanceLimits();
+        return this.clamp(this.getPositiveNumber(distance, minDistance), minDistance, maxDistance);
+    }
+
+    getSafeCameraPosition(position) {
+        const { minDistance, maxDistance } = this.getCameraDistanceLimits();
+        const safePosition = new THREE.Vector3(
+            this.getFiniteNumber(position?.x, 0),
+            this.getFiniteNumber(position?.y, 0),
+            this.getFiniteNumber(position?.z, minDistance)
+        );
+
+        if (safePosition.lengthSq() < 0.000001) {
+            safePosition.set(0, 0, minDistance);
+        }
+
+        safePosition.setLength(this.clamp(safePosition.length(), minDistance, maxDistance));
+        return safePosition;
+    }
+
+    applyCameraDistanceSafety() {
+        if (!this.camera) return;
+
+        const safePosition = this.getSafeCameraPosition(this.camera.position);
+        if (safePosition.distanceToSquared(this.camera.position) <= 0.0000001) {
+            return;
+        }
+
+        this.camera.position.copy(safePosition);
+        this.camera.lookAt(0, 0, 0);
+
+        if (this.controls) {
+            this.controls.target.set(0, 0, 0);
+        }
+    }
+
+    calculateParticipantMarkerDistanceScale(cameraDistance) {
+        const referenceDistance = this.getPositiveNumber(this.options.participantMarkerReferenceDistance, 2.5);
+        const minScale = this.getPositiveNumber(this.options.participantMarkerMinScale, 0.5);
+        const maxScale = Math.max(minScale, this.getPositiveNumber(this.options.participantMarkerMaxScale, 1.7));
+
+        return this.clamp(cameraDistance / referenceDistance, minScale, maxScale);
     }
 
     getAnimationTimeMs() {
@@ -939,8 +1064,19 @@ class CommunityGlobe {
         label.scale.set(scale.width, scale.height, 1);
     }
 
-    updateParticipantLabelScales() {
-        this.participantLabels.forEach(label => this.updateParticipantLabelScale(label));
+    updateParticipantLabelBillboard(label) {
+        if (!this.camera || !label?.parent) return;
+
+        const cameraWorldQuaternion = this.camera.getWorldQuaternion(new THREE.Quaternion());
+        const parentWorldQuaternion = label.parent.getWorldQuaternion(new THREE.Quaternion());
+        label.quaternion.copy(parentWorldQuaternion.invert().multiply(cameraWorldQuaternion));
+    }
+
+    updateParticipantLabelBillboards() {
+        this.participantLabels.forEach(label => {
+            this.updateParticipantLabelBillboard(label);
+            this.updateParticipantLabelScale(label);
+        });
     }
 
     updateParticipantMarkerTransforms() {
@@ -948,11 +1084,21 @@ class CommunityGlobe {
 
         const cameraDistance = this.camera.position.length();
         const tiltAmount = this.calculateParticipantMarkerTiltAmount(cameraDistance);
+        const markerScale = this.calculateParticipantMarkerDistanceScale(cameraDistance);
         const localUp = new THREE.Vector3(0, 1, 0);
 
         this.participantMarkers.forEach(marker => {
             const visual = marker.userData.visual;
             if (!visual) return;
+
+            visual.scale.setScalar(markerScale);
+            if (marker.userData.rippleGroup) {
+                marker.userData.rippleGroup.scale.setScalar(markerScale);
+            }
+            if (marker.userData.label && marker.userData.dimensions) {
+                const dimensions = marker.userData.dimensions;
+                marker.userData.label.position.y = (dimensions.tipHeight + dimensions.bodyHeight + dimensions.labelGap) * markerScale;
+            }
 
             visual.quaternion.identity();
             if (tiltAmount <= 0) return;
@@ -1039,9 +1185,13 @@ class CommunityGlobe {
             this.clouds.rotation.y = this.cloudRotation;
         }
 
-        if (this.controls) this.controls.update();
-        this.updateParticipantLabelScales();
+        if (this.controls) {
+            this.updateCameraControlLimits();
+            this.controls.update();
+        }
+        this.applyCameraDistanceSafety();
         this.updateParticipantMarkerTransforms();
+        this.updateParticipantLabelBillboards();
         this.updateParticipantMarkerRipples(this.getAnimationTimeMs());
         this.updateCameraState();
         this.renderer.render(this.scene, this.camera);
@@ -1060,7 +1210,7 @@ class CommunityGlobe {
     centerOn(latitude, longitude, zoom = 2.0) {
         if (!this.state.isInitialized) return false;
         try {
-            const position = this.latLngToVector3(latitude, longitude, zoom);
+            const position = this.latLngToVector3(latitude, longitude, this.getClampedCameraDistance(zoom));
             this.animateCameraTo(position, 1000);
             return true;
         } catch (error) {
@@ -1072,6 +1222,7 @@ class CommunityGlobe {
     animateCameraTo(targetPosition, duration = 1000) {
         if (!this.camera) return;
         const startPosition = { ...this.camera.position };
+        const safeTargetPosition = this.getSafeCameraPosition(targetPosition);
         const startTime = Date.now();
 
         const animate = () => {
@@ -1080,9 +1231,10 @@ class CommunityGlobe {
             const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
             const easedProgress = easeInOutCubic(progress);
 
-            this.camera.position.x = startPosition.x + (targetPosition.x - startPosition.x) * easedProgress;
-            this.camera.position.y = startPosition.y + (targetPosition.y - startPosition.y) * easedProgress;
-            this.camera.position.z = startPosition.z + (targetPosition.z - startPosition.z) * easedProgress;
+            this.camera.position.x = startPosition.x + (safeTargetPosition.x - startPosition.x) * easedProgress;
+            this.camera.position.y = startPosition.y + (safeTargetPosition.y - startPosition.y) * easedProgress;
+            this.camera.position.z = startPosition.z + (safeTargetPosition.z - startPosition.z) * easedProgress;
+            this.applyCameraDistanceSafety();
             this.camera.lookAt(0, 0, 0);
 
             if (progress < 1) requestAnimationFrame(animate);
@@ -1257,10 +1409,20 @@ class CommunityGlobe {
                 'participantMarkerOpacity',
                 'participantMarkerRippleIntervalMs',
                 'participantMarkerRippleDurationMs',
+                'participantMarkerReferenceDistance',
+                'participantMarkerMinScale',
+                'participantMarkerMaxScale',
                 'highlightedPointColor',
                 'autoRotateSpeed',
                 'cloudsOpacity',
-                'cloudsSpeed'
+                'cloudsSpeed',
+                'minZoom',
+                'maxZoom',
+                'cameraSurfaceClearance',
+                'cameraZoomInMinSpeed',
+                'cameraZoomInMaxSpeed',
+                'cameraZoomOutSpeed',
+                'cameraZoomSlowdownDistance'
             ].forEach(key => this.updateOptionFromSettings(settings, key));
             
             this.setAutoRotation(settings.autoRotate, settings.autoRotateSpeed);
@@ -1279,9 +1441,9 @@ class CommunityGlobe {
                 this.camera.updateProjectionMatrix();
             }
             if (this.controls) {
-                this.controls.minDistance = settings.minZoom;
-                this.controls.maxDistance = settings.maxZoom;
                 this.controls.enableZoom = settings.enableZoom;
+                this.updateCameraControlLimits();
+                this.applyCameraDistanceSafety();
             }
             if (this.atmosphere) {
                 this.atmosphere.material.opacity = settings.atmosphereOpacity;

@@ -30,6 +30,15 @@ test('participant visuals use 3D hexagonal markers instead of yellow point sprit
     assert.match(source, /new THREE\.CylinderGeometry\([^;]*,\s*6[,\)]/s, 'marker body should be a 6-sided prism');
     assert.match(source, /new THREE\.ConeGeometry\([^;]*,\s*6[,\)]/s, 'marker tip should be a sharp 6-sided cone');
     assert.match(source, /participantPointColor:\s*['"]#(?:20d6df|24dce7|00cfd8)['"]/i, 'default marker color should be turquoise');
+    assert.match(source, /participantPointSize:\s*0\.12/, 'default marker size should stay small');
+});
+
+test('participant labels remain billboards outside the scaled marker body', async () => {
+    const { source } = await loadCommunityGlobeClass();
+
+    assert.match(source, /marker\.add\(label\)/, 'labels should be attached to the surface marker root');
+    assert.doesNotMatch(source, /visual\.add\(label\)/, 'labels should not inherit the marker body tilt or distance scale');
+    assert.match(source, /updateParticipantLabelBillboards\(\);/, 'labels should be oriented toward the camera every frame');
 });
 
 test('participant ripple timing is globally configurable and can be overridden per point', async () => {
