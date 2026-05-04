@@ -76,14 +76,15 @@ class CommunityGlobe {
             backgroundColor: '#000011',
             atmosphereColor: '#00aaff',
             atmosphereOpacity: 0.2,
-            participantPointSize: 0.12,
+            participantPointSize: 0.06,
             participantPointColor: '#24dce7',
             participantPointOffset: 0.02, // Расстояние точек от поверхности глобуса
             participantMarkerOpacity: 0.72,
-            participantMarkerHeight: 0.22,
-            participantMarkerTipHeight: 0.09,
-            participantMarkerRadius: 0.035,
-            participantMarkerLabelGap: 0.055,
+            participantMarkerHeight: 0.06,
+            participantMarkerTipHeight: 0.16,
+            participantMarkerRadius: 0.018,
+            participantMarkerFacets: 4,
+            participantMarkerLabelGap: 0.038,
             participantMarkerRippleIntervalMs: 2000,
             participantMarkerRippleDurationMs: 500,
             participantMarkerRippleRadius: 0.16,
@@ -92,9 +93,10 @@ class CommunityGlobe {
             participantMarkerTiltStartDistance: 2.2,
             participantMarkerTiltFullDistance: 1.1,
             participantMarkerMaxTiltDegrees: 42,
-            participantMarkerReferenceDistance: 2.5,
-            participantMarkerMinScale: 0.5,
-            participantMarkerMaxScale: 1.7,
+            participantMarkerReferenceDistance: 2.6,
+            participantMarkerMinScale: 0.35,
+            participantMarkerMaxScale: 1.2,
+            participantLabelLoweringDistance: 1.1,
             preserveDrawingBuffer: false,
             highlightedPointColor: '#e0fcff',
             autoRotate: true,
@@ -102,12 +104,13 @@ class CommunityGlobe {
             autoRotateResumeDelay: 3000,
             enableMouseControls: true,
             enableZoom: true,
-            minZoom: 1.25,
+            minZoom: 1.1,
             maxZoom: 4.0,
+            cameraNearPlane: 0.02,
             earthRadius: 1,
             cloudsRadius: 1.01,
             atmosphereRadius: 1.05,
-            cameraSurfaceClearance: 0.2,
+            cameraSurfaceClearance: 0.08,
             cameraZoomInMinSpeed: 0.16,
             cameraZoomInMaxSpeed: 0.9,
             cameraZoomOutSpeed: 1.15,
@@ -286,7 +289,7 @@ class CommunityGlobe {
         this.scene.background = new THREE.Color(this.options.backgroundColor);
 
         const aspect = this.options.width / this.options.height;
-        this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(75, aspect, this.getPositiveNumber(this.options.cameraNearPlane, 0.02), 1000);
         this.camera.position.set(
             this.state.cameraPosition.x,
             this.state.cameraPosition.y,
@@ -743,16 +746,17 @@ class CommunityGlobe {
             depthWrite: false
         });
 
-        const tipGeometry = new THREE.ConeGeometry(dimensions.radius * 0.92, dimensions.tipHeight, 6, 1, false);
+        const markerFacets = this.getParticipantMarkerFacetCount();
+        const tipGeometry = new THREE.ConeGeometry(dimensions.radius, dimensions.tipHeight, markerFacets, 1, false);
         tipGeometry.rotateX(Math.PI);
         tipGeometry.translate(0, dimensions.tipHeight / 2, 0);
         const tip = new THREE.Mesh(tipGeometry, tipMaterial);
 
         const bodyGeometry = new THREE.CylinderGeometry(
-            dimensions.radius,
             dimensions.radius * 0.92,
+            dimensions.radius,
             dimensions.bodyHeight,
-            6,
+            markerFacets,
             1,
             false
         );
@@ -823,11 +827,14 @@ class CommunityGlobe {
             const material = new THREE.MeshBasicMaterial({
                 map: texture,
                 transparent: true,
+                depthTest: false,
                 depthWrite: false,
                 side: THREE.DoubleSide
             });
             const label = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
             label.position.set(0, dimensions.tipHeight + dimensions.bodyHeight + dimensions.labelGap, 0);
+            label.frustumCulled = false;
+            label.renderOrder = 10;
             label.userData.labelAspectRatio = canvas.width / canvas.height;
             label.userData.targetPixelHeight = this.labelTargetPixelHeight;
             this.updateParticipantLabelScale(label);
@@ -879,17 +886,21 @@ class CommunityGlobe {
     }
 
     getParticipantMarkerDimensions() {
-        const size = this.getClampedNumber(this.options.participantPointSize, 0.12, 0.05, 2);
+        const size = this.getClampedNumber(this.options.participantPointSize, 0.06, 0.04, 2);
         const scale = this.clamp(Math.sqrt(size / 0.2), 0.55, 3);
 
         return {
-            radius: this.getPositiveNumber(this.options.participantMarkerRadius, 0.035) * scale,
-            bodyHeight: this.getPositiveNumber(this.options.participantMarkerHeight, 0.22) * scale,
-            tipHeight: this.getPositiveNumber(this.options.participantMarkerTipHeight, 0.09) * scale,
-            labelGap: this.getPositiveNumber(this.options.participantMarkerLabelGap, 0.055) * scale,
+            radius: this.getPositiveNumber(this.options.participantMarkerRadius, 0.018) * scale,
+            bodyHeight: this.getPositiveNumber(this.options.participantMarkerHeight, 0.06) * scale,
+            tipHeight: this.getPositiveNumber(this.options.participantMarkerTipHeight, 0.16) * scale,
+            labelGap: this.getPositiveNumber(this.options.participantMarkerLabelGap, 0.038) * scale,
             rippleRadius: this.getPositiveNumber(this.options.participantMarkerRippleRadius, 0.16) * scale,
             rippleWidth: this.getPositiveNumber(this.options.participantMarkerRippleWidth, 0.018) * scale
         };
+    }
+
+    getParticipantMarkerFacetCount() {
+        return Math.round(this.getClampedNumber(this.options.participantMarkerFacets, 4, 4, 12));
     }
 
     getParticipantRippleTiming(participant = {}) {
@@ -934,8 +945,8 @@ class CommunityGlobe {
     }
 
     getCameraDistanceLimits() {
-        const configuredMinDistance = this.getPositiveNumber(this.options.minZoom, 1.25);
-        const surfaceClearance = this.getPositiveNumber(this.options.cameraSurfaceClearance, 0.2);
+        const configuredMinDistance = this.getPositiveNumber(this.options.minZoom, 1.1);
+        const surfaceClearance = this.getPositiveNumber(this.options.cameraSurfaceClearance, 0.08);
         const safeMinDistance = this.getCameraCollisionRadius() + surfaceClearance;
         const minDistance = Math.max(configuredMinDistance, safeMinDistance);
         const configuredMaxDistance = this.getPositiveNumber(this.options.maxZoom, 4);
@@ -1015,11 +1026,25 @@ class CommunityGlobe {
     }
 
     calculateParticipantMarkerDistanceScale(cameraDistance) {
-        const referenceDistance = this.getPositiveNumber(this.options.participantMarkerReferenceDistance, 2.5);
-        const minScale = this.getPositiveNumber(this.options.participantMarkerMinScale, 0.5);
-        const maxScale = Math.max(minScale, this.getPositiveNumber(this.options.participantMarkerMaxScale, 1.7));
+        const referenceDistance = this.getPositiveNumber(this.options.participantMarkerReferenceDistance, 2.6);
+        const minScale = this.getPositiveNumber(this.options.participantMarkerMinScale, 0.35);
+        const maxScale = Math.max(minScale, this.getPositiveNumber(this.options.participantMarkerMaxScale, 1.2));
 
         return this.clamp(cameraDistance / referenceDistance, minScale, maxScale);
+    }
+
+    calculateParticipantLabelAnchorHeight(cameraDistance, dimensions, markerScale) {
+        const safeScale = this.getPositiveNumber(markerScale, 1);
+        const tipHeight = this.getPositiveNumber(dimensions?.tipHeight, 0);
+        const bodyHeight = this.getPositiveNumber(dimensions?.bodyHeight, 0);
+        const labelGap = this.getPositiveNumber(dimensions?.labelGap, 0.01);
+        const baseAnchor = labelGap * safeScale;
+        const topAnchor = (tipHeight + bodyHeight + labelGap) * safeScale;
+        const { minDistance } = this.getCameraDistanceLimits();
+        const loweringDistance = this.getPositiveNumber(this.options.participantLabelLoweringDistance, 1.1);
+        const progress = this.clamp((cameraDistance - minDistance) / loweringDistance, 0, 1);
+
+        return baseAnchor + (topAnchor - baseAnchor) * progress;
     }
 
     getAnimationTimeMs() {
@@ -1097,7 +1122,7 @@ class CommunityGlobe {
             }
             if (marker.userData.label && marker.userData.dimensions) {
                 const dimensions = marker.userData.dimensions;
-                marker.userData.label.position.y = (dimensions.tipHeight + dimensions.bodyHeight + dimensions.labelGap) * markerScale;
+                marker.userData.label.position.y = this.calculateParticipantLabelAnchorHeight(cameraDistance, dimensions, markerScale);
             }
 
             visual.quaternion.identity();
@@ -1407,17 +1432,24 @@ class CommunityGlobe {
                 'participantPointOffset',
                 'participantPointColor',
                 'participantMarkerOpacity',
+                'participantMarkerHeight',
+                'participantMarkerTipHeight',
+                'participantMarkerRadius',
+                'participantMarkerFacets',
+                'participantMarkerLabelGap',
                 'participantMarkerRippleIntervalMs',
                 'participantMarkerRippleDurationMs',
                 'participantMarkerReferenceDistance',
                 'participantMarkerMinScale',
                 'participantMarkerMaxScale',
+                'participantLabelLoweringDistance',
                 'highlightedPointColor',
                 'autoRotateSpeed',
                 'cloudsOpacity',
                 'cloudsSpeed',
                 'minZoom',
                 'maxZoom',
+                'cameraNearPlane',
                 'cameraSurfaceClearance',
                 'cameraZoomInMinSpeed',
                 'cameraZoomInMaxSpeed',
@@ -1436,8 +1468,11 @@ class CommunityGlobe {
             if (this.renderer && settings.width && settings.height) {
                 this.renderer.setSize(settings.width, settings.height);
             }
-            if (this.camera && settings.width && settings.height) {
-                this.camera.aspect = settings.width / settings.height;
+            if (this.camera) {
+                if (settings.width && settings.height) {
+                    this.camera.aspect = settings.width / settings.height;
+                }
+                this.camera.near = this.getPositiveNumber(this.options.cameraNearPlane, 0.02);
                 this.camera.updateProjectionMatrix();
             }
             if (this.controls) {

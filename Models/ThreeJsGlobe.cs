@@ -39,7 +39,7 @@ public class GlobeOptions
     /// <summary>
     /// Размер точек участников
     /// </summary>
-    public double ParticipantPointSize { get; set; } = 0.12;
+    public double ParticipantPointSize { get; set; } = 0.06;
 
     /// <summary>
     /// Цвет 3D меток участников
@@ -94,7 +94,7 @@ public class GlobeOptions
     /// <summary>
     /// Минимальный зум
     /// </summary>
-    public double MinZoom { get; set; } = 1.25;
+    public double MinZoom { get; set; } = 1.1;
 
     /// <summary>
     /// Максимальный зум

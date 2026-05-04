@@ -23,14 +23,18 @@ async function loadCommunityGlobeClass() {
     return { CommunityGlobe, source };
 }
 
-test('participant visuals use 3D hexagonal markers instead of yellow point sprites', async () => {
+test('participant visuals use compact faceted pyramid markers instead of yellow point sprites', async () => {
     const { source } = await loadCommunityGlobeClass();
 
     assert.doesNotMatch(source, /new THREE\.Points\(/, 'participants should no longer be rendered as point sprites');
-    assert.match(source, /new THREE\.CylinderGeometry\([^;]*,\s*6[,\)]/s, 'marker body should be a 6-sided prism');
-    assert.match(source, /new THREE\.ConeGeometry\([^;]*,\s*6[,\)]/s, 'marker tip should be a sharp 6-sided cone');
+    assert.match(source, /participantMarkerFacets:\s*4/, 'default marker should read as a pyramid instead of a round pencil');
+    assert.match(source, /const markerFacets = this\.getParticipantMarkerFacetCount\(\);/, 'marker should use the configured faceted profile');
+    assert.match(source, /new THREE\.CylinderGeometry\([^;]*markerFacets/s, 'marker cap should use the configured faceted profile');
+    assert.match(source, /new THREE\.ConeGeometry\([^;]*markerFacets/s, 'marker tip should use the configured faceted profile');
     assert.match(source, /participantPointColor:\s*['"]#(?:20d6df|24dce7|00cfd8)['"]/i, 'default marker color should be turquoise');
-    assert.match(source, /participantPointSize:\s*0\.12/, 'default marker size should stay small');
+    assert.match(source, /participantPointSize:\s*0\.06/, 'default marker size should stay small');
+    assert.match(source, /participantMarkerHeight:\s*0\.06/, 'marker cap should be short rather than pencil-like');
+    assert.match(source, /participantMarkerTipHeight:\s*0\.16/, 'marker tip should be longer and sharper');
 });
 
 test('participant labels remain billboards outside the scaled marker body', async () => {
@@ -39,6 +43,30 @@ test('participant labels remain billboards outside the scaled marker body', asyn
     assert.match(source, /marker\.add\(label\)/, 'labels should be attached to the surface marker root');
     assert.doesNotMatch(source, /visual\.add\(label\)/, 'labels should not inherit the marker body tilt or distance scale');
     assert.match(source, /updateParticipantLabelBillboards\(\);/, 'labels should be oriented toward the camera every frame');
+});
+
+test('participant labels stay renderable during close zoom', async () => {
+    const { source } = await loadCommunityGlobeClass();
+
+    assert.match(source, /cameraNearPlane:\s*0\.02/, 'camera near plane should allow labels to render at the closer zoom floor');
+    assert.match(source, /new THREE\.PerspectiveCamera\(75,\s*aspect,\s*this\.getPositiveNumber\(this\.options\.cameraNearPlane,\s*0\.02\),\s*1000\)/s);
+    assert.match(source, /depthTest:\s*false/, 'labels should not disappear behind marker or globe depth during close zoom');
+    assert.match(source, /label\.frustumCulled\s*=\s*false/, 'labels should not be culled when their anchor moves near the frame edge');
+    assert.match(source, /label\.renderOrder\s*=/, 'labels should render after the 3D marker body');
+});
+
+test('marker facet count is configurable and pyramid-like by default', async () => {
+    const { CommunityGlobe } = await loadCommunityGlobeClass();
+    const globe = Object.create(CommunityGlobe.prototype);
+
+    globe.options = { participantMarkerFacets: 4 };
+    assert.equal(globe.getParticipantMarkerFacetCount(), 4);
+
+    globe.options = { participantMarkerFacets: 20 };
+    assert.equal(globe.getParticipantMarkerFacetCount(), 12);
+
+    globe.options = { participantMarkerFacets: 2 };
+    assert.equal(globe.getParticipantMarkerFacetCount(), 4);
 });
 
 test('participant ripple timing is globally configurable and can be overridden per point', async () => {
