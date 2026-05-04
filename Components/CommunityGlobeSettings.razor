@@ -1,4 +1,5 @@
 @using System.Text.Json
+@using System.Globalization
 @inject IJSRuntime JSRuntime
 
 <HeadContent>
@@ -29,11 +30,11 @@
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Ширина: @Settings.Width px</label>
-                            <input type="range" class="form-range" min="400" max="2000" step="50" @bind="Settings.Width" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="400" max="2000" step="50" @bind="Settings.Width" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Высота: @Settings.Height px</label>
-                            <input type="range" class="form-range" min="300" max="1500" step="50" @bind="Settings.Height" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="300" max="1500" step="50" @bind="Settings.Height" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                     </div>
                 </div>
@@ -50,11 +51,11 @@
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Размер метки: @Settings.ParticipantPointSize</label>
-                            <input type="range" class="form-range" min="0.04" max="2.0" step="0.04" @bind="Settings.ParticipantPointSize" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="0.04" max="2.0" step="0.04" @bind="Settings.ParticipantPointSize" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Отступ от поверхности: @Settings.ParticipantPointOffset</label>
-                            <input type="range" class="form-range" min="0.01" max="0.2" step="0.01" @bind="Settings.ParticipantPointOffset" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="0.01" max="0.2" step="0.01" @bind="Settings.ParticipantPointOffset" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Цвет метки</label>
@@ -62,7 +63,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Прозрачность метки: @Settings.ParticipantMarkerOpacity</label>
-                            <input type="range" class="form-range" min="0.1" max="1.0" step="0.05" @bind="Settings.ParticipantMarkerOpacity" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="0.1" max="1.0" step="0.05" @bind="Settings.ParticipantMarkerOpacity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Цвет граней метки</label>
@@ -70,11 +71,11 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Интервал волн: @Settings.ParticipantMarkerRippleIntervalMs мс</label>
-                            <input type="range" class="form-range" min="500" max="5000" step="100" @bind="Settings.ParticipantMarkerRippleIntervalMs" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="500" max="5000" step="100" @bind="Settings.ParticipantMarkerRippleIntervalMs" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Длительность волны: @Settings.ParticipantMarkerRippleDurationMs мс</label>
-                            <input type="range" class="form-range" min="100" max="2000" step="50" @bind="Settings.ParticipantMarkerRippleDurationMs" @bind:after="ApplySettingsAsync" />
+                            <input type="range" class="form-range" min="100" max="2000" step="50" @bind="Settings.ParticipantMarkerRippleDurationMs" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                     </div>
                 </div>
@@ -95,7 +96,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Скорость вращения: @Settings.AutoRotateSpeed</label>
-                            <input type="range" class="form-range" min="0.1" max="2.0" step="0.1" @bind="Settings.AutoRotateSpeed" />
+                            <input type="range" class="form-range" min="0.1" max="2.0" step="0.1" @bind="Settings.AutoRotateSpeed" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
                 </div>
@@ -112,7 +113,7 @@
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Яркость солнца: @Settings.SunLightIntensity</label>
-                            <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.SunLightIntensity" />
+                            <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.SunLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Цвет солнца</label>
@@ -120,7 +121,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Яркость окружения: @Settings.AmbientLightIntensity</label>
-                            <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.AmbientLightIntensity" />
+                            <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.AmbientLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Цвет окружения</label>
@@ -149,7 +150,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Прозрачность атмосферы: @Settings.AtmosphereOpacity</label>
-                            <input type="range" class="form-range" min="0.0" max="1.0" step="0.05" @bind="Settings.AtmosphereOpacity" />
+                            <input type="range" class="form-range" min="0.0" max="1.0" step="0.05" @bind="Settings.AtmosphereOpacity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableClouds" @bind="Settings.EnableClouds" />
@@ -157,11 +158,11 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Прозрачность облаков: @Settings.CloudsOpacity</label>
-                            <input type="range" class="form-range" min="0.0" max="1.0" step="0.05" @bind="Settings.CloudsOpacity" />
+                            <input type="range" class="form-range" min="0.0" max="1.0" step="0.05" @bind="Settings.CloudsOpacity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Скорость облаков: @Settings.CloudsSpeed</label>
-                            <input type="range" class="form-range" min="0.0" max="0.1" step="0.01" @bind="Settings.CloudsSpeed" />
+                            <input type="range" class="form-range" min="0.0" max="0.1" step="0.01" @bind="Settings.CloudsSpeed" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
                 </div>
@@ -182,11 +183,11 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Минимальное приближение: @Settings.MinZoom</label>
-                            <input type="range" class="form-range" min="1.1" max="2.0" step="0.05" @bind="Settings.MinZoom" />
+                            <input type="range" class="form-range" min="1.1" max="2.0" step="0.05" @bind="Settings.MinZoom" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Максимальное приближение: @Settings.MaxZoom</label>
-                            <input type="range" class="form-range" min="2.0" max="10.0" step="0.5" @bind="Settings.MaxZoom" />
+                            <input type="range" class="form-range" min="2.0" max="10.0" step="0.5" @bind="Settings.MaxZoom" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
                 </div>
