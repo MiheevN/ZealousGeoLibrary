@@ -1,6 +1,7 @@
 // wwwroot/js/community-globe.js
 //import * as THREE from './libs/three.module.js';
 //import { OrbitControls } from './libs/OrbitControls.js';
+import { DEFAULT_LABEL_PIXEL_HEIGHT, calculateLabelScaleForCamera } from './label-scale.js';
 
 // Глобальные переменные для библиотек
 let THREE, OrbitControls;
@@ -127,6 +128,7 @@ class CommunityGlobe {
         this.clouds = null;
         this.participantPoints = [];
         this.participantLabels = [];
+        this.labelTargetPixelHeight = DEFAULT_LABEL_PIXEL_HEIGHT;
         this.countryPolygons = [];
         this.raycaster = null;
         this.mouse = { x: 0, y: 0 };
@@ -670,7 +672,9 @@ class CommunityGlobe {
                 const radius = 1 + this.options.participantPointOffset + 0.03;
                 const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
                 sprite.position.set(position.x, position.y, position.z);
-                sprite.scale.set(0.2, 0.1, 1);
+                sprite.userData.labelAspectRatio = canvas.width / canvas.height;
+                sprite.userData.targetPixelHeight = this.labelTargetPixelHeight;
+                this.updateParticipantLabelScale(sprite);
 
                 this.earthGroup.add(sprite);
                 this.participantLabels.push(sprite);
@@ -682,6 +686,26 @@ class CommunityGlobe {
         });
 
         console.log(`✅ Создано ${this.participantLabels.length} меток участников`);
+    }
+
+    updateParticipantLabelScale(label) {
+        if (!this.camera || !this.renderer || !label) return;
+
+        const distanceToCamera = label.getWorldPosition(new THREE.Vector3()).distanceTo(this.camera.position);
+        const rendererSize = this.renderer.getSize(new THREE.Vector2());
+        const scale = calculateLabelScaleForCamera(
+            distanceToCamera,
+            this.camera.fov,
+            rendererSize.height,
+            label.userData.labelAspectRatio,
+            label.userData.targetPixelHeight
+        );
+
+        label.scale.set(scale.width, scale.height, 1);
+    }
+
+    updateParticipantLabelScales() {
+        this.participantLabels.forEach(label => this.updateParticipantLabelScale(label));
     }
 
     animate() {
@@ -701,6 +725,7 @@ class CommunityGlobe {
         }
 
         if (this.controls) this.controls.update();
+        this.updateParticipantLabelScales();
         this.updateCameraState();
         this.renderer.render(this.scene, this.camera);
     }
