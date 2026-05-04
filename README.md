@@ -92,8 +92,15 @@ var app = builder.Build();
 <CommunityGlobeComponent
     Width="800"
     Height="600"
+    CurrentLatitude="@CurrentLatitude"
+    CurrentLongitude="@CurrentLongitude"
     ShowControls="true"
     ShowParticipantManagement="true" />
+
+@code {
+    private double? CurrentLatitude = 55.7558;
+    private double? CurrentLongitude = 37.6176;
+}
 ```
 
 #### Множественные 3D глобусы
@@ -136,7 +143,10 @@ var app = builder.Build();
     <CommunityGlobeViewer GlobeId="main" Width="800" Height="600" />
 
     <!-- Панель управления -->
-    <CommunityGlobeControls GlobeId="main" />
+    <CommunityGlobeControls
+        GlobeId="main"
+        CurrentLatitude="@CurrentLatitude"
+        CurrentLongitude="@CurrentLongitude" />
 
     <!-- Панель управления участниками -->
     <CommunityGlobeParticipantManager GlobeId="main" />
@@ -144,6 +154,11 @@ var app = builder.Build();
     <!-- Панель настроек глобуса -->
     <CommunityGlobeSettings GlobeId="main" />
 </div>
+
+@code {
+    private double? CurrentLatitude = 55.7558;
+    private double? CurrentLongitude = 37.6176;
+}
 ```
 
 #### Настройки глобуса
