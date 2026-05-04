@@ -45,7 +45,7 @@
                 <div id="pointSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
                         <div class="mb-2">
-                            <label class="form-label">Размер точки: @Settings.ParticipantPointSize</label>
+                            <label class="form-label">Размер метки: @Settings.ParticipantPointSize</label>
                             <input type="range" class="form-range" min="0.1" max="2.0" step="0.1" @bind="Settings.ParticipantPointSize" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
@@ -53,12 +53,24 @@
                             <input type="range" class="form-range" min="0.01" max="0.2" step="0.01" @bind="Settings.ParticipantPointOffset" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет точки</label>
+                            <label class="form-label">Цвет метки</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.ParticipantPointColor" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет выделенной точки</label>
+                            <label class="form-label">Прозрачность метки: @Settings.ParticipantMarkerOpacity</label>
+                            <input type="range" class="form-range" min="0.1" max="1.0" step="0.05" @bind="Settings.ParticipantMarkerOpacity" @bind:after="ApplySettingsAsync" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Цвет граней метки</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.HighlightedPointColor" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Интервал волн: @Settings.ParticipantMarkerRippleIntervalMs мс</label>
+                            <input type="range" class="form-range" min="500" max="5000" step="100" @bind="Settings.ParticipantMarkerRippleIntervalMs" @bind:after="ApplySettingsAsync" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Длительность волны: @Settings.ParticipantMarkerRippleDurationMs мс</label>
+                            <input type="range" class="form-range" min="100" max="2000" step="50" @bind="Settings.ParticipantMarkerRippleDurationMs" @bind:after="ApplySettingsAsync" />
                         </div>
                     </div>
                 </div>
@@ -225,9 +237,12 @@
             AtmosphereColor = "#00aaff",
             AtmosphereOpacity = 0.2,
             ParticipantPointSize = 0.2,
-            ParticipantPointColor = "#ffff00",
+            ParticipantPointColor = "#24dce7",
             ParticipantPointOffset = 0.02,
-            HighlightedPointColor = "#ff6600",
+            ParticipantMarkerOpacity = 0.72,
+            ParticipantMarkerRippleIntervalMs = 2000,
+            ParticipantMarkerRippleDurationMs = 500,
+            HighlightedPointColor = "#e0fcff",
             AutoRotate = true,
             AutoRotateSpeed = 0.1,
             EnableMouseControls = true,
@@ -304,9 +319,12 @@
         public string AtmosphereColor { get; set; } = "#00aaff";
         public double AtmosphereOpacity { get; set; }
         public double ParticipantPointSize { get; set; }
-        public string ParticipantPointColor { get; set; } = "#ffff00";
+        public string ParticipantPointColor { get; set; } = "#24dce7";
         public double ParticipantPointOffset { get; set; }
-        public string HighlightedPointColor { get; set; } = "#ff6600";
+        public double ParticipantMarkerOpacity { get; set; }
+        public int ParticipantMarkerRippleIntervalMs { get; set; }
+        public int ParticipantMarkerRippleDurationMs { get; set; }
+        public string HighlightedPointColor { get; set; } = "#e0fcff";
         public bool AutoRotate { get; set; }
         public double AutoRotateSpeed { get; set; }
         public bool EnableMouseControls { get; set; }
@@ -323,4 +341,3 @@
         public string AmbientLightColor { get; set; } = "#404040";
     }
 }
-
