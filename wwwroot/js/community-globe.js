@@ -97,6 +97,8 @@ class CommunityGlobe {
             participantMarkerMinScale: 0.35,
             participantMarkerMaxScale: 1.2,
             participantLabelLoweringDistance: 1.1,
+            participantLabelHiddenOpacity: 0.12,
+            participantLabelHorizonFade: 0.25,
             preserveDrawingBuffer: false,
             highlightedPointColor: '#e0fcff',
             autoRotate: true,
@@ -1089,6 +1091,69 @@ class CommunityGlobe {
         label.scale.set(scale.width, scale.height, 1);
     }
 
+    calculateParticipantLabelVisibilityOpacity(markerWorldPosition, cameraPosition) {
+        const markerX = this.getFiniteNumber(markerWorldPosition?.x, 0);
+        const markerY = this.getFiniteNumber(markerWorldPosition?.y, 0);
+        const markerZ = this.getFiniteNumber(markerWorldPosition?.z, 0);
+        const cameraX = this.getFiniteNumber(cameraPosition?.x, 0);
+        const cameraY = this.getFiniteNumber(cameraPosition?.y, 0);
+        const cameraZ = this.getFiniteNumber(cameraPosition?.z, 0);
+        const markerLength = Math.hypot(markerX, markerY, markerZ);
+        const cameraLength = Math.hypot(cameraX, cameraY, cameraZ);
+        const visibleOpacity = 1;
+        const hiddenOpacity = this.getClampedNumber(this.options.participantLabelHiddenOpacity, 0.12, 0, visibleOpacity);
+        const fadeBand = this.getClampedNumber(this.options.participantLabelHorizonFade, 0.25, 0.001, 1);
+        const earthRadius = this.getPositiveNumber(this.options.earthRadius, 1);
+
+        if (markerLength <= 0.000001 || cameraLength <= 0.000001) {
+            return visibleOpacity;
+        }
+
+        const facing = (markerX * cameraX + markerY * cameraY + markerZ * cameraZ) / (markerLength * cameraLength);
+        const horizonFacing = this.calculateParticipantLabelHorizonFacing(markerLength, cameraLength, earthRadius);
+        const visibility = facing - horizonFacing;
+        if (visibility >= fadeBand) {
+            return visibleOpacity;
+        }
+        if (visibility <= -fadeBand) {
+            return hiddenOpacity;
+        }
+
+        const progress = (visibility + fadeBand) / (fadeBand * 2);
+        const easedProgress = progress * progress * (3 - 2 * progress);
+        return hiddenOpacity + (visibleOpacity - hiddenOpacity) * easedProgress;
+    }
+
+    calculateParticipantLabelHorizonFacing(markerDistance, cameraDistance, earthRadius) {
+        const safeMarkerDistance = this.getPositiveNumber(markerDistance, 1);
+        const safeCameraDistance = this.getPositiveNumber(cameraDistance, 1);
+        const safeEarthRadius = Math.min(
+            this.getPositiveNumber(earthRadius, 1),
+            safeMarkerDistance - 0.000001,
+            safeCameraDistance - 0.000001
+        );
+        const markerTerm = Math.max(0, safeMarkerDistance * safeMarkerDistance - safeEarthRadius * safeEarthRadius);
+        const cameraTerm = Math.max(0, safeCameraDistance * safeCameraDistance - safeEarthRadius * safeEarthRadius);
+        const numerator = safeEarthRadius * safeEarthRadius - Math.sqrt(markerTerm * cameraTerm);
+
+        return this.clamp(numerator / (safeMarkerDistance * safeCameraDistance), -1, 1);
+    }
+
+    updateParticipantLabelOpacity(label) {
+        if (!this.camera || !label?.parent) return;
+
+        const markerWorldPosition = label.parent.getWorldPosition(new THREE.Vector3());
+        const opacity = this.calculateParticipantLabelVisibilityOpacity(markerWorldPosition, this.camera.position);
+        const materials = Array.isArray(label.material) ? label.material : [label.material];
+
+        materials.forEach(material => {
+            if (!material) return;
+
+            material.transparent = true;
+            material.opacity = opacity;
+        });
+    }
+
     updateParticipantLabelBillboard(label) {
         if (!this.camera || !label?.parent) return;
 
@@ -1101,6 +1166,7 @@ class CommunityGlobe {
         this.participantLabels.forEach(label => {
             this.updateParticipantLabelBillboard(label);
             this.updateParticipantLabelScale(label);
+            this.updateParticipantLabelOpacity(label);
         });
     }
 
@@ -1443,6 +1509,8 @@ class CommunityGlobe {
                 'participantMarkerMinScale',
                 'participantMarkerMaxScale',
                 'participantLabelLoweringDistance',
+                'participantLabelHiddenOpacity',
+                'participantLabelHorizonFade',
                 'highlightedPointColor',
                 'autoRotateSpeed',
                 'cloudsOpacity',
