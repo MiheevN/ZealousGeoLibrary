@@ -4,10 +4,18 @@ import test from 'node:test';
 
 async function loadCommunityGlobeClass() {
     const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
-    const testSource = source.replace(
-        /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
-        'dependenciesLoaded = true;\n\n// Глобальный реестр'
-    );
+    const testSource = source
+        .replace(
+            /import \{ DEFAULT_LABEL_PIXEL_HEIGHT, calculateLabelScaleForCamera \} from '\.\/label-scale\.js';\n/,
+            [
+                'const DEFAULT_LABEL_PIXEL_HEIGHT = 34;',
+                'const calculateLabelScaleForCamera = () => ({ width: 1, height: 1 });'
+            ].join('\n')
+        )
+        .replace(
+            /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
+            'dependenciesLoaded = true;\n\n// Глобальный реестр'
+        );
     const moduleSource = `${testSource}\nexport { CommunityGlobe };\n`;
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString('base64')}`;
     const { CommunityGlobe } = await import(moduleUrl);
