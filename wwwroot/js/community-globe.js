@@ -115,6 +115,7 @@ class CommunityGlobe {
             enableZoom: true,
             minZoom: 1.1,
             maxZoom: 4.0,
+            participantClickZoom: 1.35,
             cameraNearPlane: 0.02,
             earthRadius: 1,
             cloudsRadius: 1.01,
@@ -508,7 +509,13 @@ class CommunityGlobe {
 
         const marker = this.getIntersectedParticipantMarker();
         const metadata = marker?.userData?.participant;
-        if (metadata && this.callbacks.onParticipantClick) {
+        if (!metadata) {
+            return;
+        }
+
+        this.centerOnParticipant(metadata);
+
+        if (this.callbacks.onParticipantClick) {
             this.callbacks.onParticipantClick(metadata);
         }
     }
@@ -1389,6 +1396,18 @@ class CommunityGlobe {
         }
     }
 
+    centerOnParticipant(participant) {
+        if (!participant) return false;
+
+        const latitude = this.getFiniteNumber(participant.latitude, NaN);
+        const longitude = this.getFiniteNumber(participant.longitude, NaN);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return false;
+        }
+
+        return this.centerOn(latitude, longitude, this.options.participantClickZoom);
+    }
+
     animateCameraTo(targetPosition, duration = 1000) {
         if (!this.camera) return;
         const startPosition = { ...this.camera.position };
@@ -1658,6 +1677,7 @@ class CommunityGlobe {
                 'cloudsSpeed',
                 'minZoom',
                 'maxZoom',
+                'participantClickZoom',
                 'cameraNearPlane',
                 'cameraSurfaceClearance',
                 'cameraZoomInMinSpeed',

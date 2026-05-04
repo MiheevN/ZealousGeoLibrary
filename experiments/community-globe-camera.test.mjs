@@ -110,3 +110,40 @@ test('participant label offset keeps text beside and above the marker at close z
     assert.equal(round(farOffset.depth, 3), round(farMarkerTop, 3));
     assert.ok(nearOffset.lift > farOffset.lift * nearScale, 'close zoom should add extra screen-up clearance');
 });
+
+test('participant marker click centers camera on marker at close zoom', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+    const participant = {
+        id: 'participant-1',
+        name: 'Test participant',
+        latitude: 55.7558,
+        longitude: 37.6173
+    };
+    let callbackMetadata = null;
+    let centeredCall = null;
+
+    globe.state = { isInitialized: true };
+    globe.callbacks = {
+        onParticipantClick: metadata => {
+            callbackMetadata = metadata;
+        }
+    };
+    globe.getIntersectedParticipantMarker = () => ({
+        userData: { participant }
+    });
+    globe.updateMousePosition = () => {};
+    globe.centerOn = (latitude, longitude, zoom) => {
+        centeredCall = { latitude, longitude, zoom };
+        return true;
+    };
+
+    globe.onMouseClick({});
+
+    assert.deepEqual(callbackMetadata, participant);
+    assert.deepEqual(centeredCall, {
+        latitude: participant.latitude,
+        longitude: participant.longitude,
+        zoom: 1.35
+    });
+});
