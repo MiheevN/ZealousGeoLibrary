@@ -77,14 +77,13 @@
 
   <!-- Ссылки на пакеты -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.70.0.3819" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.72.0.3966" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
   </ItemGroup>
 
   <!-- Исходные файлы проекта -->
