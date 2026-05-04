@@ -1,0 +1,327 @@
+@import url('./zealous-ui.css');
+
+.pwa-manager {
+    color: var(--zgl-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.pwa-manager .loading-state {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--zgl-muted);
+}
+
+.pwa-manager .loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(148, 163, 184, 0.25);
+    border-top: 2px solid var(--zgl-accent);
+    border-radius: 50%;
+    animation: pwaSpin 1s linear infinite;
+}
+
+@keyframes pwaSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.install-prompt,
+.pwa-info-panel,
+.notification-test {
+    background: var(--zgl-surface);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow-sm);
+    color: var(--zgl-text);
+}
+
+.install-prompt {
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.install-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.install-icon {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    background: var(--zgl-accent-soft);
+    border: 1px solid rgba(36, 220, 231, 0.3);
+    border-radius: var(--zgl-radius);
+    font-size: 1.55rem;
+}
+
+.install-text h4 {
+    margin: 0 0 0.35rem 0;
+    color: var(--zgl-text);
+    font-size: 1.05rem;
+}
+
+.install-text p {
+    margin: 0;
+    color: var(--zgl-muted);
+    font-size: 0.9rem;
+}
+
+.install-actions,
+.pwa-actions,
+.notification-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.install-actions {
+    margin-left: auto;
+}
+
+.pwa-manager .btn {
+    min-height: 38px;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 650;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.pwa-manager .btn:hover {
+    transform: translateY(-1px);
+}
+
+.pwa-manager .btn-primary {
+    background: var(--zgl-accent);
+    border-color: var(--zgl-accent);
+    color: #0e1013;
+}
+
+.pwa-manager .btn-primary:hover {
+    background: var(--zgl-accent-strong);
+}
+
+.pwa-manager .btn-secondary,
+.pwa-manager .btn-outline-secondary,
+.pwa-manager .btn-outline-primary {
+    background: var(--zgl-surface-muted);
+    color: var(--zgl-text);
+}
+
+.pwa-manager .btn-secondary:hover,
+.pwa-manager .btn-outline-secondary:hover,
+.pwa-manager .btn-outline-primary:hover {
+    background: var(--zgl-elevated);
+    border-color: var(--zgl-border-strong);
+}
+
+.pwa-info-panel {
+    padding: 1rem;
+    background: var(--zgl-surface);
+}
+
+.pwa-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--zgl-border);
+}
+
+.pwa-header h4 {
+    margin: 0;
+    color: var(--zgl-text);
+}
+
+.close-button {
+    display: flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-muted);
+    cursor: pointer;
+    font-size: 1.35rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.close-button:hover {
+    background: var(--zgl-accent-soft);
+    border-color: rgba(36, 220, 231, 0.35);
+    color: var(--zgl-accent);
+}
+
+.pwa-status {
+    margin-bottom: 1rem;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--zgl-border);
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    font-weight: 600;
+    color: var(--zgl-muted);
+}
+
+.status-value {
+    color: var(--zgl-accent);
+    font-weight: 700;
+}
+
+.status-value.installed {
+    color: var(--zgl-success);
+}
+
+.status-value.not-installed {
+    color: var(--zgl-danger);
+}
+
+.pwa-actions {
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.cache-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--zgl-border);
+}
+
+.cache-details h5,
+.notification-test h5 {
+    margin: 0 0 0.75rem 0;
+    color: var(--zgl-text);
+    font-size: 1rem;
+}
+
+.cache-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.cache-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.65rem;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+}
+
+.cache-name {
+    font-weight: 600;
+    color: var(--zgl-text);
+}
+
+.cache-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--zgl-muted);
+}
+
+.notification-test {
+    padding: 1rem;
+    margin-top: 1rem;
+    background: var(--zgl-surface);
+}
+
+.pwa-manager .form-group {
+    margin-bottom: 1rem;
+}
+
+.pwa-manager .form-group label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    color: var(--zgl-text);
+}
+
+.pwa-manager .form-control {
+    width: 100%;
+    min-height: 40px;
+    padding: 0.55rem 0.75rem;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-text);
+    font-size: 0.9rem;
+}
+
+.pwa-manager .form-control::placeholder {
+    color: var(--zgl-subtle);
+}
+
+.pwa-manager .form-control:focus {
+    outline: none;
+    background: var(--zgl-elevated);
+    border-color: var(--zgl-accent);
+    box-shadow: 0 0 0 0.2rem rgba(36, 220, 231, 0.18);
+}
+
+.notification-actions {
+    justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+    .install-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .install-actions {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .install-actions .btn,
+    .pwa-actions .btn,
+    .notification-actions .btn {
+        width: 100%;
+    }
+
+    .pwa-actions,
+    .notification-actions {
+        flex-direction: column;
+    }
+
+    .cache-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .cache-stats {
+        align-self: flex-end;
+    }
+}

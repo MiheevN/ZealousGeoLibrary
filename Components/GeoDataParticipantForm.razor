@@ -11,6 +11,10 @@
 @inject IGeocodingService GeocodingService
 @inject ILogger<GeoDataParticipantForm> Logger
 
+<HeadContent>
+    <link href="/_content/ZealousMindedPeopleGeo/css/participant-registration.css" rel="stylesheet" />
+</HeadContent>
+
 <div class="geodata-participant-form">
     <h3>@Title</h3>
 
@@ -36,7 +40,7 @@
             <ValidationMessage For="@(() => _model.Address)" />
             @if (_isGeocoding)
             {
-                <small class="text-muted">Finding your location...</small>
+                <small class="geodata-hint">Finding your location...</small>
             }
         </div>
 
@@ -71,7 +75,7 @@
 
     @if (_geocodingResult != null && _geocodingResult.Success)
     {
-        <div class="location-preview mt-3 p-3 bg-light rounded">
+        <div class="location-preview">
             <h5>Location Found</h5>
             <p class="mb-1"><strong>Address:</strong> @_geocodingResult.FormattedAddress</p>
             <p class="mb-0"><strong>Coordinates:</strong> @_geocodingResult.Latitude.ToString("F6"), @_geocodingResult.Longitude.ToString("F6")</p>

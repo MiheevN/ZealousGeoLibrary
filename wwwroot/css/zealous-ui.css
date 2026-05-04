@@ -1,0 +1,89 @@
+:root {
+    --zgl-bg: #0e1013;
+    --zgl-surface: #171a1f;
+    --zgl-surface-muted: #20242b;
+    --zgl-elevated: #242a32;
+    --zgl-border: rgba(148, 163, 184, 0.28);
+    --zgl-border-strong: rgba(148, 163, 184, 0.42);
+    --zgl-text: #f4f7fb;
+    --zgl-muted: #b8c2d0;
+    --zgl-subtle: #8f9baa;
+    --zgl-accent: #24dce7;
+    --zgl-accent-strong: #14b8c4;
+    --zgl-accent-soft: rgba(36, 220, 231, 0.14);
+    --zgl-success: #4ade80;
+    --zgl-success-soft: rgba(74, 222, 128, 0.14);
+    --zgl-warning: #fbbf24;
+    --zgl-warning-soft: rgba(251, 191, 36, 0.15);
+    --zgl-danger: #fb7185;
+    --zgl-danger-soft: rgba(251, 113, 133, 0.15);
+    --zgl-radius: 8px;
+    --zgl-radius-sm: 6px;
+    --zgl-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+    --zgl-shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.26);
+}
+
+.community-map-container,
+.community-map-container *,
+.community-globe-shell,
+.community-globe-shell *,
+.globe-canvas-container,
+.globe-canvas-container *,
+.globe-controls,
+.globe-controls *,
+.globe-settings-panel,
+.globe-settings-panel *,
+.participant-management-panel,
+.participant-management-panel *,
+.participant-registration,
+.participant-registration *,
+.geodata-participant-form,
+.geodata-participant-form *,
+.pwa-manager,
+.pwa-manager * {
+    box-sizing: border-box;
+}
+
+.community-map-container,
+.community-globe-shell,
+.globe-canvas-container,
+.globe-controls,
+.globe-settings-panel,
+.participant-management-panel,
+.participant-registration,
+.geodata-participant-form,
+.pwa-manager {
+    color-scheme: dark;
+}
+
+.zgl-panel {
+    background: var(--zgl-surface);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow-sm);
+    color: var(--zgl-text);
+}
+
+.zgl-muted {
+    color: var(--zgl-muted);
+}
+
+.zgl-scrollbar {
+    scrollbar-color: var(--zgl-border-strong) transparent;
+}
+
+.zgl-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.zgl-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.zgl-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--zgl-border-strong);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+}
