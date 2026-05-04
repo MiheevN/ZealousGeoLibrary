@@ -1,13 +1,24 @@
+@import url('./zealous-ui.css');
+
 /* Стили для 3D глобуса */
-.globe-canvas-container {
+.community-globe-shell {
     position: relative;
-    background: linear-gradient(135deg, #0f0f23, #1a1a2e);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    background: var(--zgl-bg);
+    color: var(--zgl-text);
 }
 
-.globe-loading-overlay, .globe-error-overlay {
+.globe-canvas-container {
+    position: relative;
+    background: radial-gradient(circle at 45% 35%, #20242b 0, #101316 52%, #07080a 100%);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    overflow: hidden;
+    box-shadow: var(--zgl-shadow);
+}
+
+.globe-loading-overlay,
+.globe-error-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -17,16 +28,20 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(2px);
-    color: #fff;
+    background: rgba(14, 16, 19, 0.78);
+    backdrop-filter: blur(3px);
+    color: var(--zgl-text);
+}
+
+.globe-error-overlay .text-danger {
+    color: var(--zgl-danger) !important;
 }
 
 .loading-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid #333;
-    border-top: 3px solid #00aaff;
+    border: 3px solid rgba(148, 163, 184, 0.24);
+    border-top: 3px solid var(--zgl-accent);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -46,11 +61,11 @@
     top: 10px;
     left: 10px;
     z-index: 1000;
-    background: rgba(0, 0, 0, 0.9);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    background: rgba(23, 26, 31, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow-sm);
     min-width: fit-content;
     display: flex;
     flex-direction: row;
@@ -58,74 +73,190 @@
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     pointer-events: auto;
+    color: var(--zgl-text);
     font-family: inherit;
 }
 
-    .globe-controls button {
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
+.globe-controls small {
+    color: var(--zgl-muted);
+    font-weight: 600;
+}
 
-        .globe-controls button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 170, 255, 0.3);
-        }
+.globe-controls button,
+.globe-controls .btn,
+.participant-management-panel .btn,
+.globe-settings-panel .btn,
+.globe-error-overlay .btn {
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    cursor: pointer;
+    font-weight: 650;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
 
-        .globe-controls button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+.globe-controls button:hover,
+.participant-management-panel .btn:hover,
+.globe-settings-panel .btn:hover,
+.globe-error-overlay .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(36, 220, 231, 0.16);
+}
 
-    .globe-controls select {
-        cursor: pointer;
-    }
+.globe-controls button:disabled,
+.participant-management-panel .btn:disabled,
+.globe-settings-panel .btn:disabled,
+.globe-error-overlay .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
 
-    .globe-controls .badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
+.globe-controls .btn-info,
+.globe-controls .btn-outline-light:hover,
+.participant-management-panel .btn-info,
+.participant-management-panel .btn-outline-info:hover,
+.globe-settings-panel .btn-primary,
+.globe-settings-panel .btn-warning,
+.globe-error-overlay .btn-primary {
+    background: var(--zgl-accent);
+    border-color: var(--zgl-accent);
+    color: #0e1013;
+}
+
+.globe-controls .btn-outline-light,
+.participant-management-panel .btn-outline-light,
+.participant-management-panel .btn-outline-info,
+.globe-settings-panel .btn-secondary {
+    background: transparent;
+    border-color: var(--zgl-border);
+    color: var(--zgl-text);
+}
+
+.participant-management-panel .btn-success,
+.globe-settings-panel .btn-success {
+    background: var(--zgl-success);
+    border-color: var(--zgl-success);
+    color: #0e1013;
+}
+
+.participant-management-panel .btn-secondary {
+    background: var(--zgl-surface-muted);
+    border-color: var(--zgl-border);
+    color: var(--zgl-text);
+}
+
+.globe-settings-panel .btn-warning {
+    background: var(--zgl-warning);
+    border-color: var(--zgl-warning);
+}
+
+.globe-controls select,
+.globe-controls .form-select {
+    min-height: 34px;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-text);
+    cursor: pointer;
+}
+
+.globe-controls select:focus,
+.globe-controls .form-select:focus {
+    outline: none;
+    border-color: var(--zgl-accent);
+    box-shadow: 0 0 0 0.16rem rgba(36, 220, 231, 0.18);
+}
+
+.globe-controls .badge {
+    background: var(--zgl-accent-soft) !important;
+    border: 1px solid rgba(36, 220, 231, 0.32);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-accent);
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
 .participant-info-panel {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
     max-width: 300px;
-    color: white;
     padding: 1rem;
-    border-radius: 8px;
+    background: rgba(23, 26, 31, 0.94);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    backdrop-filter: blur(10px);
+    color: var(--zgl-text);
+    box-shadow: var(--zgl-shadow-sm);
 }
 
 .participant-management-panel {
-    background: rgba(0, 0, 0, 0.95) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    backdrop-filter: blur(10px) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
-    color: white !important;
     position: relative !important;
+    width: min(100%, 980px);
+    background: var(--zgl-surface) !important;
+    border: 1px solid var(--zgl-border) !important;
+    border-radius: var(--zgl-radius) !important;
+    box-shadow: var(--zgl-shadow-sm) !important;
+    color: var(--zgl-text) !important;
+    backdrop-filter: blur(10px) !important;
 }
 
-.participant-management-panel .form-control {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    color: white !important;
+.participant-management-panel .border-bottom,
+.participant-management-panel .border-top {
+    border-color: var(--zgl-border) !important;
 }
 
-.participant-management-panel .form-control:focus {
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-color: #00aaff !important;
-    box-shadow: 0 0 0 0.2rem rgba(0, 170, 255, 0.25) !important;
+.participant-management-panel h5,
+.participant-management-panel h6,
+.participant-management-panel .text-white {
+    color: var(--zgl-text) !important;
 }
 
-.participant-management-panel .form-control::placeholder {
-    color: rgba(255, 255, 255, 0.6) !important;
+.participant-management-panel .form-control,
+.globe-settings-panel .form-control,
+.globe-settings-panel textarea {
+    background: var(--zgl-surface-muted) !important;
+    border: 1px solid var(--zgl-border) !important;
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-text) !important;
 }
 
-.participant-management-panel .form-label {
-    color: white !important;
-    font-weight: bold;
+.participant-management-panel .form-control:focus,
+.globe-settings-panel .form-control:focus,
+.globe-settings-panel textarea:focus {
+    background: var(--zgl-elevated) !important;
+    border-color: var(--zgl-accent) !important;
+    box-shadow: 0 0 0 0.2rem rgba(36, 220, 231, 0.18) !important;
+    outline: none;
+}
+
+.participant-management-panel .form-control::placeholder,
+.globe-settings-panel .form-control::placeholder {
+    color: var(--zgl-subtle) !important;
+}
+
+.participant-management-panel .form-label,
+.globe-settings-panel .form-label,
+.globe-settings-panel .form-check-label {
+    color: var(--zgl-text) !important;
+    font-weight: 600;
+}
+
+.participant-management-panel .alert {
+    border-radius: var(--zgl-radius-sm);
+}
+
+.participant-management-panel .alert-success {
+    background: var(--zgl-success-soft);
+    border: 1px solid rgba(74, 222, 128, 0.35);
+    color: var(--zgl-success);
+}
+
+.participant-management-panel .alert-danger {
+    background: var(--zgl-danger-soft);
+    border: 1px solid rgba(251, 113, 133, 0.35);
+    color: var(--zgl-danger);
 }
 
 .panel-header {
@@ -133,7 +264,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--zgl-border);
     cursor: pointer;
     user-select: none;
 }
@@ -143,23 +274,23 @@
 }
 
 .panel-header h3 {
-    color: #00aaff;
+    color: var(--zgl-accent);
     margin: 0;
     font-size: 1rem;
 }
 
 .panel-toggle {
-    background: none;
-    border: none;
-    color: #fff;
+    background: transparent;
+    border: 1px solid var(--zgl-border);
+    color: var(--zgl-text);
     font-size: 1rem;
     cursor: pointer;
     padding: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--zgl-radius-sm);
 }
 
 .panel-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--zgl-accent-soft);
 }
 
 .panel-content {
@@ -184,32 +315,208 @@
 }
 
 .form-group label {
-    color: #fff;
+    color: var(--zgl-text);
     font-size: 0.8rem;
-    font-weight: bold;
+    font-weight: 650;
 }
 
 .form-input {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 0.5rem;
-    border-radius: 4px;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    color: var(--zgl-text);
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--zgl-radius-sm);
     font-size: 0.9rem;
 }
 
 .form-input:focus {
     outline: none;
-    border-color: #00aaff;
-    background: rgba(255, 255, 255, 0.2);
+    border-color: var(--zgl-accent);
+    background: var(--zgl-elevated);
 }
 
 .form-input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--zgl-subtle);
 }
 
 .form-actions {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
+}
+
+.globe-settings-panel {
+    width: min(100%, 980px);
+    background: var(--zgl-surface);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow-sm);
+    color: var(--zgl-text);
+    overflow: hidden;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--zgl-surface-muted);
+    border-bottom: 1px solid var(--zgl-border);
+}
+
+.settings-header h5 {
+    margin: 0;
+    color: var(--zgl-text);
+    font-size: 1.05rem;
+}
+
+.settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.settings-body {
+    padding: 1rem;
+}
+
+.globe-settings-panel .accordion {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.globe-settings-panel .accordion-item {
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    overflow: hidden;
+}
+
+.globe-settings-panel .accordion-button {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: var(--zgl-surface-muted);
+    border: 0;
+    color: var(--zgl-text);
+    font-weight: 650;
+    text-align: left;
+    box-shadow: none;
+}
+
+.globe-settings-panel .accordion-button:not(.collapsed),
+.globe-settings-panel .accordion-button:hover {
+    background: var(--zgl-elevated);
+    color: var(--zgl-accent);
+}
+
+.globe-settings-panel .accordion-button:focus {
+    border-color: var(--zgl-accent);
+    box-shadow: inset 0 0 0 1px rgba(36, 220, 231, 0.4);
+}
+
+.globe-settings-panel .accordion-body {
+    padding: 1rem;
+    background: rgba(14, 16, 19, 0.28);
+    border-top: 1px solid var(--zgl-border);
+}
+
+.globe-settings-panel .mb-2 {
+    margin-bottom: 0.85rem !important;
+}
+
+.globe-settings-panel .form-range {
+    width: 100%;
+    height: 1rem;
+    padding: 0;
+    background: transparent;
+    accent-color: var(--zgl-accent);
+}
+
+.globe-settings-panel .form-range::-webkit-slider-runnable-track {
+    height: 6px;
+    background: var(--zgl-elevated);
+    border: 1px solid var(--zgl-border);
+    border-radius: 999px;
+}
+
+.globe-settings-panel .form-range::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -7px;
+    background: var(--zgl-accent);
+    border: 2px solid #0e1013;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(36, 220, 231, 0.14);
+    appearance: none;
+}
+
+.globe-settings-panel .form-range::-moz-range-track {
+    height: 6px;
+    background: var(--zgl-elevated);
+    border: 1px solid var(--zgl-border);
+    border-radius: 999px;
+}
+
+.globe-settings-panel .form-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--zgl-accent);
+    border: 2px solid #0e1013;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(36, 220, 231, 0.14);
+}
+
+.globe-settings-panel .form-check-input {
+    width: 1.05rem;
+    height: 1.05rem;
+    background-color: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    accent-color: var(--zgl-accent);
+}
+
+.globe-settings-panel .form-check-input:checked {
+    background-color: var(--zgl-accent);
+    border-color: var(--zgl-accent);
+}
+
+.globe-settings-panel .form-control-color {
+    width: 3.25rem;
+    height: 2.25rem;
+    padding: 0.2rem;
+    background: var(--zgl-surface-muted) !important;
+    border: 1px solid var(--zgl-border) !important;
+    border-radius: var(--zgl-radius-sm);
+}
+
+.globe-settings-panel textarea {
+    width: 100%;
+    min-height: 160px;
+    font-size: 0.85rem;
+    scrollbar-color: var(--zgl-border-strong) transparent;
+}
+
+@media (max-width: 768px) {
+    .globe-controls {
+        position: static;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .settings-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .settings-actions,
+    .form-actions,
+    .participant-management-panel .d-flex.gap-2 {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
 }

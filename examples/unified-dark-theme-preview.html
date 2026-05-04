@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zealous UI Dark Theme Preview</title>
+    <link href="../wwwroot/css/community-map.css" rel="stylesheet">
+    <link href="../wwwroot/css/community-globe.css" rel="stylesheet">
+    <link href="../wwwroot/css/participant-registration.css" rel="stylesheet">
+    <link href="../wwwroot/css/pwa-manager.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            background: #0a0c0f;
+            color: var(--zgl-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .preview-page {
+            display: grid;
+            gap: 1.25rem;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.25rem;
+            align-items: start;
+        }
+
+        .preview-map-art {
+            position: relative;
+            height: 320px;
+            background:
+                radial-gradient(circle at 18% 30%, rgba(36, 220, 231, 0.24), transparent 16%),
+                radial-gradient(circle at 74% 58%, rgba(74, 222, 128, 0.18), transparent 14%),
+                linear-gradient(135deg, #15191f 0%, #101316 46%, #0c0e11 100%);
+        }
+
+        .preview-map-line {
+            position: absolute;
+            inset: 28% 12% 20% 8%;
+            border-top: 1px solid rgba(184, 194, 208, 0.18);
+            border-left: 1px solid rgba(184, 194, 208, 0.12);
+            transform: skewY(-11deg);
+        }
+
+        .preview-marker {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: var(--zgl-accent);
+            border: 3px solid #0e1013;
+            border-radius: 50%;
+            box-shadow: 0 0 0 6px rgba(36, 220, 231, 0.14);
+        }
+
+        .preview-marker.one {
+            left: 22%;
+            top: 42%;
+        }
+
+        .preview-marker.two {
+            left: 62%;
+            top: 34%;
+            background: var(--zgl-success);
+            box-shadow: 0 0 0 6px rgba(74, 222, 128, 0.13);
+        }
+
+        .preview-marker.three {
+            left: 76%;
+            top: 63%;
+            background: var(--zgl-warning);
+            box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.12);
+        }
+
+        .preview-globe {
+            width: 100%;
+            height: 320px;
+        }
+
+        .preview-globe::before {
+            content: "";
+            position: absolute;
+            width: 190px;
+            height: 190px;
+            left: calc(50% - 95px);
+            top: calc(50% - 95px);
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 38% 32%, rgba(244, 247, 251, 0.75), transparent 0 3px, transparent 4px),
+                radial-gradient(circle at 62% 45%, rgba(36, 220, 231, 0.85), transparent 0 4px, transparent 5px),
+                radial-gradient(circle at 48% 72%, rgba(74, 222, 128, 0.75), transparent 0 3px, transparent 4px),
+                radial-gradient(circle at 34% 30%, #26323b 0, #12181d 48%, #07090c 74%);
+            border: 1px solid rgba(36, 220, 231, 0.25);
+            box-shadow: 0 0 42px rgba(36, 220, 231, 0.24);
+        }
+
+        .preview-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 880px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="preview-page">
+        <section class="preview-grid">
+            <div class="community-map-container">
+                <div class="map-header">
+                    <h3>Community Map</h3>
+                    <div class="participants-count">Total Participants: 128</div>
+                </div>
+                <div class="map-canvas preview-map-art">
+                    <div class="preview-map-line"></div>
+                    <div class="preview-marker one"></div>
+                    <div class="preview-marker two"></div>
+                    <div class="preview-marker three"></div>
+                </div>
+                <div class="participants-panel">
+                    <h4>Community Members (3)</h4>
+                    <div class="participants-list">
+                        <div class="participant-card">
+                            <div class="participant-avatar">A</div>
+                            <div class="participant-info">
+                                <div class="participant-name">Anna Petrova</div>
+                                <div class="participant-email">anna@example.org</div>
+                                <div class="participant-location-details">Moscow, Russia</div>
+                            </div>
+                        </div>
+                        <div class="participant-card">
+                            <div class="participant-avatar">D</div>
+                            <div class="participant-info">
+                                <div class="participant-name">Dmitry Orlov</div>
+                                <div class="participant-location">Saint Petersburg</div>
+                                <div class="participant-skills-preview">🛠 Mentoring, design systems</div>
+                            </div>
+                        </div>
+                        <div class="participant-card">
+                            <div class="participant-avatar">M</div>
+                            <div class="participant-info">
+                                <div class="participant-name">Maria Ivanova</div>
+                                <div class="participant-location">Kazan</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="community-globe-shell">
+                <div class="globe-canvas-container preview-globe">
+                    <div class="globe-controls">
+                        <div class="preview-row">
+                            <small>Вращение:</small>
+                            <button class="btn btn-sm btn-info">🔄</button>
+                        </div>
+                        <div class="preview-row">
+                            <small>Участники:</small>
+                            <span class="badge bg-info">128</span>
+                        </div>
+                        <select class="form-select form-select-sm">
+                            <option>Высокая</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="preview-grid">
+            <div class="geodata-participant-form">
+                <h3>Add New Point</h3>
+                <div class="form-group mb-3">
+                    <label for="preview-name">Name *</label>
+                    <input id="preview-name" class="form-control" value="Alex">
+                </div>
+                <div class="form-group mb-3">
+                    <label for="preview-email">Email *</label>
+                    <input id="preview-email" class="form-control" value="alex@example.org">
+                </div>
+                <div class="form-group mb-3">
+                    <label for="preview-message">Message</label>
+                    <textarea id="preview-message" class="form-control">Looking for local collaborators.</textarea>
+                </div>
+                <div class="preview-row">
+                    <button class="btn btn-primary">Add Point</button>
+                    <button class="btn btn-secondary">Clear</button>
+                </div>
+                <div class="location-preview">
+                    <h5>Location Found</h5>
+                    <p class="mb-1"><strong>Address:</strong> Tverskaya Street, Moscow</p>
+                    <p class="mb-0"><strong>Coordinates:</strong> 55.755800, 37.617600</p>
+                </div>
+            </div>
+
+            <div class="globe-settings-panel">
+                <div class="settings-header">
+                    <h5 class="mb-0">Настройки глобуса</h5>
+                    <div class="settings-actions">
+                        <button class="btn btn-sm btn-warning">✓ Применить</button>
+                        <button class="btn btn-sm btn-success">💾 Сохранить</button>
+                        <button class="btn btn-sm btn-secondary">🔄 Сброс</button>
+                    </div>
+                </div>
+                <div class="settings-body">
+                    <div class="accordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button">📐 Размеры</button>
+                            </h2>
+                            <div class="accordion-body">
+                                <div class="mb-2">
+                                    <label class="form-label">Ширина: 800 px</label>
+                                    <input type="range" class="form-range" min="400" max="2000" value="800">
+                                </div>
+                                <div class="mb-2 form-check">
+                                    <input type="checkbox" class="form-check-input" checked>
+                                    <label class="form-check-label">Автоматическое вращение</label>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Цвет метки</label>
+                                    <input type="color" class="form-control form-control-color" value="#24dce7">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">JSON конфигурация:</label>
+                        <textarea class="form-control font-monospace" rows="5" readonly>{
+  "BackgroundColor": "#000011",
+  "ParticipantPointColor": "#24dce7"
+}</textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="pwa-manager">
+            <div class="install-prompt">
+                <div class="install-content">
+                    <div class="install-icon">📱</div>
+                    <div class="install-text">
+                        <h4>Установите приложение</h4>
+                        <p>Получите быстрый доступ к географии сообщества прямо с рабочего стола</p>
+                    </div>
+                    <div class="install-actions">
+                        <button class="btn btn-primary">Установить</button>
+                        <button class="btn btn-secondary">Позже</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

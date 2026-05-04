@@ -1,8 +1,17 @@
+@import url('./zealous-ui.css');
+
 /* Стили для компонента карты сообщества */
 .community-map-container {
     position: relative;
     width: 100%;
     height: 100%;
+    min-height: 320px;
+    overflow: hidden;
+    background: var(--zgl-bg);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow-sm);
+    color: var(--zgl-text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -10,58 +19,97 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-    border-radius: 8px 8px 0 0;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    background: var(--zgl-surface);
+    border-bottom: 1px solid var(--zgl-border);
 }
 
 .map-header h3 {
     margin: 0;
-    color: #495057;
-    font-size: 1.25rem;
+    color: var(--zgl-text);
+    font-size: 1.15rem;
+    font-weight: 650;
 }
 
 .participants-count {
-    color: #6c757d;
-    font-size: 0.9rem;
-    background: #e9ecef;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-weight: 500;
+    flex-shrink: 0;
+    color: var(--zgl-accent);
+    font-size: 0.85rem;
+    background: var(--zgl-accent-soft);
+    border: 1px solid rgba(36, 220, 231, 0.28);
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--zgl-radius-sm);
+    font-weight: 650;
 }
 
 .map-canvas {
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-height: 260px;
+    background: #101316;
+}
+
+.map-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: rgba(14, 16, 19, 0.82);
+    backdrop-filter: blur(4px);
+    color: var(--zgl-text);
+}
+
+.loading-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(148, 163, 184, 0.25);
+    border-top-color: var(--zgl-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .participants-panel {
     position: absolute;
     top: 10px;
     right: 10px;
-    width: 300px;
+    width: min(320px, calc(100% - 20px));
     max-height: 400px;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--zgl-surface);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow);
     overflow: hidden;
     z-index: 1000;
 }
 
 .participants-panel h4 {
     margin: 0;
-    padding: 1rem;
-    background: #007bff;
-    color: white;
-    font-size: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--zgl-surface-muted);
+    border-bottom: 1px solid var(--zgl-border);
+    color: var(--zgl-text);
+    font-size: 0.95rem;
+    font-weight: 650;
 }
 
 .participants-list {
     max-height: 300px;
     overflow-y: auto;
     padding: 0.5rem;
+    scrollbar-color: var(--zgl-border-strong) transparent;
 }
 
 .participant-card {
@@ -69,31 +117,38 @@
     align-items: center;
     padding: 0.75rem;
     margin-bottom: 0.5rem;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-text);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.participant-card:last-child {
+    margin-bottom: 0;
 }
 
 .participant-card:hover {
-    background: #e3f2fd;
-    border-color: #007bff;
+    background: var(--zgl-elevated);
+    border-color: rgba(36, 220, 231, 0.48);
+    transform: translateY(-1px);
 }
 
 .participant-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #007bff;
-    color: white;
+    background: linear-gradient(135deg, var(--zgl-accent), var(--zgl-success));
+    color: #0e1013;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    font-size: 1.1rem;
+    font-weight: 800;
+    font-size: 1.05rem;
     margin-right: 0.75rem;
     flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(244, 247, 251, 0.08);
 }
 
 .participant-info {
@@ -102,8 +157,8 @@
 }
 
 .participant-name {
-    font-weight: 600;
-    color: #495057;
+    font-weight: 650;
+    color: var(--zgl-text);
     margin-bottom: 0.25rem;
     white-space: nowrap;
     overflow: hidden;
@@ -112,15 +167,17 @@
 
 .participant-location {
     font-size: 0.8rem;
-    color: #6c757d;
+    color: var(--zgl-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.participant-location-details {
+.participant-location-details,
+.participant-email,
+.participant-skills-preview {
     font-size: 0.75rem;
-    color: #868e96;
+    color: var(--zgl-subtle);
     margin-top: 0.125rem;
 }
 
@@ -130,7 +187,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.72);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -139,21 +196,24 @@
 }
 
 .participant-modal {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    max-width: 500px;
+    background: var(--zgl-surface);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow);
+    color: var(--zgl-text);
+    max-width: 520px;
     width: 100%;
     max-height: 80vh;
     overflow: hidden;
-    animation: modalFadeIn 0.3s ease-out;
+    animation: modalFadeIn 0.22s ease-out;
 }
 
 @keyframes modalFadeIn {
     from {
         opacity: 0;
-        transform: scale(0.9) translateY(-20px);
+        transform: scale(0.96) translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -164,21 +224,23 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #dee2e6;
-    background: #f8f9fa;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--zgl-border);
+    background: var(--zgl-surface-muted);
 }
 
 .modal-header h4 {
     margin: 0;
-    color: #495057;
+    color: var(--zgl-text);
+    font-size: 1.05rem;
 }
 
 .close-btn {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #6c757d;
+    background: transparent;
+    border: 1px solid transparent;
+    font-size: 1.35rem;
+    color: var(--zgl-muted);
     cursor: pointer;
     padding: 0;
     width: 32px;
@@ -186,66 +248,99 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+    border-radius: var(--zgl-radius-sm);
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .close-btn:hover {
-    background: #e9ecef;
-    color: #495057;
+    background: var(--zgl-accent-soft);
+    border-color: rgba(36, 220, 231, 0.35);
+    color: var(--zgl-accent);
 }
 
 .modal-body {
-    padding: 1.5rem;
+    padding: 1.25rem;
     max-height: 50vh;
     overflow-y: auto;
+    scrollbar-color: var(--zgl-border-strong) transparent;
 }
 
 .participant-details p {
     margin: 0.75rem 0;
+    color: var(--zgl-muted);
     line-height: 1.5;
 }
 
 .participant-details strong {
-    color: #495057;
+    color: var(--zgl-text);
     display: inline-block;
     min-width: 120px;
 }
 
+.participant-social-details {
+    padding-left: 1rem;
+    border-left: 1px solid var(--zgl-border);
+}
+
 .modal-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #dee2e6;
-    background: #f8f9fa;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--zgl-border);
+    background: var(--zgl-surface-muted);
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
 }
 
-.btn {
+.community-map-container .btn {
     padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 6px;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.btn-secondary {
-    background: #6c757d;
-    color: white;
+.community-map-container .btn-secondary {
+    background: var(--zgl-surface-muted);
+    color: var(--zgl-text);
 }
 
-.btn-secondary:hover {
-    background: #5a6268;
+.community-map-container .btn-secondary:hover {
+    background: var(--zgl-elevated);
+    border-color: var(--zgl-border-strong);
 }
 
-/* Адаптивность */
+.community-map-container .gm-style .gm-style-iw-c {
+    background: var(--zgl-surface) !important;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius) !important;
+    box-shadow: var(--zgl-shadow-sm) !important;
+    padding: 0 !important;
+}
+
+.community-map-container .gm-style .gm-style-iw-d {
+    overflow: auto !important;
+}
+
+.community-map-container .gm-style .gm-style-iw-tc::after {
+    background: var(--zgl-surface) !important;
+}
+
+.community-map-container .gm-style .gm-ui-hover-effect {
+    filter: invert(1) saturate(0);
+}
+
 @media (max-width: 768px) {
+    .map-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .participants-panel {
         position: static;
-        width: 100%;
-        margin: 1rem 0;
-        max-height: 200px;
+        width: calc(100% - 1rem);
+        margin: 0.5rem;
+        max-height: 220px;
     }
 
     .participant-modal {
@@ -258,35 +353,12 @@
     }
 
     .participant-card {
-        padding: 0.5rem;
+        padding: 0.6rem;
     }
 
     .participant-avatar {
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
-    }
-}
-
-/* Темная тема (опционально) */
-@media (prefers-color-scheme: dark) {
-    .participants-panel {
-        background: #2d3748;
-        border-color: #4a5568;
-    }
-
-    .participant-card {
-        background: #1a202c;
-        border-color: #2d3748;
-        color: #e2e8f0;
-    }
-
-    .participant-name {
-        color: #e2e8f0;
-    }
-
-    .participant-location,
-    .participant-location-details {
-        color: #a0aec0;
+        width: 34px;
+        height: 34px;
+        font-size: 0.95rem;
     }
 }

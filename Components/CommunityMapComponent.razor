@@ -12,6 +12,10 @@
 @inject IParticipantRepository ParticipantRepository
 @implements IAsyncDisposable
 
+<HeadContent>
+    <link href="/_content/ZealousMindedPeopleGeo/css/community-map.css" rel="stylesheet" />
+</HeadContent>
+
 <div class="community-map-container">
     <div class="map-header">
         <h3>Community Map</h3>
@@ -31,8 +35,7 @@
     }
 
     @* Ссылки на внешние ресурсы *@
-    <link href="_content/ZealousMindedPeopleGeo/css/community-map.css" rel="stylesheet" />
-    <script src="_content/ZealousMindedPeopleGeo/js/community-map.js"></script>
+    <script src="/_content/ZealousMindedPeopleGeo/js/community-map.js"></script>
 
     @if (ShowParticipantsList)
     {
@@ -49,7 +52,7 @@
                             <div class="participant-name">@participant.Name</div>
                             @if (!string.IsNullOrEmpty(participant.Email))
                             {
-                                <div class="participant-location" style="font-size: 0.75rem;">@participant.Email</div>
+                                <div class="participant-email">@participant.Email</div>
                             }
                             @if (!string.IsNullOrEmpty(participant.City) || !string.IsNullOrEmpty(participant.Country))
                             {
@@ -63,7 +66,7 @@
                             }
                             @if (!string.IsNullOrEmpty(participant.Skills))
                             {
-                                <div class="participant-location-details" style="font-size: 0.7rem; color: #4a5568;">
+                                <div class="participant-skills-preview">
                                     🛠 @(participant.Skills.Length > 30 ? participant.Skills.Substring(0, 30) + "..." : participant.Skills)
                                 </div>
                             }
@@ -126,7 +129,7 @@
                              !string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Website)))
                         {
                             <p><strong>Social Contacts:</strong></p>
-                            <div style="padding-left: 20px;">
+                            <div class="participant-social-details">
                                 @if (!string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Discord))
                                 {
                                     <p>Discord: @SelectedParticipant.SocialContacts.Discord</p>
@@ -156,5 +159,3 @@
         </div>
     }
 </div>
-
-

@@ -96,7 +96,7 @@ function addParticipantMarker(participant, index) {
         title: participant.Name,
         animation: google.maps.Animation.DROP,
         icon: {
-            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(createCustomMarker(participant.Name))}`,
+            url: createMarkerDataUrl(createCustomMarker(participant.Name)),
             scaledSize: new google.maps.Size(40, 40),
             anchor: new google.maps.Point(20, 40)
         }
@@ -127,30 +127,78 @@ function addParticipantMarker(participant, index) {
     }
 }
 
+function escapeHtml(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    const entities = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    };
+
+    return text.replace(/[&<>"']/g, character => entities[character]);
+}
+
+function formatMapDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+}
+
+function createMarkerDataUrl(svg) {
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function createCustomMarker(name) {
-    const initial = name.charAt(0).toUpperCase();
+    const initial = escapeHtml(String(name || '?').charAt(0).toUpperCase());
     return `
         <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="18" fill="#007bff" stroke="#ffffff" stroke-width="2"/>
-            <text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">${initial}</text>
+            <circle cx="20" cy="20" r="18" fill="#24dce7" stroke="#171a1f" stroke-width="2"/>
+            <text x="20" y="26" text-anchor="middle" fill="#0e1013" font-family="Arial" font-size="14" font-weight="bold">${initial}</text>
+        </svg>
+    `;
+}
+
+function createUserLocationMarker() {
+    return `
+        <svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="15" cy="15" r="12" fill="#68f2a0" stroke="#171a1f" stroke-width="2"/>
+            <circle cx="15" cy="15" r="5" fill="#0e1013"/>
+            <circle cx="15" cy="15" r="2.25" fill="#68f2a0"/>
+        </svg>
+    `;
+}
+
+function createFocusMarker(name) {
+    const initial = escapeHtml(String(name || '?').charAt(0).toUpperCase());
+    return `
+        <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 42C14 35.5 6 29.5 6 18C6 11.4 11.4 6 18 6s12 5.4 12 12c0 11.5-8 17.5-12 24Z" fill="#ffcf5a" stroke="#171a1f" stroke-width="2"/>
+            <circle cx="18" cy="18" r="7" fill="#171a1f"/>
+            <text x="18" y="22.5" text-anchor="middle" fill="#ffcf5a" font-family="Arial" font-size="10" font-weight="bold">${initial}</text>
         </svg>
     `;
 }
 
 function createInfoWindowContent(participant) {
-    let content = `
-        <div style="max-width: 300px; font-family: Arial, sans-serif;">
-            <h4 style="margin: 0 0 10px 0; color: #007bff;">${participant.Name}</h4>
-            <p style="margin: 5px 0; color: #666;"><strong>📍 Местоположение:</strong> ${participant.Location}</p>
-            <p style="margin: 5px 0; color: #666;"><strong>📅 Регистрация:</strong> ${new Date(participant.RegisteredAt).toLocaleDateString()}</p>
-    `;
+    const rows = [];
+    const addRow = (label, value) => {
+        if (value !== null && value !== undefined && value !== '') {
+            rows.push(`
+                <p style="display: grid; grid-template-columns: 122px 1fr; gap: 10px; margin: 7px 0; color: #b8c2d0; line-height: 1.45;">
+                    <strong style="color: #f4f7fb;">${label}</strong>
+                    <span>${escapeHtml(value)}</span>
+                </p>
+            `);
+        }
+    };
 
     if (participant.Email) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>📧 Email:</strong> ${participant.Email}</p>`;
+        addRow('📧 Email:', participant.Email);
     }
 
     if (participant.Address) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>📍 Адрес:</strong> ${participant.Address}</p>`;
+        addRow('📍 Адрес:', participant.Address);
     }
 
     // Отображаем город и страну если они есть
@@ -162,27 +210,27 @@ function createInfoWindowContent(participant) {
         locationParts.push(participant.Country);
     }
     if (locationParts.length > 0) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>🌍 Местоположение:</strong> ${locationParts.join(', ')}</p>`;
+        addRow('🌍 Местоположение:', locationParts.join(', '));
     } else if (participant.Location) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>🌍 Местоположение:</strong> ${participant.Location}</p>`;
+        addRow('🌍 Местоположение:', participant.Location);
     }
 
     if (participant.Latitude && participant.Longitude) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>🗺️ Координаты:</strong> ${participant.Latitude.toFixed(6)}, ${participant.Longitude.toFixed(6)}</p>`;
+        addRow('🗺️ Координаты:', `${participant.Latitude.toFixed(6)}, ${participant.Longitude.toFixed(6)}`);
     }
 
-    content += `<p style="margin: 5px 0; color: #666;"><strong>📅 Регистрация:</strong> ${new Date(participant.Timestamp || participant.RegisteredAt).toLocaleDateString()}</p>`;
+    addRow('📅 Регистрация:', formatMapDate(participant.Timestamp || participant.RegisteredAt));
 
     if (participant.Skills) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>🛠 Навыки:</strong> ${participant.Skills}</p>`;
+        addRow('🛠 Навыки:', participant.Skills);
     }
 
     if (participant.LifeGoals) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>🎯 Цели:</strong> ${participant.LifeGoals}</p>`;
+        addRow('🎯 Цели:', participant.LifeGoals);
     }
 
     if (participant.Message) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>💬 Сообщение:</strong> ${participant.Message}</p>`;
+        addRow('💬 Сообщение:', participant.Message);
     }
 
     // Добавляем социальные сети если есть
@@ -206,13 +254,20 @@ function createInfoWindowContent(participant) {
     }
 
     if (socialLinks.length > 0) {
-        content += `<p style="margin: 5px 0; color: #666;"><strong>🌐 Социальные сети:</strong></p>`;
-        content += `<p style="margin: 5px 0; padding-left: 10px; color: #666;">${socialLinks.join('<br>')}</p>`;
+        rows.push(`
+            <p style="display: grid; grid-template-columns: 122px 1fr; gap: 10px; margin: 7px 0; color: #b8c2d0; line-height: 1.45;">
+                <strong style="color: #f4f7fb;">🌐 Соцсети:</strong>
+                <span>${socialLinks.map(escapeHtml).join('<br>')}</span>
+            </p>
+        `);
     }
 
-    content += `</div>`;
-
-    return content;
+    return `
+        <div class="zgl-info-window" style="background: #171a1f; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38); color: #f4f7fb; font-family: Arial, sans-serif; max-width: 320px; padding: 12px;">
+            <h4 style="margin: 0 0 10px 0; color: #24dce7; font-size: 16px;">${escapeHtml(participant.Name || 'Участник')}</h4>
+            ${rows.join('')}
+        </div>
+    `;
 }
 
 function clearAllMarkers() {
@@ -249,12 +304,7 @@ window.centerMapOnUserLocation = () => {
                     map: map,
                     title: 'Ваше местоположение',
                     icon: {
-                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                            <svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="15" cy="15" r="12" fill="#28a745" stroke="#ffffff" stroke-width="2"/>
-                                <circle cx="15" cy="15" r="6" fill="#ffffff"/>
-                            </svg>
-                        `),
+                        url: createMarkerDataUrl(createUserLocationMarker()),
                         scaledSize: new google.maps.Size(30, 30),
                         anchor: new google.maps.Point(15, 15)
                     }
@@ -289,7 +339,12 @@ window.focusOnParticipant = (latitude, longitude, name) => {
         position: position,
         map: map,
         title: name,
-        animation: google.maps.Animation.BOUNCE
+        animation: google.maps.Animation.BOUNCE,
+        icon: {
+            url: createMarkerDataUrl(createFocusMarker(name)),
+            scaledSize: new google.maps.Size(36, 44),
+            anchor: new google.maps.Point(18, 42)
+        }
     });
 
     console.log(`Фокус на участнике: ${name}`);

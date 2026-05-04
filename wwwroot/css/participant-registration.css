@@ -1,87 +1,220 @@
-.participant-registration {
-    max-width: 600px;
+@import url('./zealous-ui.css');
+
+.participant-registration,
+.geodata-participant-form {
+    max-width: 640px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 1.25rem;
+    background: var(--zgl-surface);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    box-shadow: var(--zgl-shadow-sm);
+    color: var(--zgl-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.participant-registration .form-group {
-    margin-bottom: 15px;
+.geodata-participant-form {
+    background: var(--zgl-surface);
 }
 
-.participant-registration .form-control {
+.participant-registration h3,
+.geodata-participant-form h3 {
+    margin: 0 0 1rem;
+    color: var(--zgl-text);
+    font-size: 1.2rem;
+    font-weight: 650;
+}
+
+.participant-registration .form-group,
+.geodata-participant-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.participant-registration label,
+.geodata-participant-form label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--zgl-text);
+    font-weight: 600;
+}
+
+.participant-registration .form-control,
+.geodata-participant-form .form-control {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
+    min-height: 40px;
+    padding: 0.55rem 0.75rem;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-text);
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.participant-registration textarea.form-control,
+.geodata-participant-form textarea.form-control {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.participant-registration .form-control::placeholder,
+.geodata-participant-form .form-control::placeholder {
+    color: var(--zgl-subtle);
+}
+
+.participant-registration .form-control:focus,
+.geodata-participant-form .form-control:focus {
+    outline: none;
+    background: var(--zgl-elevated);
+    border-color: var(--zgl-accent);
+    box-shadow: 0 0 0 0.2rem rgba(36, 220, 231, 0.18);
 }
 
 .participant-registration .coordinates {
     display: flex;
-    gap: 10px;
+    gap: 0.75rem;
 }
 
 .participant-registration .coordinates .form-control {
     flex: 1;
 }
 
-.participant-registration .btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
+.participant-registration .btn,
+.geodata-participant-form .btn {
+    min-height: 40px;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid transparent;
+    border-radius: var(--zgl-radius-sm);
     cursor: pointer;
-    font-size: 14px;
+    font-size: 0.95rem;
+    font-weight: 650;
     text-decoration: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-.participant-registration .btn-primary {
-    background-color: #007bff;
-    color: white;
+.participant-registration .btn:hover,
+.geodata-participant-form .btn:hover {
+    transform: translateY(-1px);
 }
 
-.participant-registration .btn-secondary {
-    background-color: #6c757d;
-    color: white;
+.participant-registration .btn-primary,
+.geodata-participant-form .btn-primary {
+    background-color: var(--zgl-accent);
+    color: #0e1013;
 }
 
-.participant-registration .btn:disabled {
-    opacity: 0.6;
+.participant-registration .btn-primary:hover,
+.geodata-participant-form .btn-primary:hover {
+    background-color: var(--zgl-accent-strong);
+}
+
+.participant-registration .btn-secondary,
+.geodata-participant-form .btn-secondary {
+    background-color: var(--zgl-surface-muted);
+    border-color: var(--zgl-border);
+    color: var(--zgl-text);
+}
+
+.participant-registration .btn-secondary:hover,
+.geodata-participant-form .btn-secondary:hover {
+    background-color: var(--zgl-elevated);
+    border-color: var(--zgl-border-strong);
+}
+
+.participant-registration .btn:disabled,
+.geodata-participant-form .btn:disabled {
+    opacity: 0.58;
     cursor: not-allowed;
+    transform: none;
 }
 
 .participant-registration .social-fields {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--zgl-border);
 }
 
-.participant-registration .status-message {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: 4px;
+.participant-registration .status-message,
+.geodata-participant-form .alert {
+    margin-top: 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: var(--zgl-radius-sm);
+    border: 1px solid var(--zgl-border);
 }
 
-.participant-registration .status-message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+.participant-registration .status-message.success,
+.geodata-participant-form .alert-success {
+    background-color: var(--zgl-success-soft);
+    color: var(--zgl-success);
+    border-color: rgba(74, 222, 128, 0.35);
 }
 
-.participant-registration .status-message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+.participant-registration .status-message.error,
+.geodata-participant-form .alert-danger {
+    background-color: var(--zgl-danger-soft);
+    color: var(--zgl-danger);
+    border-color: rgba(251, 113, 133, 0.35);
 }
 
-.participant-registration .status-message.warning {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
+.participant-registration .status-message.warning,
+.geodata-participant-form .alert-warning {
+    background-color: var(--zgl-warning-soft);
+    color: var(--zgl-warning);
+    border-color: rgba(251, 191, 36, 0.35);
 }
 
-.participant-registration small {
-    color: #666;
-    font-size: 12px;
+.participant-registration small,
+.geodata-hint {
+    color: var(--zgl-muted);
+    font-size: 0.8rem;
+}
+
+.geodata-participant-form .validation-message {
+    margin-top: 0.25rem;
+    color: var(--zgl-danger);
+    font-size: 0.85rem;
+}
+
+.geodata-participant-form .validation-errors {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    background: var(--zgl-danger-soft);
+    border: 1px solid rgba(251, 113, 133, 0.35);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-danger);
+}
+
+.geodata-participant-form .location-preview {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--zgl-surface-muted);
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-muted);
+}
+
+.geodata-participant-form .location-preview h5 {
+    margin: 0 0 0.75rem;
+    color: var(--zgl-accent);
+    font-size: 1rem;
+}
+
+.geodata-participant-form .location-preview strong {
+    color: var(--zgl-text);
+}
+
+@media (max-width: 640px) {
+    .participant-registration,
+    .geodata-participant-form {
+        padding: 1rem;
+    }
+
+    .participant-registration .coordinates,
+    .geodata-participant-form .d-flex {
+        flex-direction: column;
+    }
 }

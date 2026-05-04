@@ -1,17 +1,21 @@
 @using System.Text.Json
 @inject IJSRuntime JSRuntime
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+<HeadContent>
+    <link href="/_content/ZealousMindedPeopleGeo/css/community-globe.css" rel="stylesheet" />
+</HeadContent>
+
+<div class="globe-settings-panel">
+    <div class="settings-header">
         <h5 class="mb-0">Настройки глобуса</h5>
-        <div>
+        <div class="settings-actions">
             <button class="btn btn-sm btn-warning" @onclick="ApplySettingsAsync">✓ Применить</button>
             <button class="btn btn-sm btn-success" @onclick="SaveSettingsAsync">💾 Сохранить</button>
             <button class="btn btn-sm btn-primary" @onclick="LoadSettingsAsync">📂 Загрузить</button>
             <button class="btn btn-sm btn-secondary" @onclick="ResetToDefaults">🔄 Сброс</button>
         </div>
     </div>
-    <div class="card-body">
+    <div class="settings-body">
         <div class="accordion" id="settingsAccordion">
 
             <!-- Размеры -->
