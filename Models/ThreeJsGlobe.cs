@@ -39,17 +39,37 @@ public class GlobeOptions
     /// <summary>
     /// Размер точек участников
     /// </summary>
-    public double ParticipantPointSize { get; set; } = 0.5;
+    public double ParticipantPointSize { get; set; } = 0.2;
 
     /// <summary>
-    /// Цвет точек участников
+    /// Цвет 3D меток участников
     /// </summary>
-    public string ParticipantPointColor { get; set; } = "#ffff00";
+    public string ParticipantPointColor { get; set; } = "#24dce7";
 
     /// <summary>
-    /// Цвет выделенной точки участника
+    /// Отступ острого конца метки от поверхности глобуса
     /// </summary>
-    public string HighlightedPointColor { get; set; } = "#ff6600";
+    public double ParticipantPointOffset { get; set; } = 0.02;
+
+    /// <summary>
+    /// Прозрачность 3D метки участника (0-1)
+    /// </summary>
+    public double ParticipantMarkerOpacity { get; set; } = 0.72;
+
+    /// <summary>
+    /// Интервал между волнами при наведении на метку, мс
+    /// </summary>
+    public int ParticipantMarkerRippleIntervalMs { get; set; } = 2000;
+
+    /// <summary>
+    /// Длительность одной волны при наведении на метку, мс
+    /// </summary>
+    public int ParticipantMarkerRippleDurationMs { get; set; } = 500;
+
+    /// <summary>
+    /// Цвет грани и выделения метки участника
+    /// </summary>
+    public string HighlightedPointColor { get; set; } = "#e0fcff";
 
     /// <summary>
     /// Включить автоповорот глобуса

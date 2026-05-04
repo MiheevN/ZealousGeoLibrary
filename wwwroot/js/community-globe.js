@@ -70,17 +70,30 @@ class CommunityGlobe {
         this.containerId = containerId;
         this.container = null; // Будет инициализирован позже
 
-        this.options = {
-            ...options,
+        const defaultOptions = {
             width: 800,
             height: 600,
             backgroundColor: '#000011',
             atmosphereColor: '#00aaff',
             atmosphereOpacity: 0.2,
             participantPointSize: 0.2,
-            participantPointColor: '#ffff00',
+            participantPointColor: '#24dce7',
             participantPointOffset: 0.02, // Расстояние точек от поверхности глобуса
-            highlightedPointColor: '#ff6600',
+            participantMarkerOpacity: 0.72,
+            participantMarkerHeight: 0.22,
+            participantMarkerTipHeight: 0.09,
+            participantMarkerRadius: 0.035,
+            participantMarkerLabelGap: 0.055,
+            participantMarkerRippleIntervalMs: 2000,
+            participantMarkerRippleDurationMs: 500,
+            participantMarkerRippleRadius: 0.16,
+            participantMarkerRippleWidth: 0.018,
+            participantMarkerRippleWaveCount: 2,
+            participantMarkerTiltStartDistance: 2.2,
+            participantMarkerTiltFullDistance: 1.1,
+            participantMarkerMaxTiltDegrees: 42,
+            preserveDrawingBuffer: false,
+            highlightedPointColor: '#e0fcff',
             autoRotate: true,
             autoRotateSpeed: 0.1,
             autoRotateResumeDelay: 3000,
@@ -109,6 +122,12 @@ class CommunityGlobe {
             atmosphereLightIntensity: 1,
             atmosphereLightColor: '#00aaff',
         };
+        this.options = { ...defaultOptions };
+        Object.entries(options || {}).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                this.options[key] = value;
+            }
+        });
 
         this.state = {
             isInitialized: false,
@@ -129,7 +148,10 @@ class CommunityGlobe {
         this.atmosphere = null;
         this.clouds = null;
         this.participantPoints = [];
+        this.participantMarkers = [];
+        this.participantMarkerHitTargets = [];
         this.participantLabels = [];
+        this.hoveredParticipantMarker = null;
         this.labelTargetPixelHeight = DEFAULT_LABEL_PIXEL_HEIGHT;
         this.countryPolygons = [];
         this.raycaster = null;
@@ -260,7 +282,10 @@ class CommunityGlobe {
             this.state.cameraPosition.z
         );
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            preserveDrawingBuffer: Boolean(this.options.preserveDrawingBuffer)
+        });
         this.renderer.setSize(this.options.width, this.options.height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
@@ -440,28 +465,65 @@ class CommunityGlobe {
     }
 
     onMouseClick(event) {
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        this.updateMousePosition(event);
 
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-
-        if (this.participantPoints.length > 0) {
-            const intersects = this.raycaster.intersectObjects(this.participantPoints);
-            if (intersects.length > 0) {
-                const pointIndex = intersects[0].index;
-                const metadata = this.pointMetadata.get(`participant_${pointIndex}`);
-                if (metadata && this.callbacks.onParticipantClick) {
-                    this.callbacks.onParticipantClick(metadata);
-                }
-            }
+        const marker = this.getIntersectedParticipantMarker();
+        const metadata = marker?.userData?.participant;
+        if (metadata && this.callbacks.onParticipantClick) {
+            this.callbacks.onParticipantClick(metadata);
         }
     }
 
     onMouseMove(event) {
+        this.updateMousePosition(event);
+
+        const marker = this.getIntersectedParticipantMarker();
+        this.setHoveredParticipantMarker(marker);
+        if (this.renderer?.domElement) {
+            this.renderer.domElement.style.cursor = marker ? 'pointer' : '';
+        }
+    }
+
+    updateMousePosition(event) {
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    getIntersectedParticipantMarker() {
+        if (!this.raycaster || !this.camera || this.participantMarkerHitTargets.length === 0) {
+            return null;
+        }
+
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.participantMarkerHitTargets, false);
+        if (intersects.length === 0) {
+            return null;
+        }
+
+        return intersects[0].object.userData.participantMarker || null;
+    }
+
+    setHoveredParticipantMarker(marker) {
+        if (this.hoveredParticipantMarker === marker) {
+            return;
+        }
+
+        if (this.hoveredParticipantMarker) {
+            this.hoveredParticipantMarker.userData.isHovered = false;
+            this.resetParticipantMarkerRipples(this.hoveredParticipantMarker);
+        }
+
+        this.hoveredParticipantMarker = marker;
+
+        if (marker) {
+            marker.userData.isHovered = true;
+            const rippleGroup = marker.userData.rippleGroup;
+            if (rippleGroup) {
+                rippleGroup.visible = true;
+                rippleGroup.userData.startedAt = this.getAnimationTimeMs();
+            }
+        }
     }
 
     onWindowResize() {
@@ -500,10 +562,7 @@ class CommunityGlobe {
          }
 
          try {
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const colors = [];
-            const sizes = [];
+            let markerIndex = 0;
 
             participants.forEach((participant, index) => {
                 // Валидация координат
@@ -513,57 +572,19 @@ class CommunityGlobe {
                     return;
                 }
 
-                const radius = 1 + this.options.participantPointOffset;
-                const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
-                positions.push(position.x, position.y, position.z);
-                const color = new THREE.Color(this.options.participantPointColor);
-                colors.push(color.r, color.g, color.b);
-                sizes.push(this.options.participantPointSize);
-                this.pointMetadata.set(`participant_${index}`, participant);
+                const marker = this.createParticipantMarker(participant, markerIndex);
+                this.earthGroup.add(marker);
+                this.participantMarkers.push(marker);
+                this.participantPoints.push(marker); // Обратная совместимость с отладочными API
+                this.pointMetadata.set(`participant_${markerIndex}`, participant);
+                markerIndex++;
             });
 
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            this.state.participantCount = markerIndex;
 
-            const material = new THREE.ShaderMaterial({
-                uniforms: { pointTexture: { value: this.createCircleTexture() } },
-                vertexShader: `
-                    attribute float size;
-                    attribute vec3 color;
-                    varying vec3 vColor;
-                    void main() {
-                        vColor = color;
-                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                        gl_PointSize = size * (150.0 / -mvPosition.z);
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
-                `,
-                fragmentShader: `
-                    uniform sampler2D pointTexture;
-                    varying vec3 vColor;
-                    void main() {
-                        gl_FragColor = vec4(vColor, 1.0);
-                        gl_FragColor = gl_FragColor * texture2D(pointTexture, gl_PointCoord);
-                    }
-                `,
-                transparent: true
-            });
-
-            const points = new THREE.Points(geometry, material);
-            this.earthGroup.add(points); // Добавляем в earthGroup чтобы точки вращались с глобусом
-            this.participantPoints.push(points);
-
-            // Создаем текстовые метки
-            this.createParticipantLabels(participants);
-            
-            console.log(`🎯 Создано ${participants.length} точек участников`);
-            console.log('Позиции точек:', positions.slice(0, 9)); // Первые 3 точки
-            console.log('Размеры точек:', sizes.slice(0, 3));
-            this.state.participantCount = participants.length;
-
-            console.log(`✅ Добавлено ${participants.length} участников на глобус`);
-        console.log(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
+            console.log(`🎯 Создано ${markerIndex} 3D меток участников`);
+            console.log(`✅ Добавлено ${markerIndex} участников на глобус`);
+            console.log(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
 
             // Принудительно обновляем рендер для немедленного отображения точек
             if (this.renderer && this.scene && this.camera) {
@@ -572,7 +593,7 @@ class CommunityGlobe {
             }
 
             console.log(`📈 Финальное состояние для контейнера ${this.containerId}:`);
-            console.log(`   - Точек участников: ${this.state.participantCount}`);
+            console.log(`   - Меток участников: ${this.state.participantCount}`);
             console.log(`   - Объектов в сцене: ${this.scene.children.length}`);
             console.log(`   - Объектов в earthGroup: ${this.earthGroup.children.length}`);
 
@@ -588,19 +609,43 @@ class CommunityGlobe {
      * Удаляет точки участников и очищает метаданные
      */
     clearParticipants() {
-        this.participantPoints.forEach(points => {
-            this.earthGroup.remove(points); // Удаляем из earthGroup
-            points.geometry.dispose();
-            if (points.material instanceof THREE.Material) points.material.dispose();
-        });
-        this.participantLabels.forEach(label => {
-            this.earthGroup.remove(label);
+        this.participantMarkers.forEach(marker => {
+            this.earthGroup.remove(marker);
+            this.disposeObject3D(marker);
         });
         this.participantPoints = [];
+        this.participantMarkers = [];
+        this.participantMarkerHitTargets = [];
         this.participantLabels = [];
+        this.hoveredParticipantMarker = null;
         this.pointMetadata.clear();
         this.state.participantCount = 0;
-        console.log('🧹 Очищены все точки участников');
+        console.log('🧹 Очищены все метки участников');
+    }
+
+    disposeObject3D(object) {
+        object.traverse(child => {
+            if (child.geometry) {
+                child.geometry.dispose();
+            }
+
+            if (child.material) {
+                this.disposeMaterial(child.material);
+            }
+        });
+    }
+
+    disposeMaterial(material) {
+        if (Array.isArray(material)) {
+            material.forEach(item => this.disposeMaterial(item));
+            return;
+        }
+
+        if (material.map) {
+            material.map.dispose();
+        }
+
+        material.dispose();
     }
 
     latLngToVector3(lat, lng, radius = 1) {
@@ -636,63 +681,246 @@ class CommunityGlobe {
         return new THREE.CanvasTexture(canvas);
     }
 
-    createParticipantLabels(participants) {
-        console.log(`🏷️ Создание меток для ${participants.length} участников`);
+    createParticipantMarker(participant, index) {
+        const dimensions = this.getParticipantMarkerDimensions();
+        const radius = 1 + this.options.participantPointOffset;
+        const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
+        const normal = new THREE.Vector3(position.x, position.y, position.z).normalize();
+        const marker = new THREE.Group();
+        const visual = new THREE.Group();
 
-        participants.forEach((participant, index) => {
-            // Проверка валидности данных
-            if (!participant.name || participant.name.trim() === '') {
-                console.warn(`⚠️ Пропускаем метку для участника без имени (index ${index})`);
-                return;
-            }
+        marker.position.set(position.x, position.y, position.z);
+        marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+        marker.userData = {
+            participant,
+            participantIndex: index,
+            normal,
+            visual,
+            isHovered: false
+        };
 
-            try {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const fontSize = 24;
-                const scale = 2;
+        marker.add(visual);
 
-                ctx.font = `${fontSize}px Arial`;
-                const textWidth = ctx.measureText(participant.name).width;
-                canvas.width = (textWidth + 20) * scale;
-                canvas.height = (fontSize + 10) * scale;
-                ctx.scale(scale, scale);
-
-                // Полупрозрачный фон для лучшей читаемости
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.fillRect(0, 0, textWidth + 20, fontSize + 10);
-
-                // Белая рамка
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(0, 0, textWidth + 20, fontSize + 10);
-
-                // Текст
-                ctx.fillStyle = 'white';
-                ctx.font = `${fontSize}px Arial`;
-                ctx.fillText(participant.name, 10, fontSize + 2);
-
-                const texture = new THREE.CanvasTexture(canvas);
-                const material = new THREE.SpriteMaterial({ map: texture });
-                const sprite = new THREE.Sprite(material);
-
-                const radius = 1 + this.options.participantPointOffset + 0.03;
-                const position = this.latLngToVector3(participant.latitude, participant.longitude, radius);
-                sprite.position.set(position.x, position.y, position.z);
-                sprite.userData.labelAspectRatio = canvas.width / canvas.height;
-                sprite.userData.targetPixelHeight = this.labelTargetPixelHeight;
-                this.updateParticipantLabelScale(sprite);
-
-                this.earthGroup.add(sprite);
-                this.participantLabels.push(sprite);
-
-                console.log(`🏷️ Создана метка для ${participant.name} на позиции (${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`);
-            } catch (error) {
-                console.error(`❌ Ошибка создания метки для участника ${participant.name}:`, error);
-            }
+        const color = new THREE.Color(participant.markerColor || this.options.participantPointColor);
+        const opacity = this.getClampedNumber(this.options.participantMarkerOpacity, 0.72, 0.05, 1);
+        const bodyMaterial = new THREE.MeshPhongMaterial({
+            color,
+            transparent: true,
+            opacity,
+            shininess: 90,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const tipMaterial = bodyMaterial.clone();
+        const edgeMaterial = new THREE.LineBasicMaterial({
+            color: this.options.highlightedPointColor || '#e0fcff',
+            transparent: true,
+            opacity: Math.min(1, opacity + 0.18),
+            depthWrite: false
         });
 
-        console.log(`✅ Создано ${this.participantLabels.length} меток участников`);
+        const tipGeometry = new THREE.ConeGeometry(dimensions.radius * 0.92, dimensions.tipHeight, 6, 1, false);
+        tipGeometry.rotateX(Math.PI);
+        tipGeometry.translate(0, dimensions.tipHeight / 2, 0);
+        const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+
+        const bodyGeometry = new THREE.CylinderGeometry(
+            dimensions.radius,
+            dimensions.radius * 0.92,
+            dimensions.bodyHeight,
+            6,
+            1,
+            false
+        );
+        bodyGeometry.translate(0, dimensions.tipHeight + dimensions.bodyHeight / 2, 0);
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+
+        const bodyEdges = new THREE.LineSegments(new THREE.EdgesGeometry(bodyGeometry), edgeMaterial.clone());
+        const tipEdges = new THREE.LineSegments(new THREE.EdgesGeometry(tipGeometry), edgeMaterial);
+
+        [tip, body].forEach(mesh => {
+            mesh.userData.participantMarker = marker;
+            mesh.userData.participant = participant;
+            this.participantMarkerHitTargets.push(mesh);
+        });
+
+        visual.add(tip);
+        visual.add(body);
+        visual.add(bodyEdges);
+        visual.add(tipEdges);
+
+        const label = this.createParticipantLabelMesh(participant, dimensions);
+        if (label) {
+            visual.add(label);
+            this.participantLabels.push(label);
+        }
+
+        const rippleGroup = this.createParticipantRippleGroup(participant, dimensions);
+        marker.userData.rippleGroup = rippleGroup;
+        marker.add(rippleGroup);
+
+        return marker;
+    }
+
+    createParticipantLabelMesh(participant, dimensions) {
+        if (!participant.name || participant.name.trim() === '') {
+            console.warn(`⚠️ Пропускаем метку для участника без имени`);
+            return null;
+        }
+
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const fontSize = 24;
+            const scale = 2;
+            const paddingX = 14;
+            const paddingY = 8;
+
+            ctx.font = `600 ${fontSize}px Arial`;
+            const textWidth = Math.ceil(ctx.measureText(participant.name).width);
+            canvas.width = (textWidth + paddingX * 2) * scale;
+            canvas.height = (fontSize + paddingY * 2) * scale;
+            ctx.scale(scale, scale);
+
+            ctx.font = `600 ${fontSize}px Arial`;
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+            ctx.shadowBlur = 7;
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.78)';
+            ctx.strokeText(participant.name, paddingX, canvas.height / (2 * scale));
+            ctx.fillStyle = 'rgba(245, 255, 255, 0.98)';
+            ctx.fillText(participant.name, paddingX, canvas.height / (2 * scale));
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const label = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+            label.position.set(0, dimensions.tipHeight + dimensions.bodyHeight + dimensions.labelGap, 0);
+            label.rotation.x = -Math.PI / 2;
+            label.userData.labelAspectRatio = canvas.width / canvas.height;
+            label.userData.targetPixelHeight = this.labelTargetPixelHeight;
+            this.updateParticipantLabelScale(label);
+
+            return label;
+        } catch (error) {
+            console.error(`❌ Ошибка создания метки для участника ${participant.name}:`, error);
+            return null;
+        }
+    }
+
+    createParticipantRippleGroup(participant, dimensions) {
+        const group = new THREE.Group();
+        const timing = this.getParticipantRippleTiming(participant);
+        const waveCount = Math.max(1, Math.round(this.getPositiveNumber(
+            participant.rippleWaveCount ?? this.options.participantMarkerRippleWaveCount,
+            2
+        )));
+        const color = new THREE.Color(participant.rippleColor || this.options.participantPointColor);
+
+        group.visible = false;
+        group.userData = {
+            timing,
+            startedAt: 0,
+            maxOpacity: 0.62
+        };
+
+        for (let waveIndex = 0; waveIndex < waveCount; waveIndex++) {
+            const innerRadius = Math.max(0.001, dimensions.rippleRadius - dimensions.rippleWidth);
+            const geometry = new THREE.RingGeometry(innerRadius, dimensions.rippleRadius, 64);
+            geometry.rotateX(-Math.PI / 2);
+            geometry.translate(0, 0.003 + waveIndex * 0.0008, 0);
+
+            const material = new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                opacity: 0,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const wave = new THREE.Mesh(geometry, material);
+            wave.visible = false;
+            wave.scale.setScalar(0.001);
+            wave.userData.phaseOffsetMs = waveIndex * (timing.durationMs / (waveCount + 1));
+            group.add(wave);
+        }
+
+        return group;
+    }
+
+    getParticipantMarkerDimensions() {
+        const size = this.getClampedNumber(this.options.participantPointSize, 0.2, 0.05, 2);
+        const scale = this.clamp(Math.sqrt(size / 0.2), 0.55, 3);
+
+        return {
+            radius: this.getPositiveNumber(this.options.participantMarkerRadius, 0.035) * scale,
+            bodyHeight: this.getPositiveNumber(this.options.participantMarkerHeight, 0.22) * scale,
+            tipHeight: this.getPositiveNumber(this.options.participantMarkerTipHeight, 0.09) * scale,
+            labelGap: this.getPositiveNumber(this.options.participantMarkerLabelGap, 0.055) * scale,
+            rippleRadius: this.getPositiveNumber(this.options.participantMarkerRippleRadius, 0.16) * scale,
+            rippleWidth: this.getPositiveNumber(this.options.participantMarkerRippleWidth, 0.018) * scale
+        };
+    }
+
+    getParticipantRippleTiming(participant = {}) {
+        const intervalMs = this.getPositiveNumber(
+            participant.rippleIntervalMs ?? participant.markerRippleIntervalMs ?? this.options.participantMarkerRippleIntervalMs,
+            2000
+        );
+        const durationMs = this.getPositiveNumber(
+            participant.rippleDurationMs ?? participant.markerRippleDurationMs ?? this.options.participantMarkerRippleDurationMs,
+            500
+        );
+
+        return {
+            intervalMs,
+            durationMs: Math.min(durationMs, intervalMs)
+        };
+    }
+
+    calculateParticipantMarkerTiltAmount(cameraDistance) {
+        const startDistance = this.getPositiveNumber(this.options.participantMarkerTiltStartDistance, 2.2);
+        const fullDistance = this.getPositiveNumber(this.options.participantMarkerTiltFullDistance, 1.1);
+        const maxTiltRadians = this.getClampedNumber(this.options.participantMarkerMaxTiltDegrees, 42, 0, 80) * Math.PI / 180;
+
+        if (startDistance <= fullDistance || cameraDistance >= startDistance) {
+            return 0;
+        }
+
+        const progress = this.clamp((startDistance - cameraDistance) / (startDistance - fullDistance), 0, 1);
+        return maxTiltRadians * progress;
+    }
+
+    getAnimationTimeMs() {
+        if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+            return performance.now();
+        }
+
+        return Date.now();
+    }
+
+    getPositiveNumber(value, fallback) {
+        const number = Number(value);
+        return Number.isFinite(number) && number > 0 ? number : fallback;
+    }
+
+    getFiniteNumber(value, fallback) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : fallback;
+    }
+
+    getClampedNumber(value, fallback, min, max) {
+        return this.clamp(this.getFiniteNumber(value, fallback), min, max);
+    }
+
+    clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
     }
 
     updateParticipantLabelScale(label) {
@@ -713,6 +941,83 @@ class CommunityGlobe {
 
     updateParticipantLabelScales() {
         this.participantLabels.forEach(label => this.updateParticipantLabelScale(label));
+    }
+
+    updateParticipantMarkerTransforms() {
+        if (!this.camera || this.participantMarkers.length === 0) return;
+
+        const cameraDistance = this.camera.position.length();
+        const tiltAmount = this.calculateParticipantMarkerTiltAmount(cameraDistance);
+        const localUp = new THREE.Vector3(0, 1, 0);
+
+        this.participantMarkers.forEach(marker => {
+            const visual = marker.userData.visual;
+            if (!visual) return;
+
+            visual.quaternion.identity();
+            if (tiltAmount <= 0) return;
+
+            const markerWorldPosition = marker.getWorldPosition(new THREE.Vector3());
+            const normal = markerWorldPosition.clone().normalize();
+            const towardCamera = this.camera.position.clone().sub(markerWorldPosition).normalize();
+            const tangentTowardCamera = towardCamera.sub(normal.clone().multiplyScalar(towardCamera.dot(normal)));
+            if (tangentTowardCamera.lengthSq() < 0.000001) return;
+
+            const awayWorld = tangentTowardCamera.normalize().negate();
+            const inverseWorldQuaternion = marker.getWorldQuaternion(new THREE.Quaternion()).invert();
+            const awayLocal = awayWorld.applyQuaternion(inverseWorldQuaternion);
+            awayLocal.y = 0;
+
+            if (awayLocal.lengthSq() < 0.000001) return;
+
+            awayLocal.normalize();
+            const tiltAxis = localUp.clone().cross(awayLocal).normalize();
+            visual.quaternion.setFromAxisAngle(tiltAxis, tiltAmount);
+        });
+    }
+
+    updateParticipantMarkerRipples(now) {
+        this.participantMarkers.forEach(marker => {
+            const rippleGroup = marker.userData.rippleGroup;
+            if (!rippleGroup) return;
+
+            if (!marker.userData.isHovered) {
+                this.resetParticipantMarkerRipples(marker);
+                return;
+            }
+
+            const timing = rippleGroup.userData.timing;
+            const cycleElapsed = (now - rippleGroup.userData.startedAt) % timing.intervalMs;
+
+            rippleGroup.children.forEach(wave => {
+                const elapsed = cycleElapsed - wave.userData.phaseOffsetMs;
+                if (elapsed < 0 || elapsed > timing.durationMs) {
+                    wave.visible = false;
+                    wave.material.opacity = 0;
+                    return;
+                }
+
+                const progress = elapsed / timing.durationMs;
+                const scale = this.clamp(1 - progress, 0.04, 1);
+                wave.visible = true;
+                wave.scale.setScalar(scale);
+                wave.material.opacity = rippleGroup.userData.maxOpacity * Math.sin(Math.PI * progress);
+            });
+        });
+    }
+
+    resetParticipantMarkerRipples(marker) {
+        const rippleGroup = marker?.userData?.rippleGroup;
+        if (!rippleGroup) return;
+
+        rippleGroup.visible = false;
+        rippleGroup.children.forEach(wave => {
+            wave.visible = false;
+            wave.scale.setScalar(0.001);
+            if (wave.material) {
+                wave.material.opacity = 0;
+            }
+        });
     }
 
     animate() {
@@ -736,6 +1041,8 @@ class CommunityGlobe {
 
         if (this.controls) this.controls.update();
         this.updateParticipantLabelScales();
+        this.updateParticipantMarkerTransforms();
+        this.updateParticipantMarkerRipples(this.getAnimationTimeMs());
         this.updateCameraState();
         this.renderer.render(this.scene, this.camera);
     }
@@ -930,16 +1237,31 @@ class CommunityGlobe {
         }
     }
 
+    updateOptionFromSettings(settings, key) {
+        if (Object.prototype.hasOwnProperty.call(settings, key) && settings[key] !== undefined && settings[key] !== null) {
+            this.options[key] = settings[key];
+        }
+    }
+
     updateSettings(settings) {
         try {
-            this.options.participantPointSize = settings.participantPointSize;
-            this.options.participantPointOffset = settings.participantPointOffset;
-            this.options.participantPointColor = settings.participantPointColor;
-            this.options.highlightedPointColor = settings.highlightedPointColor;
-            this.options.autoRotateSpeed = settings.autoRotateSpeed;
-            this.options.cloudsOpacity = settings.cloudsOpacity;
-            this.options.cloudsSpeed = settings.cloudsSpeed;
-            this.options.atmosphereOpacity = settings.atmosphereOpacity;
+            [
+                'width',
+                'height',
+                'backgroundColor',
+                'atmosphereColor',
+                'atmosphereOpacity',
+                'participantPointSize',
+                'participantPointOffset',
+                'participantPointColor',
+                'participantMarkerOpacity',
+                'participantMarkerRippleIntervalMs',
+                'participantMarkerRippleDurationMs',
+                'highlightedPointColor',
+                'autoRotateSpeed',
+                'cloudsOpacity',
+                'cloudsSpeed'
+            ].forEach(key => this.updateOptionFromSettings(settings, key));
             
             this.setAutoRotation(settings.autoRotate, settings.autoRotateSpeed);
             this.setSunLightIntensity(settings.sunLightIntensity);
@@ -949,10 +1271,10 @@ class CommunityGlobe {
             this.toggleAtmosphere(settings.enableAtmosphereGlow);
             this.toggleClouds(settings.enableClouds);
             
-            if (this.renderer) {
+            if (this.renderer && settings.width && settings.height) {
                 this.renderer.setSize(settings.width, settings.height);
             }
-            if (this.camera) {
+            if (this.camera && settings.width && settings.height) {
                 this.camera.aspect = settings.width / settings.height;
                 this.camera.updateProjectionMatrix();
             }
@@ -1055,22 +1377,26 @@ class CommunityGlobe {
     }
 
     updateParticipantPosition(participantId, latitude, longitude) {
-        const index = Array.from(this.pointMetadata.keys()).findIndex(key => 
-            this.pointMetadata.get(key).id.toString() === participantId.toString());
-        if (index === -1) return false;
+        const entry = Array.from(this.pointMetadata.entries()).find(([, participant]) =>
+            participant.id.toString() === participantId.toString());
+        if (!entry) return false;
 
-        const participant = this.pointMetadata.get(`participant_${index}`);
+        const [key, participant] = entry;
         participant.latitude = latitude;
         participant.longitude = longitude;
 
+        const marker = this.participantMarkers.find(item =>
+            item.userData.participant?.id?.toString() === participantId.toString());
+        if (!marker) return false;
+
         const radius = 1 + this.options.participantPointOffset;
         const position = this.latLngToVector3(latitude, longitude, radius);
-        const geometry = this.participantPoints[0].geometry;
-        const positions = geometry.attributes.position.array;
-        positions[index * 3] = position.x;
-        positions[index * 3 + 1] = position.y;
-        positions[index * 3 + 2] = position.z;
-        geometry.attributes.position.needsUpdate = true;
+        const normal = new THREE.Vector3(position.x, position.y, position.z).normalize();
+        marker.position.set(position.x, position.y, position.z);
+        marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+        marker.userData.normal = normal;
+        this.pointMetadata.set(key, participant);
+
         return true;
     }
 

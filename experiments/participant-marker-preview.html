@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Participant Marker Preview</title>
+    <link rel="icon" href="data:,">
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #05070b;
+        }
+
+        #marker-preview {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="marker-preview"></div>
+
+    <script type="module">
+        import { addParticipants, createGlobe, getState } from '../wwwroot/js/community-globe.js';
+
+        const container = document.getElementById('marker-preview');
+
+        createGlobe('marker-preview', {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            backgroundColor: '#05070b',
+            autoRotate: false,
+            enableClouds: false,
+            earthTextureUrl: '',
+            normalTextureUrl: '',
+            specularTextureUrl: '',
+            cloudsTextureUrl: '',
+            participantPointSize: 0.32,
+            participantPointColor: '#24dce7',
+            participantMarkerRippleIntervalMs: 900,
+            participantMarkerRippleDurationMs: 500,
+            preserveDrawingBuffer: true
+        });
+
+        async function waitForGlobe() {
+            for (let attempt = 0; attempt < 80; attempt++) {
+                const state = getState('marker-preview');
+                if (state?.isInitialized) return true;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            return false;
+        }
+
+        if (await waitForGlobe()) {
+            addParticipants('marker-preview', [
+                { id: 'preview-main', name: 'Turquoise marker', latitude: 0, longitude: -90 },
+                { id: 'preview-north', name: 'Tilted label', latitude: 28, longitude: -78 }
+            ]);
+        }
+
+        window.addEventListener('resize', () => {
+            container.style.width = `${window.innerWidth}px`;
+            container.style.height = `${window.innerHeight}px`;
+        });
+    </script>
+</body>
+</html>
