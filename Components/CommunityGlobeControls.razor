@@ -37,10 +37,11 @@
     </div>
 
     <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-light" 
-                @onclick="CenterOnUserAsync" 
-                title="Центрировать"
-                disabled="@(!State.IsInitialized)">
+        <button class="btn btn-sm btn-outline-light"
+                @onclick="CenterOnCurrentLocationAsync"
+                title="@CurrentLocationButtonTitle"
+                aria-label="@CurrentLocationButtonTitle"
+                disabled="@(!CanCenterOnCurrentLocation)">
             🎯
         </button>
     </div>
@@ -48,9 +49,16 @@
 
 @code {
     [Parameter] public string GlobeId { get; set; } = "default";
+    [Parameter] public double? CurrentLatitude { get; set; }
+    [Parameter] public double? CurrentLongitude { get; set; }
 
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
+    private bool HasCurrentLocation => IsValidLatitude(CurrentLatitude) && IsValidLongitude(CurrentLongitude);
+    private bool CanCenterOnCurrentLocation => State.IsInitialized && HasCurrentLocation;
+    private string CurrentLocationButtonTitle => HasCurrentLocation
+        ? "Вернуться к текущей позиции"
+        : "Текущая позиция не установлена";
     
     protected override void OnInitialized()
     {
@@ -90,21 +98,34 @@
         }
     }
     
-    private async Task CenterOnUserAsync()
+    private async Task CenterOnCurrentLocationAsync()
     {
-        if (!State.IsInitialized) return;
+        if (!CanCenterOnCurrentLocation) return;
+
+        var latitude = CurrentLatitude.Value;
+        var longitude = CurrentLongitude.Value;
         
-        // Центрируем на Москву по умолчанию
-        var result = await GlobeMediator.CenterOnAsync(ContainerId, 55.7558, 37.6176);
+        var result = await GlobeMediator.CenterOnAsync(ContainerId, latitude, longitude);
         
         if (result.Success)
         {
             GlobeStateService.UpdateState(GlobeId, s =>
             {
-                s.CameraLatitude = 55.7558;
-                s.CameraLongitude = 37.6176;
+                s.CameraLatitude = latitude;
+                s.CameraLongitude = longitude;
+                s.CameraZoom = 2.0;
             });
         }
+    }
+
+    private static bool IsValidLatitude(double? latitude)
+    {
+        return latitude.HasValue && double.IsFinite(latitude.Value) && latitude.Value >= -90 && latitude.Value <= 90;
+    }
+
+    private static bool IsValidLongitude(double? longitude)
+    {
+        return longitude.HasValue && double.IsFinite(longitude.Value) && longitude.Value >= -180 && longitude.Value <= 180;
     }
     
     public void Dispose()
