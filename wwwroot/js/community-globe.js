@@ -149,6 +149,7 @@ class CommunityGlobe {
             isInitialized: false,
             isAutoRotating: this.options.autoRotate,
             isUserInteracting: false,
+            isPointerOverGlobe: false,
             currentLod: this.options.levelOfDetail,
             participantCount: 0,
             countryCount: 0,
@@ -484,9 +485,14 @@ class CommunityGlobe {
     }
 
     setupEventListeners() {
-        this.renderer.domElement.addEventListener('click', (event) => this.onMouseClick(event));
-        this.renderer.domElement.addEventListener('mousemove', (event) => this.onMouseMove(event));
-        this.renderer.domElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
+        const globeElement = this.renderer.domElement;
+        globeElement.addEventListener('click', (event) => this.onMouseClick(event));
+        globeElement.addEventListener('mousemove', (event) => this.onMouseMove(event));
+        globeElement.addEventListener('pointerenter', () => this.handleGlobePointerEnter());
+        globeElement.addEventListener('pointerleave', () => this.handleGlobePointerLeave());
+        globeElement.addEventListener('pointerup', (event) => this.handleGlobePointerRelease(event));
+        globeElement.addEventListener('pointercancel', () => this.handleGlobePointerLeave());
+        globeElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -501,6 +507,7 @@ class CommunityGlobe {
     }
 
     onMouseMove(event) {
+        this.handleGlobePointerEnter();
         this.updateMousePosition(event);
 
         const marker = this.getIntersectedParticipantMarker();
@@ -1342,6 +1349,7 @@ class CommunityGlobe {
     initializeAutoRotationInteractionState() {
         this.clearAutoRotationResumeTimer();
         this.state.isUserInteracting = false;
+        this.state.isPointerOverGlobe = false;
     }
 
     clearAutoRotationResumeTimer() {
@@ -1364,10 +1372,60 @@ class CommunityGlobe {
     pauseAutoRotationForInteraction() {
         this.clearAutoRotationResumeTimer();
         this.state.isUserInteracting = true;
+        this.state.isPointerOverGlobe = true;
 
         if (this.options.autoRotate) {
             this.applyAutoRotationState(false);
         }
+    }
+
+    handleGlobePointerEnter() {
+        this.state.isPointerOverGlobe = true;
+
+        if (this.options.autoRotate && !this.state.isAutoRotating) {
+            this.clearAutoRotationResumeTimer();
+        }
+    }
+
+    handleGlobePointerLeave() {
+        this.state.isPointerOverGlobe = false;
+        this.setHoveredParticipantMarker(null);
+
+        if (this.renderer?.domElement) {
+            this.renderer.domElement.style.cursor = '';
+        }
+
+        if (!this.state.isUserInteracting && this.options.autoRotate && !this.state.isAutoRotating) {
+            this.scheduleAutoRotationResume();
+        }
+    }
+
+    handleGlobePointerRelease(event) {
+        if (this.isPointerEventInsideGlobe(event)) {
+            this.handleGlobePointerEnter();
+            return;
+        }
+
+        this.handleGlobePointerLeave();
+    }
+
+    isPointerEventInsideGlobe(event) {
+        const element = this.renderer?.domElement;
+        if (!element || typeof element.getBoundingClientRect !== 'function') {
+            return true;
+        }
+
+        const clientX = Number(event?.clientX);
+        const clientY = Number(event?.clientY);
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+            return true;
+        }
+
+        const rect = element.getBoundingClientRect();
+        const right = Number.isFinite(rect.right) ? rect.right : rect.left + rect.width;
+        const bottom = Number.isFinite(rect.bottom) ? rect.bottom : rect.top + rect.height;
+
+        return clientX >= rect.left && clientX <= right && clientY >= rect.top && clientY <= bottom;
     }
 
     scheduleAutoRotationResume() {
@@ -1379,9 +1437,13 @@ class CommunityGlobe {
             return;
         }
 
+        if (this.state.isPointerOverGlobe) {
+            return;
+        }
+
         this.autoRotationResumeTimer = setTimeout(() => {
             this.autoRotationResumeTimer = null;
-            if (!this.state.isUserInteracting && this.options.autoRotate) {
+            if (!this.state.isUserInteracting && !this.state.isPointerOverGlobe && this.options.autoRotate) {
                 this.applyAutoRotationState(true);
             }
         }, this.getAutoRotationResumeDelay());
