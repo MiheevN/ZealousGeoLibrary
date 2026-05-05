@@ -704,6 +704,20 @@ class CommunityGlobe {
         };
     }
 
+    latLngToWorldVector3(lat, lng, radius = 1) {
+        const position = this.latLngToVector3(lat, lng, radius);
+        if (typeof THREE === 'undefined' || !THREE?.Vector3) {
+            return position;
+        }
+
+        const worldPosition = new THREE.Vector3(position.x, position.y, position.z);
+        if (this.earthGroup && typeof this.earthGroup.localToWorld === 'function') {
+            this.earthGroup.localToWorld(worldPosition);
+        }
+
+        return worldPosition;
+    }
+
     createCircleTexture() {
         const canvas = document.createElement('canvas');
         canvas.width = 64;
@@ -1388,7 +1402,7 @@ class CommunityGlobe {
     centerOn(latitude, longitude, zoom = 2.0) {
         if (!this.state.isInitialized) return false;
         try {
-            const position = this.latLngToVector3(latitude, longitude, this.getClampedCameraDistance(zoom));
+            const position = this.latLngToWorldVector3(latitude, longitude, this.getClampedCameraDistance(zoom));
             this.animateCameraTo(position, 1000);
             return true;
         } catch (error) {

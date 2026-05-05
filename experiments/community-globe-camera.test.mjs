@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import * as THREE from '../wwwroot/js/libs/three.module.js';
 
 async function loadCommunityGlobeClass() {
     const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
@@ -16,7 +17,12 @@ async function loadCommunityGlobeClass() {
             /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
             'dependenciesLoaded = true;\n\n// Глобальный реестр'
         );
-    const moduleSource = `${testSource}\nexport { CommunityGlobe };\n`;
+    const threeModuleUrl = new URL('../wwwroot/js/libs/three.module.js', import.meta.url).href;
+    const moduleSource = [
+        `import * as TestThree from '${threeModuleUrl}';`,
+        testSource.replace('let THREE, OrbitControls;', 'let THREE = TestThree, OrbitControls;'),
+        'export { CommunityGlobe };'
+    ].join('\n');
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString('base64')}`;
     const { CommunityGlobe } = await import(moduleUrl);
 
@@ -52,6 +58,18 @@ function createGlobePrototypeInstance(CommunityGlobe, options = {}) {
 function round(value, digits = 2) {
     const scale = 10 ** digits;
     return Math.round(value * scale) / scale;
+}
+
+function vectorFromLatLng(globe, latitude, longitude, radius) {
+    const position = globe.latLngToVector3(latitude, longitude, radius);
+    return new THREE.Vector3(position.x, position.y, position.z);
+}
+
+function assertVectorClose(actual, expected, message) {
+    assert.ok(
+        actual.distanceTo(expected) < 0.0000001,
+        `${message}: expected ${expected.toArray().join(', ')}, got ${actual.toArray().join(', ')}`
+    );
 }
 
 test('camera can move closer while staying outside the globe and atmosphere', async () => {
@@ -113,7 +131,7 @@ test('participant label offset keeps text on the marker and moves it along marke
     assert.ok(nearOffset.depth < farOffset.depth, 'zooming in should move the label from the marker top toward the sharp tip');
 });
 
-test('participant marker click centers camera on marker at close zoom', async () => {
+test('participant marker click centers camera on the rendered marker position at close zoom', async () => {
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
     const participant = {
@@ -123,9 +141,12 @@ test('participant marker click centers camera on marker at close zoom', async ()
         longitude: 37.6173
     };
     let callbackMetadata = null;
-    let centeredCall = null;
+    let targetPosition = null;
+    let animationDuration = null;
 
     globe.state = { isInitialized: true };
+    globe.earthGroup = new THREE.Group();
+    globe.earthGroup.rotation.y = Math.PI / 2;
     globe.callbacks = {
         onParticipantClick: metadata => {
             callbackMetadata = metadata;
@@ -135,17 +156,23 @@ test('participant marker click centers camera on marker at close zoom', async ()
         userData: { participant }
     });
     globe.updateMousePosition = () => {};
-    globe.centerOn = (latitude, longitude, zoom) => {
-        centeredCall = { latitude, longitude, zoom };
-        return true;
+    globe.animateCameraTo = (position, duration) => {
+        targetPosition = new THREE.Vector3(position.x, position.y, position.z);
+        animationDuration = duration;
     };
 
     globe.onMouseClick({});
 
+    const clickZoom = globe.getClampedCameraDistance(globe.options.participantClickZoom);
+    const expectedRenderedPosition = vectorFromLatLng(globe, participant.latitude, participant.longitude, clickZoom);
+    globe.earthGroup.localToWorld(expectedRenderedPosition);
+    const staleUnrotatedPosition = vectorFromLatLng(globe, participant.latitude, participant.longitude, clickZoom);
+
     assert.deepEqual(callbackMetadata, participant);
-    assert.deepEqual(centeredCall, {
-        latitude: participant.latitude,
-        longitude: participant.longitude,
-        zoom: 1.35
-    });
+    assert.equal(animationDuration, 1000);
+    assertVectorClose(targetPosition, expectedRenderedPosition, 'click should center the rendered marker position');
+    assert.ok(
+        targetPosition.distanceTo(staleUnrotatedPosition) > 0.1,
+        'regression check should distinguish the rendered marker from the unrotated coordinate vector'
+    );
 });
