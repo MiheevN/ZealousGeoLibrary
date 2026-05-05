@@ -45,6 +45,16 @@ test('participant labels remain billboards outside the scaled marker body', asyn
     assert.match(source, /updateParticipantLabelBillboards\(\);/, 'labels should be oriented toward the camera every frame');
 });
 
+test('participant labels are centered on marker height by default', async () => {
+    const { source } = await loadCommunityGlobeClass();
+
+    assert.match(source, /participantMarkerLabelGap:\s*0/, 'default label anchor should sit on the marker with no extra normal gap');
+    assert.match(source, /participantMarkerLabelSideOffset:\s*0/, 'default label should stay centered on the marker');
+    assert.match(source, /participantMarkerLabelUpOffset:\s*0/, 'default label should not lift away in screen space');
+    assert.match(source, /participantMarkerLabelCloseLift:\s*0/, 'close zoom should move labels along marker height only');
+    assert.match(source, /getNonNegativeNumber\(this\.options\.participantMarkerLabelGap,\s*0\)/, 'zero label gap should be accepted');
+});
+
 test('participant labels stay renderable during close zoom', async () => {
     const { source } = await loadCommunityGlobeClass();
 

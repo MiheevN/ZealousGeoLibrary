@@ -84,7 +84,7 @@ class CommunityGlobe {
             participantMarkerTipHeight: 0.16,
             participantMarkerRadius: 0.018,
             participantMarkerFacets: 4,
-            participantMarkerLabelGap: 0.038,
+            participantMarkerLabelGap: 0,
             participantMarkerRippleIntervalMs: 2000,
             participantMarkerRippleDurationMs: 500,
             participantMarkerRippleRadius: 0.16,
@@ -96,9 +96,9 @@ class CommunityGlobe {
             participantMarkerReferenceDistance: 2.6,
             participantMarkerMinScale: 0.35,
             participantMarkerMaxScale: 1.2,
-            participantMarkerLabelSideOffset: 0.02,
-            participantMarkerLabelUpOffset: 0.055,
-            participantMarkerLabelCloseLift: 0.06,
+            participantMarkerLabelSideOffset: 0,
+            participantMarkerLabelUpOffset: 0,
+            participantMarkerLabelCloseLift: 0,
             participantLabelLiftDistance: 1.1,
             participantLabelLoweringDistance: 1.1,
             participantLabelHiddenOpacity: 0.12,
@@ -916,7 +916,7 @@ class CommunityGlobe {
             radius: this.getPositiveNumber(this.options.participantMarkerRadius, 0.018) * scale,
             bodyHeight: this.getPositiveNumber(this.options.participantMarkerHeight, 0.06) * scale,
             tipHeight: this.getPositiveNumber(this.options.participantMarkerTipHeight, 0.16) * scale,
-            labelGap: this.getPositiveNumber(this.options.participantMarkerLabelGap, 0.038) * scale,
+            labelGap: this.getNonNegativeNumber(this.options.participantMarkerLabelGap, 0) * scale,
             rippleRadius: this.getPositiveNumber(this.options.participantMarkerRippleRadius, 0.16) * scale,
             rippleWidth: this.getPositiveNumber(this.options.participantMarkerRippleWidth, 0.018) * scale
         };
@@ -1058,10 +1058,9 @@ class CommunityGlobe {
 
     calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale) {
         const safeScale = this.getPositiveNumber(markerScale, 1);
-        const radius = this.getPositiveNumber(dimensions?.radius, 0);
         const tipHeight = this.getPositiveNumber(dimensions?.tipHeight, 0);
         const bodyHeight = this.getPositiveNumber(dimensions?.bodyHeight, 0);
-        const labelGap = this.getPositiveNumber(dimensions?.labelGap, 0.01);
+        const labelGap = this.getNonNegativeNumber(dimensions?.labelGap, 0);
         const baseDepth = labelGap * safeScale;
         const topAnchor = (tipHeight + bodyHeight + labelGap) * safeScale;
         const { minDistance } = this.getCameraDistanceLimits();
@@ -1071,9 +1070,9 @@ class CommunityGlobe {
         );
         const farProgress = this.clamp((cameraDistance - minDistance) / liftDistance, 0, 1);
         const closeProgress = 1 - farProgress;
-        const sideOffset = (radius + this.getPositiveNumber(this.options.participantMarkerLabelSideOffset, 0.02)) * safeScale;
-        const upOffset = this.getPositiveNumber(this.options.participantMarkerLabelUpOffset, 0.055) * safeScale;
-        const closeLift = this.getPositiveNumber(this.options.participantMarkerLabelCloseLift, 0.06) * safeScale * closeProgress;
+        const sideOffset = this.getNonNegativeNumber(this.options.participantMarkerLabelSideOffset, 0) * safeScale;
+        const upOffset = this.getNonNegativeNumber(this.options.participantMarkerLabelUpOffset, 0) * safeScale;
+        const closeLift = this.getNonNegativeNumber(this.options.participantMarkerLabelCloseLift, 0) * safeScale * closeProgress;
 
         return {
             side: sideOffset,
@@ -1135,6 +1134,11 @@ class CommunityGlobe {
     getPositiveNumber(value, fallback) {
         const number = Number(value);
         return Number.isFinite(number) && number > 0 ? number : fallback;
+    }
+
+    getNonNegativeNumber(value, fallback) {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 ? number : fallback;
     }
 
     getFiniteNumber(value, fallback) {
