@@ -96,16 +96,13 @@ class CommunityGlobe {
             participantMarkerReferenceDistance: 2.6,
             participantMarkerMinScale: 0.35,
             participantMarkerMaxScale: 1.2,
-<<<<<<< issue-22-e21d3bae3760
             participantMarkerLabelSideOffset: 0.02,
             participantMarkerLabelUpOffset: 0.055,
             participantMarkerLabelCloseLift: 0.06,
             participantLabelLiftDistance: 1.1,
-=======
             participantLabelLoweringDistance: 1.1,
             participantLabelHiddenOpacity: 0.12,
             participantLabelHorizonFade: 0.25,
->>>>>>> master
             preserveDrawingBuffer: false,
             highlightedPointColor: '#e0fcff',
             autoRotate: true,
@@ -1661,16 +1658,13 @@ class CommunityGlobe {
                 'participantMarkerReferenceDistance',
                 'participantMarkerMinScale',
                 'participantMarkerMaxScale',
-<<<<<<< issue-22-e21d3bae3760
                 'participantMarkerLabelSideOffset',
                 'participantMarkerLabelUpOffset',
                 'participantMarkerLabelCloseLift',
                 'participantLabelLiftDistance',
-=======
                 'participantLabelLoweringDistance',
                 'participantLabelHiddenOpacity',
                 'participantLabelHorizonFade',
->>>>>>> master
                 'highlightedPointColor',
                 'autoRotateSpeed',
                 'cloudsOpacity',
