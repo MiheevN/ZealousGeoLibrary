@@ -44,6 +44,7 @@ function createGlobePrototypeInstance(CommunityGlobe, options = {}) {
         participantMarkerReferenceDistance: 2.6,
         participantMarkerMinScale: 0.35,
         participantMarkerMaxScale: 1.2,
+        participantMarkerLabelScreenGapPixels: 10,
         participantMarkerLabelSideOffset: 0,
         participantMarkerLabelUpOffset: 0,
         participantMarkerLabelCloseLift: 0,
@@ -106,7 +107,7 @@ test('participant marker scale follows camera distance within configured bounds'
     assert.equal(globe.calculateParticipantMarkerDistanceScale(5), 1.2);
 });
 
-test('participant label offset keeps text on the marker and moves it along marker height', async () => {
+test('participant label offset keeps text beside and above the marker at close zoom', async () => {
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
     const dimensions = {
@@ -115,17 +116,23 @@ test('participant label offset keeps text on the marker and moves it along marke
         bodyHeight: 0.06,
         labelGap: 0
     };
+    const nearLabelScale = { height: 0.006, targetPixelHeight: 34 };
+    const farLabelScale = { height: 0.05, targetPixelHeight: 34 };
 
     const nearScale = globe.calculateParticipantMarkerDistanceScale(1.13);
     const farScale = globe.calculateParticipantMarkerDistanceScale(2.6);
-    const nearOffset = globe.calculateParticipantLabelOffset(1.13, dimensions, nearScale);
-    const farOffset = globe.calculateParticipantLabelOffset(2.6, dimensions, farScale);
+    const nearOffset = globe.calculateParticipantLabelOffset(1.13, dimensions, nearScale, nearLabelScale);
+    const farOffset = globe.calculateParticipantLabelOffset(2.6, dimensions, farScale, farLabelScale);
     const farMarkerTop = (dimensions.tipHeight + dimensions.bodyHeight) * farScale;
+    const nearMarkerRadius = dimensions.radius * nearScale;
+    const farMarkerRadius = dimensions.radius * farScale;
+    const nearScreenGap = nearLabelScale.height / nearLabelScale.targetPixelHeight * 10;
+    const farScreenGap = farLabelScale.height / farLabelScale.targetPixelHeight * 10;
 
-    assert.equal(nearOffset.side, 0, 'close label should stay centered on the marker');
-    assert.equal(farOffset.side, 0, 'far label should stay centered on the marker');
-    assert.equal(nearOffset.lift, 0, 'close label should not lift away from the marker in screen space');
-    assert.equal(farOffset.lift, 0, 'far label should not lift away from the marker in screen space');
+    assert.ok(nearOffset.side >= nearMarkerRadius + nearScreenGap, 'close label should be horizontally beside the marker point');
+    assert.ok(farOffset.side >= farMarkerRadius + farScreenGap, 'far label should keep horizontal clearance from the marker point');
+    assert.ok(nearOffset.lift >= nearMarkerRadius + nearLabelScale.height / 2 + nearScreenGap, 'close label bottom should stay above the marker point');
+    assert.ok(farOffset.lift >= farMarkerRadius + farLabelScale.height / 2 + farScreenGap, 'far label bottom should stay above the marker point');
     assert.equal(round(nearOffset.depth, 3), 0);
     assert.equal(round(farOffset.depth, 3), round(farMarkerTop, 3));
     assert.ok(nearOffset.depth < farOffset.depth, 'zooming in should move the label from the marker top toward the sharp tip');

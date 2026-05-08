@@ -96,6 +96,7 @@ class CommunityGlobe {
             participantMarkerReferenceDistance: 2.6,
             participantMarkerMinScale: 0.35,
             participantMarkerMaxScale: 1.2,
+            participantMarkerLabelScreenGapPixels: 10,
             participantMarkerLabelSideOffset: 0,
             participantMarkerLabelUpOffset: 0,
             participantMarkerLabelCloseLift: 0,
@@ -868,7 +869,7 @@ class CommunityGlobe {
             const label = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
             const cameraDistance = this.camera?.position?.length?.() ?? this.getPositiveNumber(this.options.participantMarkerReferenceDistance, 2.6);
             const markerScale = this.calculateParticipantMarkerDistanceScale(cameraDistance);
-            const initialOffset = this.calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale);
+            const initialOffset = this.calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale, label.scale);
             label.position.set(initialOffset.side, initialOffset.depth, initialOffset.lift);
             label.frustumCulled = false;
             label.renderOrder = 10;
@@ -1070,7 +1071,35 @@ class CommunityGlobe {
         return this.clamp(cameraDistance / referenceDistance, minScale, maxScale);
     }
 
-    calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale) {
+    getParticipantLabelScaleHeight(labelScale) {
+        return this.getNonNegativeNumber(labelScale?.height ?? labelScale?.y, 0);
+    }
+
+    calculateParticipantLabelScreenGapWorld(labelScale) {
+        const labelHeight = this.getParticipantLabelScaleHeight(labelScale);
+        if (labelHeight <= 0) {
+            return 0;
+        }
+
+        const targetPixelHeight = this.getPositiveNumber(labelScale?.targetPixelHeight ?? this.labelTargetPixelHeight, DEFAULT_LABEL_PIXEL_HEIGHT);
+        const screenGapPixels = this.getNonNegativeNumber(this.options.participantMarkerLabelScreenGapPixels, 10);
+        return labelHeight * screenGapPixels / targetPixelHeight;
+    }
+
+    calculateParticipantLabelSideClearance(dimensions, markerScale, labelScale) {
+        const safeScale = this.getPositiveNumber(markerScale, 1);
+        const markerRadius = this.getPositiveNumber(dimensions?.radius, 0) * safeScale;
+        return markerRadius + this.calculateParticipantLabelScreenGapWorld(labelScale);
+    }
+
+    calculateParticipantLabelLiftClearance(dimensions, markerScale, labelScale) {
+        const safeScale = this.getPositiveNumber(markerScale, 1);
+        const markerRadius = this.getPositiveNumber(dimensions?.radius, 0) * safeScale;
+        const labelHeight = this.getParticipantLabelScaleHeight(labelScale);
+        return markerRadius + labelHeight / 2 + this.calculateParticipantLabelScreenGapWorld(labelScale);
+    }
+
+    calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale, labelScale = null) {
         const safeScale = this.getPositiveNumber(markerScale, 1);
         const tipHeight = this.getPositiveNumber(dimensions?.tipHeight, 0);
         const bodyHeight = this.getPositiveNumber(dimensions?.bodyHeight, 0);
@@ -1084,14 +1113,19 @@ class CommunityGlobe {
         );
         const farProgress = this.clamp((cameraDistance - minDistance) / liftDistance, 0, 1);
         const closeProgress = 1 - farProgress;
-        const sideOffset = this.getNonNegativeNumber(this.options.participantMarkerLabelSideOffset, 0) * safeScale;
+        const sideOffset = this.calculateParticipantLabelSideClearance(dimensions, safeScale, labelScale)
+            + this.getNonNegativeNumber(this.options.participantMarkerLabelSideOffset, 0) * safeScale;
         const upOffset = this.getNonNegativeNumber(this.options.participantMarkerLabelUpOffset, 0) * safeScale;
         const closeLift = this.getNonNegativeNumber(this.options.participantMarkerLabelCloseLift, 0) * safeScale * closeProgress;
+        const liftOffset = Math.max(
+            upOffset + closeLift,
+            this.calculateParticipantLabelLiftClearance(dimensions, safeScale, labelScale)
+        );
 
         return {
             side: sideOffset,
             depth: baseDepth + (topAnchor - baseDepth) * farProgress,
-            lift: upOffset + closeLift
+            lift: liftOffset
         };
     }
 
@@ -1168,10 +1202,11 @@ class CommunityGlobe {
         return Math.min(max, Math.max(min, value));
     }
 
-    updateParticipantLabelScale(label) {
+    updateParticipantLabelScale(label, referenceWorldPosition = null) {
         if (!this.camera || !this.renderer || !label) return;
 
-        const distanceToCamera = label.getWorldPosition(new THREE.Vector3()).distanceTo(this.camera.position);
+        const labelWorldPosition = referenceWorldPosition ?? label.getWorldPosition(new THREE.Vector3());
+        const distanceToCamera = labelWorldPosition.distanceTo(this.camera.position);
         const rendererSize = this.renderer.getSize(new THREE.Vector2());
         const scale = calculateLabelScaleForCamera(
             distanceToCamera,
@@ -1276,12 +1311,16 @@ class CommunityGlobe {
             if (!visual) return;
 
             visual.scale.setScalar(markerScale);
+            let markerWorldPosition = null;
             if (marker.userData.rippleGroup) {
                 marker.userData.rippleGroup.scale.setScalar(markerScale);
             }
             if (marker.userData.label && marker.userData.dimensions) {
+                markerWorldPosition = marker.getWorldPosition(new THREE.Vector3());
+                this.updateParticipantLabelScale(marker.userData.label, markerWorldPosition);
+
                 const dimensions = marker.userData.dimensions;
-                const labelOffset = this.calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale);
+                const labelOffset = this.calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale, marker.userData.label.scale);
                 const labelDirections = this.getParticipantLabelTangentDirections(marker);
                 const sidePosition = labelDirections.side.clone().multiplyScalar(labelOffset.side);
                 const liftPosition = labelDirections.lift.clone().multiplyScalar(labelOffset.lift);
@@ -1295,7 +1334,7 @@ class CommunityGlobe {
             visual.quaternion.identity();
             if (tiltAmount <= 0) return;
 
-            const markerWorldPosition = marker.getWorldPosition(new THREE.Vector3());
+            markerWorldPosition ??= marker.getWorldPosition(new THREE.Vector3());
             const normal = markerWorldPosition.clone().normalize();
             const towardCamera = this.camera.position.clone().sub(markerWorldPosition).normalize();
             const tangentTowardCamera = towardCamera.sub(normal.clone().multiplyScalar(towardCamera.dot(normal)));
@@ -1676,6 +1715,7 @@ class CommunityGlobe {
                 'participantMarkerReferenceDistance',
                 'participantMarkerMinScale',
                 'participantMarkerMaxScale',
+                'participantMarkerLabelScreenGapPixels',
                 'participantMarkerLabelSideOffset',
                 'participantMarkerLabelUpOffset',
                 'participantMarkerLabelCloseLift',
