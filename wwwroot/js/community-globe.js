@@ -183,6 +183,8 @@ class CommunityGlobe {
         this.clock = null;
         this.pointMetadata = new Map();
         this.autoRotationResumeTimer = null;
+        this.resizeObserver = null;
+        this.handleWindowResize = () => this.onWindowResize();
         this.callbacks = { // Инициализация callbacks
             onGlobeReady: null,
             onError: null,
@@ -286,6 +288,45 @@ class CommunityGlobe {
         return null;
     }
 
+    applyConfiguredContainerSize(width, height) {
+        const safeWidth = this.getPositiveNumber(width, 800);
+        const safeHeight = this.getPositiveNumber(height, 600);
+
+        if (this.container?.style) {
+            this.container.style.setProperty('--zgl-globe-width', `${safeWidth}px`);
+            this.container.style.setProperty('--zgl-globe-height', `${safeHeight}px`);
+            this.container.style.setProperty('--zgl-globe-aspect-ratio', `${safeWidth} / ${safeHeight}`);
+        }
+
+        return { width: safeWidth, height: safeHeight };
+    }
+
+    getRenderSize() {
+        const fallbackWidth = this.getPositiveNumber(this.options.width, 800);
+        const fallbackHeight = this.getPositiveNumber(this.options.height, 600);
+
+        if (!this.container) {
+            return { width: fallbackWidth, height: fallbackHeight };
+        }
+
+        const rect = typeof this.container.getBoundingClientRect === 'function'
+            ? this.container.getBoundingClientRect()
+            : null;
+        const measuredWidth = this.getPositiveNumber(
+            this.container.clientWidth,
+            this.getPositiveNumber(rect?.width, fallbackWidth)
+        );
+        const measuredHeight = this.getPositiveNumber(
+            this.container.clientHeight,
+            this.getPositiveNumber(rect?.height, fallbackHeight)
+        );
+
+        return {
+            width: Math.max(1, Math.round(measuredWidth)),
+            height: Math.max(1, Math.round(measuredHeight))
+        };
+    }
+
     setupScene() {
         console.log('🔧 setupScene: начало для контейнера', this.containerId);
         console.log('🔍 Проверка THREE.js:', typeof THREE);
@@ -294,10 +335,25 @@ class CommunityGlobe {
             throw new Error('Three.js не загружен. setupScene не может быть выполнен.');
         }
 
+        console.log('🔍 Поиск контейнера:', this.containerId);
+        this.container = this.getContainer();
+        console.log('📦 Контейнер найден:', this.container);
+        console.log('📦 Контейнер DOM элемент:', this.container?.tagName, this.container?.id);
+
+        if (!this.container) {
+            console.error('❌ Контейнер не найден для ID:', this.containerId);
+            throw new Error(`Container with id '${this.containerId}' not found after multiple attempts`);
+        }
+
+        this.applyConfiguredContainerSize(this.options.width, this.options.height);
+        const renderSize = this.getRenderSize();
+        this.options.width = renderSize.width;
+        this.options.height = renderSize.height;
+
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(this.options.backgroundColor);
 
-        const aspect = this.options.width / this.options.height;
+        const aspect = renderSize.width / renderSize.height;
         this.camera = new THREE.PerspectiveCamera(75, aspect, this.getPositiveNumber(this.options.cameraNearPlane, 0.02), 1000);
         this.camera.position.set(
             this.state.cameraPosition.x,
@@ -309,20 +365,10 @@ class CommunityGlobe {
             antialias: true,
             preserveDrawingBuffer: Boolean(this.options.preserveDrawingBuffer)
         });
-        this.renderer.setSize(this.options.width, this.options.height);
+        this.renderer.setSize(renderSize.width, renderSize.height, false);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-        console.log('🔍 Поиск контейнера:', this.containerId);
-        this.container = this.getContainer();
-        console.log('📦 Контейнер найден:', this.container);
-        console.log('📦 Контейнер DOM элемент:', this.container?.tagName, this.container?.id);
-
-        if (!this.container) {
-            console.error('❌ Контейнер не найден для ID:', this.containerId);
-            throw new Error(`Container with id '${this.containerId}' not found after multiple attempts`);
-        }
 
         console.log('🧹 Селективная очистка старых Three.js canvas элементов');
         console.log('📦 Контейнер перед очисткой:', this.container?.tagName, this.container?.id);
@@ -499,7 +545,12 @@ class CommunityGlobe {
         globeElement.addEventListener('pointerup', (event) => this.handleGlobePointerRelease(event));
         globeElement.addEventListener('pointercancel', () => this.handleGlobePointerLeave());
         globeElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
-        window.addEventListener('resize', () => this.onWindowResize());
+        window.addEventListener('resize', this.handleWindowResize);
+
+        if (typeof ResizeObserver !== 'undefined' && this.container) {
+            this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
+            this.resizeObserver.observe(this.container);
+        }
     }
 
     onMouseClick(event) {
@@ -577,13 +628,13 @@ class CommunityGlobe {
         }
 
         if (this.container) {
-            const rect = this.container.getBoundingClientRect();
-            this.options.width = rect.width || this.options.width;
-            this.options.height = rect.height || this.options.height;
+            const size = this.getRenderSize();
+            this.options.width = size.width;
+            this.options.height = size.height;
 
-            this.camera.aspect = this.options.width / this.options.height;
+            this.camera.aspect = size.width / size.height;
             this.camera.updateProjectionMatrix();
-            this.renderer.setSize(this.options.width, this.options.height);
+            this.renderer.setSize(size.width, size.height, false);
         }
     }
 
@@ -1770,12 +1821,16 @@ class CommunityGlobe {
             this.toggleAtmosphere(settings.enableAtmosphereGlow);
             this.toggleClouds(settings.enableClouds);
             
-            if (this.renderer && settings.width && settings.height) {
-                this.renderer.setSize(settings.width, settings.height);
+            if (settings.width && settings.height) {
+                this.applyConfiguredContainerSize(settings.width, settings.height);
             }
             if (this.camera) {
-                if (settings.width && settings.height) {
-                    this.camera.aspect = settings.width / settings.height;
+                if (this.renderer && settings.width && settings.height) {
+                    const size = this.getRenderSize();
+                    this.options.width = size.width;
+                    this.options.height = size.height;
+                    this.renderer.setSize(size.width, size.height, false);
+                    this.camera.aspect = size.width / size.height;
                 }
                 this.camera.near = this.getPositiveNumber(this.options.cameraNearPlane, 0.02);
                 this.camera.updateProjectionMatrix();
@@ -1832,6 +1887,16 @@ class CommunityGlobe {
             }
 
             this.clearAutoRotationResumeTimer();
+
+            if (this.resizeObserver) {
+                console.log('🗑️ Отключение resize observer');
+                this.resizeObserver.disconnect();
+                this.resizeObserver = null;
+            }
+
+            if (typeof window !== 'undefined' && this.handleWindowResize) {
+                window.removeEventListener('resize', this.handleWindowResize);
+            }
 
             if (this.controls) {
                 console.log('🗑️ Освобождение controls');
