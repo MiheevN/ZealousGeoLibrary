@@ -4,17 +4,27 @@
 .community-globe-shell {
     position: relative;
     width: 100%;
+    min-width: 0;
     background: var(--zgl-bg);
     color: var(--zgl-text);
 }
 
 .globe-canvas-container {
     position: relative;
+    width: min(100%, var(--zgl-globe-width, 800px));
+    max-width: 100%;
+    aspect-ratio: var(--zgl-globe-aspect-ratio, 4 / 3);
     background: radial-gradient(circle at 45% 35%, #20242b 0, #101316 52%, #07080a 100%);
     border: 1px solid var(--zgl-border);
     border-radius: var(--zgl-radius);
     overflow: hidden;
     box-shadow: var(--zgl-shadow);
+}
+
+.globe-canvas-container > canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .globe-loading-overlay,
@@ -181,7 +191,8 @@
     position: absolute;
     top: 10px;
     right: 10px;
-    max-width: 300px;
+    width: min(300px, calc(100% - 20px));
+    max-width: 100%;
     padding: 1rem;
     background: rgba(23, 26, 31, 0.94);
     border: 1px solid var(--zgl-border);
@@ -194,6 +205,7 @@
 .participant-management-panel {
     position: relative !important;
     width: min(100%, 980px);
+    min-width: 0;
     background: var(--zgl-surface) !important;
     border: 1px solid var(--zgl-border) !important;
     border-radius: var(--zgl-radius) !important;
@@ -347,6 +359,7 @@
 
 .globe-settings-panel {
     width: min(100%, 980px);
+    min-width: 0;
     background: var(--zgl-surface);
     border: 1px solid var(--zgl-border);
     border-radius: var(--zgl-radius);
@@ -497,11 +510,36 @@
 }
 
 @media (max-width: 768px) {
+    .community-globe-shell {
+        align-items: stretch !important;
+    }
+
+    .globe-canvas-container {
+        width: 100%;
+    }
+
     .globe-controls {
         position: static;
         width: 100%;
+        min-width: 0;
         justify-content: center;
         flex-wrap: wrap;
+    }
+
+    .globe-controls > div {
+        min-width: 0;
+    }
+
+    .globe-controls select,
+    .globe-controls .form-select {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .participant-info-panel {
+        position: static;
+        width: 100%;
+        margin-top: 0.5rem;
     }
 
     .settings-header {
@@ -513,6 +551,12 @@
     .form-actions,
     .participant-management-panel .d-flex.gap-2 {
         flex-direction: column;
+        width: 100%;
+    }
+
+    .settings-actions .btn,
+    .form-actions .btn,
+    .participant-management-panel .d-flex.gap-2 .btn {
         width: 100%;
     }
 

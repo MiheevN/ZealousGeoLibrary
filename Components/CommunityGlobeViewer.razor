@@ -10,7 +10,7 @@
     <link href="/_content/ZealousMindedPeopleGeo/css/community-globe.css" rel="stylesheet" />
 </HeadContent>
 
-<div id="@ContainerId" class="globe-canvas-container" style="width: @(Width)px; height: @(Height)px;">
+<div id="@ContainerId" class="globe-canvas-container" style="@ContainerStyle">
     @if (_isInitializing)
     {
         <div class="globe-loading-overlay text-white text-center">
@@ -38,6 +38,10 @@
 
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
+    private int SafeWidth => Math.Max(Width, 1);
+    private int SafeHeight => Math.Max(Height, 1);
+    private string ContainerStyle =>
+        $"--zgl-globe-width: {SafeWidth}px; --zgl-globe-height: {SafeHeight}px; --zgl-globe-aspect-ratio: {SafeWidth} / {SafeHeight};";
 
     private bool _isInitializing;
     private string? _errorMessage;

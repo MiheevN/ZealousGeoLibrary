@@ -54,6 +54,8 @@
 .geodata-participant-form,
 .pwa-manager {
     color-scheme: dark;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .zgl-panel {

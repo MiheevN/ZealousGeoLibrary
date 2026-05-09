@@ -2,7 +2,9 @@
 
 .participant-registration,
 .geodata-participant-form {
+    width: 100%;
     max-width: 640px;
+    min-width: 0;
     margin: 0 auto;
     padding: 1.25rem;
     background: var(--zgl-surface);
@@ -77,6 +79,7 @@
 
 .participant-registration .coordinates .form-control {
     flex: 1;
+    min-width: 0;
 }
 
 .participant-registration .btn,
