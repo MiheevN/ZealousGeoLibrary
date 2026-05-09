@@ -1171,6 +1171,33 @@ class CommunityGlobe {
         };
     }
 
+    getCenteredParticipantMarkerTiltDirection(normal) {
+        const safeNormal = normal?.clone?.() ?? new THREE.Vector3(0, 1, 0);
+        if (safeNormal.lengthSq() < 0.000001) {
+            safeNormal.set(0, 1, 0);
+        } else {
+            safeNormal.normalize();
+        }
+
+        const cameraQuaternion = this.camera.getWorldQuaternion(new THREE.Quaternion());
+        const candidates = [
+            new THREE.Vector3(1, 0, 0).applyQuaternion(cameraQuaternion),
+            new THREE.Vector3(0, 1, 0).applyQuaternion(cameraQuaternion)
+        ];
+
+        for (const candidate of candidates) {
+            candidate.addScaledVector(safeNormal, -candidate.dot(safeNormal));
+            if (candidate.lengthSq() > 0.000001) {
+                return candidate.normalize();
+            }
+        }
+
+        const fallbackAxis = Math.abs(safeNormal.y) < 0.9
+            ? new THREE.Vector3(0, 1, 0)
+            : new THREE.Vector3(1, 0, 0);
+        return new THREE.Vector3().crossVectors(safeNormal, fallbackAxis).normalize();
+    }
+
     getAnimationTimeMs() {
         if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
             return performance.now();
@@ -1338,9 +1365,9 @@ class CommunityGlobe {
             const normal = markerWorldPosition.clone().normalize();
             const towardCamera = this.camera.position.clone().sub(markerWorldPosition).normalize();
             const tangentTowardCamera = towardCamera.sub(normal.clone().multiplyScalar(towardCamera.dot(normal)));
-            if (tangentTowardCamera.lengthSq() < 0.000001) return;
-
-            const awayWorld = tangentTowardCamera.normalize().negate();
+            const awayWorld = tangentTowardCamera.lengthSq() < 0.000001
+                ? this.getCenteredParticipantMarkerTiltDirection(normal)
+                : tangentTowardCamera.normalize().negate();
             const inverseWorldQuaternion = marker.getWorldQuaternion(new THREE.Quaternion()).invert();
             const awayLocal = awayWorld.applyQuaternion(inverseWorldQuaternion);
             awayLocal.y = 0;
