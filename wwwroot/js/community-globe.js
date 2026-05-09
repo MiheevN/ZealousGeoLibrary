@@ -111,14 +111,14 @@ class CommunityGlobe {
             autoRotateResumeDelay: 3000,
             enableMouseControls: true,
             enableZoom: true,
-            minZoom: 1.1,
+            minZoom: 1.03,
             maxZoom: 4.0,
             participantClickZoom: 1.35,
             cameraNearPlane: 0.02,
             earthRadius: 1,
             cloudsRadius: 1.01,
             atmosphereRadius: 1.05,
-            cameraSurfaceClearance: 0.08,
+            cameraSurfaceClearance: 0.02,
             cameraZoomInMinSpeed: 0.16,
             cameraZoomInMaxSpeed: 0.9,
             cameraZoomOutSpeed: 1.15,
@@ -975,16 +975,13 @@ class CommunityGlobe {
         const cloudsRadius = this.options.enableClouds
             ? this.getPositiveNumber(this.options.cloudsRadius, 1.01)
             : earthRadius;
-        const atmosphereRadius = this.options.enableAtmosphereGlow
-            ? this.getPositiveNumber(this.options.atmosphereRadius, 1.05)
-            : earthRadius;
 
-        return Math.max(earthRadius, cloudsRadius, atmosphereRadius);
+        return Math.max(earthRadius, cloudsRadius);
     }
 
     getCameraDistanceLimits() {
-        const configuredMinDistance = this.getPositiveNumber(this.options.minZoom, 1.1);
-        const surfaceClearance = this.getPositiveNumber(this.options.cameraSurfaceClearance, 0.08);
+        const configuredMinDistance = this.getPositiveNumber(this.options.minZoom, 1.03);
+        const surfaceClearance = this.getPositiveNumber(this.options.cameraSurfaceClearance, 0.02);
         const safeMinDistance = this.getCameraCollisionRadius() + surfaceClearance;
         const minDistance = Math.max(configuredMinDistance, safeMinDistance);
         const configuredMaxDistance = this.getPositiveNumber(this.options.maxZoom, 4);

@@ -297,8 +297,8 @@ public class GlobeOptionsValidator : AbstractValidator<GlobeOptions>
             .WithMessage("Уровень детализации должен быть в диапазоне от 0 до 3");
 
         RuleFor(o => o.MinZoom)
-            .GreaterThanOrEqualTo(1.1)
-            .WithMessage("Минимальный зум должен быть не меньше 1.1, чтобы камера не попадала внутрь глобуса");
+            .GreaterThanOrEqualTo(1.02)
+            .WithMessage("Минимальный зум должен быть не меньше 1.02, чтобы камера не попадала внутрь глобуса");
 
         RuleFor(o => o.MaxZoom)
             .GreaterThan(o => o.MinZoom)

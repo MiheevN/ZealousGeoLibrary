@@ -32,11 +32,14 @@ async function loadCommunityGlobeClass() {
 function createGlobePrototypeInstance(CommunityGlobe, options = {}) {
     const globe = Object.create(CommunityGlobe.prototype);
     globe.options = {
-        minZoom: 1.1,
+        minZoom: 1.03,
         maxZoom: 4,
         enableAtmosphereGlow: true,
         enableClouds: true,
-        cameraSurfaceClearance: 0.08,
+        earthRadius: 1,
+        cloudsRadius: 1.01,
+        atmosphereRadius: 1.05,
+        cameraSurfaceClearance: 0.02,
         cameraZoomInMinSpeed: 0.16,
         cameraZoomInMaxSpeed: 0.9,
         cameraZoomOutSpeed: 1.15,
@@ -73,14 +76,15 @@ function assertVectorClose(actual, expected, message) {
     );
 }
 
-test('camera can move closer while staying outside the globe and atmosphere', async () => {
+test('camera can move much closer while staying outside the globe and cloud layer', async () => {
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
 
     const limits = globe.getCameraDistanceLimits();
 
-    assert.ok(limits.minDistance > 1.05, 'minimum camera distance should stay outside the atmosphere radius');
-    assert.equal(round(limits.minDistance), 1.13);
+    assert.ok(limits.minDistance > 1.01, 'minimum camera distance should stay outside the cloud layer');
+    assert.ok(limits.minDistance < 1.05, 'minimum camera distance should allow entering the transparent atmosphere glow');
+    assert.equal(round(limits.minDistance), 1.03);
     assert.equal(limits.maxDistance, 4);
 });
 
@@ -88,9 +92,9 @@ test('zooming in slows near the surface while zooming out remains responsive', a
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
 
-    const nearInSpeed = globe.calculateCameraZoomSpeed(1.13, true);
+    const nearInSpeed = globe.calculateCameraZoomSpeed(1.03, true);
     const farInSpeed = globe.calculateCameraZoomSpeed(3.2, true);
-    const outSpeed = globe.calculateCameraZoomSpeed(1.13, false);
+    const outSpeed = globe.calculateCameraZoomSpeed(1.03, false);
 
     assert.ok(nearInSpeed < farInSpeed, 'zoom-in should slow down near the surface');
     assert.equal(nearInSpeed, 0.16);
@@ -102,7 +106,7 @@ test('participant marker scale follows camera distance within configured bounds'
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
 
-    assert.equal(round(globe.calculateParticipantMarkerDistanceScale(1.13)), 0.43);
+    assert.equal(round(globe.calculateParticipantMarkerDistanceScale(1.03)), 0.4);
     assert.equal(globe.calculateParticipantMarkerDistanceScale(2.6), 1);
     assert.equal(globe.calculateParticipantMarkerDistanceScale(5), 1.2);
 });
@@ -146,9 +150,9 @@ test('participant label offset keeps text beside and above the marker at close z
     const nearLabelScale = { height: 0.006, targetPixelHeight: 34 };
     const farLabelScale = { height: 0.05, targetPixelHeight: 34 };
 
-    const nearScale = globe.calculateParticipantMarkerDistanceScale(1.13);
+    const nearScale = globe.calculateParticipantMarkerDistanceScale(1.03);
     const farScale = globe.calculateParticipantMarkerDistanceScale(2.6);
-    const nearOffset = globe.calculateParticipantLabelOffset(1.13, dimensions, nearScale, nearLabelScale);
+    const nearOffset = globe.calculateParticipantLabelOffset(1.03, dimensions, nearScale, nearLabelScale);
     const farOffset = globe.calculateParticipantLabelOffset(2.6, dimensions, farScale, farLabelScale);
     const farMarkerTop = (dimensions.tipHeight + dimensions.bodyHeight) * farScale;
     const nearMarkerRadius = dimensions.radius * nearScale;

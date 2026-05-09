@@ -94,7 +94,7 @@ public class GlobeOptions
     /// <summary>
     /// Минимальный зум
     /// </summary>
-    public double MinZoom { get; set; } = 1.1;
+    public double MinZoom { get; set; } = 1.03;
 
     /// <summary>
     /// Максимальный зум
