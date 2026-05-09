@@ -107,6 +107,33 @@ test('participant marker scale follows camera distance within configured bounds'
     assert.equal(globe.calculateParticipantMarkerDistanceScale(5), 1.2);
 });
 
+test('participant marker keeps an angled body when the camera is centered on it', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+    const marker = new THREE.Group();
+    const visual = new THREE.Group();
+    const surfacePosition = new THREE.Vector3(0, 0, 1.02);
+    const cameraDistance = globe.getClampedCameraDistance(globe.options.participantClickZoom);
+
+    marker.position.copy(surfacePosition);
+    marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), surfacePosition.clone().normalize());
+    marker.userData = { visual };
+    marker.add(visual);
+
+    globe.camera = new THREE.PerspectiveCamera(75, 1, 0.02, 1000);
+    globe.camera.position.set(0, 0, cameraDistance);
+    globe.camera.lookAt(0, 0, 0);
+    globe.camera.updateMatrixWorld(true);
+    globe.participantMarkers = [marker];
+
+    globe.updateParticipantMarkerTransforms();
+
+    const identity = new THREE.Quaternion();
+    const expectedTilt = globe.calculateParticipantMarkerTiltAmount(cameraDistance);
+    assert.ok(expectedTilt > 0, 'click zoom should request a visible marker tilt');
+    assert.equal(round(visual.quaternion.angleTo(identity), 3), round(expectedTilt, 3));
+});
+
 test('participant label offset keeps text beside and above the marker at close zoom', async () => {
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);
