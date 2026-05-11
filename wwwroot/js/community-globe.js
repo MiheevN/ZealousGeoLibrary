@@ -107,6 +107,13 @@ class CommunityGlobe {
             participantLabelLoweringDistance: 1.1,
             participantLabelHiddenOpacity: 0.12,
             participantLabelHorizonFade: 0.25,
+            participantOverlayIndicatorPixelSize: 14,
+            participantOverlayIndicatorEdgePixelSize: 9,
+            participantOverlayIndicatorEdgePaddingPixels: 18,
+            participantOverlayIndicatorActivationDistance: 1.6,
+            participantOverlayIndicatorFullDistance: 1.15,
+            participantOverlayIndicatorFarOpacity: 0,
+            participantOverlayIndicatorNearOpacity: 0.95,
             preserveDrawingBuffer: false,
             highlightedPointColor: '#e0fcff',
             autoRotate: true,
@@ -188,9 +195,11 @@ class CommunityGlobe {
         this.participantPoints = [];
         this.participantMarkers = [];
         this.participantMarkerHitTargets = [];
+        this.participantMarkerOverlayIndicators = [];
         this.participantLabels = [];
         this.hoveredParticipantMarker = null;
         this.labelTargetPixelHeight = DEFAULT_LABEL_PIXEL_HEIGHT;
+        this.participantOverlayIndicatorTexture = null;
         this.countryPolygons = [];
         this.raycaster = null;
         this.mouse = { x: 0, y: 0 };
@@ -774,9 +783,16 @@ class CommunityGlobe {
             this.earthGroup.remove(marker);
             this.disposeObject3D(marker);
         });
+        this.participantMarkerOverlayIndicators.forEach(indicator => {
+            if (indicator?.parent) {
+                indicator.parent.remove(indicator);
+            }
+            this.disposeObject3D(indicator);
+        });
         this.participantPoints = [];
         this.participantMarkers = [];
         this.participantMarkerHitTargets = [];
+        this.participantMarkerOverlayIndicators = [];
         this.participantLabels = [];
         this.hoveredParticipantMarker = null;
         this.pointMetadata.clear();
@@ -943,7 +959,76 @@ class CommunityGlobe {
         marker.userData.rippleGroup = rippleGroup;
         marker.add(rippleGroup);
 
+        const overlayIndicator = this.createParticipantOverlayIndicator(participant);
+        if (overlayIndicator) {
+            overlayIndicator.userData.participantMarker = marker;
+            marker.userData.overlayIndicator = overlayIndicator;
+            this.scene.add(overlayIndicator);
+            this.participantMarkerOverlayIndicators.push(overlayIndicator);
+        }
+
         return marker;
+    }
+
+    getOrCreateOverlayIndicatorTexture() {
+        if (this.participantOverlayIndicatorTexture) {
+            return this.participantOverlayIndicatorTexture;
+        }
+
+        const size = 96;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext('2d');
+        const center = size / 2;
+        const radius = size * 0.42;
+        const gradient = ctx.createRadialGradient(center, center, radius * 0.2, center, center, radius);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.55, 'rgba(255, 255, 255, 0.92)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.lineWidth = size * 0.06;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.beginPath();
+        ctx.arc(center, center, radius * 0.78, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        this.participantOverlayIndicatorTexture = texture;
+        return texture;
+    }
+
+    createParticipantOverlayIndicator(participant = {}) {
+        if (!this.scene || typeof THREE === 'undefined' || !THREE?.Mesh) {
+            return null;
+        }
+
+        const texture = this.getOrCreateOverlayIndicatorTexture();
+        const color = new THREE.Color(participant.markerColor || this.options.participantPointColor || '#24dce7');
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            color,
+            transparent: true,
+            opacity: 0,
+            depthTest: false,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+
+        const indicator = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+        indicator.frustumCulled = false;
+        indicator.renderOrder = 11;
+        indicator.visible = false;
+        indicator.userData.isAtEdge = false;
+        indicator.userData.participant = participant;
+        return indicator;
     }
 
     createParticipantLabelMesh(participant, dimensions) {
@@ -1595,6 +1680,121 @@ class CommunityGlobe {
         });
     }
 
+    calculateOverlayIndicatorActivationProgress(cameraDistance) {
+        const activationDistance = this.getPositiveNumber(this.options.participantOverlayIndicatorActivationDistance, 1.6);
+        const fullDistance = this.getPositiveNumber(this.options.participantOverlayIndicatorFullDistance, 1.15);
+        if (activationDistance <= fullDistance || cameraDistance >= activationDistance) {
+            return 0;
+        }
+        if (cameraDistance <= fullDistance) {
+            return 1;
+        }
+        return this.clamp((activationDistance - cameraDistance) / (activationDistance - fullDistance), 0, 1);
+    }
+
+    updateParticipantMarkerOverlayIndicators() {
+        if (this.participantMarkerOverlayIndicators.length === 0) {
+            return;
+        }
+        if (!this.camera || !this.renderer) {
+            this.participantMarkerOverlayIndicators.forEach(indicator => {
+                indicator.visible = false;
+            });
+            return;
+        }
+
+        const cameraDistance = this.camera.position.length();
+        const activationProgress = this.calculateOverlayIndicatorActivationProgress(cameraDistance);
+        if (activationProgress <= 0) {
+            this.participantMarkerOverlayIndicators.forEach(indicator => {
+                indicator.visible = false;
+            });
+            return;
+        }
+
+        const rendererSize = this.renderer.getSize(new THREE.Vector2());
+        const aspect = rendererSize.height > 0 ? rendererSize.width / rendererSize.height : 1;
+        const fovRadians = (Number(this.camera.fov) || 75) * Math.PI / 180;
+        const placementDistance = Math.max(this.getPositiveNumber(this.options.cameraNearPlane, 0.02) * 4, 0.08);
+        const halfHeight = placementDistance * Math.tan(fovRadians / 2);
+        const halfWidth = halfHeight * aspect;
+        const pixelSize = this.getPositiveNumber(this.options.participantOverlayIndicatorPixelSize, 14);
+        const edgePixelSize = this.getPositiveNumber(this.options.participantOverlayIndicatorEdgePixelSize, 9);
+        const edgePaddingPixels = this.getNonNegativeNumber(this.options.participantOverlayIndicatorEdgePaddingPixels, 18);
+        const worldHeightPerPixel = rendererSize.height > 0 ? (halfHeight * 2) / rendererSize.height : 0;
+        const inFrameWorldSize = pixelSize * worldHeightPerPixel;
+        const edgeWorldSize = edgePixelSize * worldHeightPerPixel;
+        const edgePaddingNdcX = rendererSize.width > 0 ? (edgePaddingPixels * 2) / rendererSize.width : 0;
+        const edgePaddingNdcY = rendererSize.height > 0 ? (edgePaddingPixels * 2) / rendererSize.height : 0;
+        const farOpacity = this.getClampedNumber(this.options.participantOverlayIndicatorFarOpacity, 0, 0, 1);
+        const nearOpacity = this.getClampedNumber(this.options.participantOverlayIndicatorNearOpacity, 0.95, 0, 1);
+        const cameraWorldQuaternion = this.camera.getWorldQuaternion(new THREE.Quaternion());
+        const cameraWorldPosition = this.camera.getWorldPosition(new THREE.Vector3());
+        const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(cameraWorldQuaternion);
+        const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraWorldQuaternion);
+        const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(cameraWorldQuaternion);
+        const placementOrigin = cameraWorldPosition.clone().add(cameraForward.clone().multiplyScalar(placementDistance));
+
+        this.participantMarkerOverlayIndicators.forEach(indicator => {
+            const marker = indicator.userData?.participantMarker;
+            if (!marker) {
+                indicator.visible = false;
+                return;
+            }
+
+            const markerWorldPosition = marker.getWorldPosition(new THREE.Vector3());
+            const horizonOpacity = this.calculateParticipantLabelVisibilityOpacity(markerWorldPosition, cameraWorldPosition);
+            const facingOpacity = this.clamp((horizonOpacity - 0.2) / 0.5, 0, 1);
+            if (facingOpacity <= 0) {
+                indicator.visible = false;
+                return;
+            }
+
+            const projected = markerWorldPosition.clone().project(this.camera);
+            const isInFront = projected.z > -1 && projected.z < 1;
+            const isOnScreen = isInFront
+                && projected.x >= -1 && projected.x <= 1
+                && projected.y >= -1 && projected.y <= 1;
+
+            let ndcX = projected.x;
+            let ndcY = projected.y;
+            let atEdge = !isOnScreen;
+
+            if (atEdge) {
+                if (!isInFront) {
+                    ndcX = -ndcX;
+                    ndcY = -ndcY;
+                }
+                const maxAbs = Math.max(Math.abs(ndcX), Math.abs(ndcY), 0.0001);
+                ndcX /= maxAbs;
+                ndcY /= maxAbs;
+                ndcX = this.clamp(ndcX, -1 + edgePaddingNdcX, 1 - edgePaddingNdcX);
+                ndcY = this.clamp(ndcY, -1 + edgePaddingNdcY, 1 - edgePaddingNdcY);
+            }
+
+            const offsetRight = cameraRight.clone().multiplyScalar(ndcX * halfWidth);
+            const offsetUp = cameraUp.clone().multiplyScalar(ndcY * halfHeight);
+            const targetPosition = placementOrigin.clone().add(offsetRight).add(offsetUp);
+            indicator.position.copy(targetPosition);
+            indicator.quaternion.copy(cameraWorldQuaternion);
+
+            const worldSize = atEdge ? edgeWorldSize : inFrameWorldSize;
+            const safeWorldSize = Math.max(worldSize, 0.0001);
+            indicator.scale.set(safeWorldSize, safeWorldSize, 1);
+
+            const baseOpacity = farOpacity + (nearOpacity - farOpacity) * activationProgress;
+            const edgeFade = atEdge ? 0.75 : 1;
+            const targetOpacity = baseOpacity * facingOpacity * edgeFade;
+            const material = indicator.material;
+            if (material) {
+                material.transparent = true;
+                material.opacity = targetOpacity;
+            }
+            indicator.visible = targetOpacity > 0.001;
+            indicator.userData.isAtEdge = atEdge;
+        });
+    }
+
     updateParticipantMarkerRipples(now) {
         this.participantMarkers.forEach(marker => {
             const rippleGroup = marker.userData.rippleGroup;
@@ -1667,6 +1867,7 @@ class CommunityGlobe {
         this.syncSunLightWithCamera();
         this.updateParticipantMarkerTransforms();
         this.updateParticipantLabelBillboards();
+        this.updateParticipantMarkerOverlayIndicators();
         this.updateParticipantMarkerRipples(this.getAnimationTimeMs());
         this.updateCameraState();
         this.renderer.render(this.scene, this.camera);
