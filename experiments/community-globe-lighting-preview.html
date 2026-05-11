@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Community Globe Lighting Preview</title>
+    <link rel="icon" href="data:,">
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #05070b;
+        }
+
+        #lighting-preview {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="lighting-preview"></div>
+
+    <script type="module">
+        import { addParticipants, createGlobe, getState } from '../wwwroot/js/community-globe.js';
+
+        createGlobe('lighting-preview', {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            backgroundColor: '#05070b',
+            autoRotate: false,
+            enableClouds: true,
+            earthTextureUrl: '../wwwroot/assets/earth/8k_earth_daymap.jpg',
+            normalTextureUrl: '',
+            specularTextureUrl: '',
+            cloudsTextureUrl: '../wwwroot/assets/earth/8k_earth_clouds.jpg',
+            cloudsOpacity: 0.16,
+            preserveDrawingBuffer: true
+        });
+
+        async function waitForGlobe() {
+            for (let attempt = 0; attempt < 80; attempt++) {
+                const state = getState('lighting-preview');
+                if (state?.isInitialized) return true;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            return false;
+        }
+
+        if (await waitForGlobe()) {
+            addParticipants('lighting-preview', [
+                { id: 'front-marker', name: 'Nikolai', latitude: 0, longitude: -90 },
+                { id: 'upper-marker', name: 'Konstantin', latitude: 28, longitude: -80 }
+            ]);
+            document.body.dataset.ready = 'true';
+        } else {
+            document.body.dataset.ready = 'false';
+        }
+    </script>
+</body>
+</html>

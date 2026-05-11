@@ -160,6 +160,61 @@ public class GlobeOptions
     /// Ширина линий стран
     /// </summary>
     public double CountryLineWidth { get; set; } = 0.5;
+
+    /// <summary>
+    /// Направлять ли солнечный свет со стороны текущей камеры
+    /// </summary>
+    public bool SunLightFollowCamera { get; set; } = true;
+
+    /// <summary>
+    /// Условная дистанция направленного солнечного света от центра глобуса
+    /// </summary>
+    public double SunLightDistance { get; set; } = 6.0;
+
+    /// <summary>
+    /// Интенсивность основного солнечного света
+    /// </summary>
+    public double SunLightIntensity { get; set; } = 2.8;
+
+    /// <summary>
+    /// Цвет основного солнечного света
+    /// </summary>
+    public string SunLightColor { get; set; } = "#ffffff";
+
+    /// <summary>
+    /// Интенсивность мягкого общего освещения
+    /// </summary>
+    public double AmbientLightIntensity { get; set; } = 1.2;
+
+    /// <summary>
+    /// Цвет мягкого общего освещения
+    /// </summary>
+    public string AmbientLightColor { get; set; } = "#9db7d1";
+
+    /// <summary>
+    /// Интенсивность небесного заполнения для ясного дневного освещения
+    /// </summary>
+    public double HemisphereLightIntensity { get; set; } = 0.8;
+
+    /// <summary>
+    /// Цвет верхнего небесного заполнения
+    /// </summary>
+    public string HemisphereSkyColor { get; set; } = "#d8f1ff";
+
+    /// <summary>
+    /// Цвет нижнего заполняющего света
+    /// </summary>
+    public string HemisphereGroundColor { get; set; } = "#253042";
+
+    /// <summary>
+    /// Интенсивность дополнительного атмосферного свечения
+    /// </summary>
+    public double AtmosphereLightIntensity { get; set; } = 0.7;
+
+    /// <summary>
+    /// Цвет дополнительного атмосферного свечения
+    /// </summary>
+    public string AtmosphereLightColor { get; set; } = "#8fdcff";
 }
 
 /// <summary>

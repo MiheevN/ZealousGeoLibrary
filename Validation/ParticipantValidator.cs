@@ -307,6 +307,26 @@ public class GlobeOptionsValidator : AbstractValidator<GlobeOptions>
         RuleFor(o => o.AutoRotateSpeed)
             .InclusiveBetween(-5, 5)
             .WithMessage("Скорость автоповорота должна быть в диапазоне от -5 до 5");
+
+        RuleFor(o => o.SunLightDistance)
+            .InclusiveBetween(1, 50)
+            .WithMessage("Дистанция солнечного света должна быть в диапазоне от 1 до 50");
+
+        RuleFor(o => o.SunLightIntensity)
+            .InclusiveBetween(0, 10)
+            .WithMessage("Интенсивность солнечного света должна быть в диапазоне от 0 до 10");
+
+        RuleFor(o => o.AmbientLightIntensity)
+            .InclusiveBetween(0, 10)
+            .WithMessage("Интенсивность общего света должна быть в диапазоне от 0 до 10");
+
+        RuleFor(o => o.HemisphereLightIntensity)
+            .InclusiveBetween(0, 10)
+            .WithMessage("Интенсивность небесного света должна быть в диапазоне от 0 до 10");
+
+        RuleFor(o => o.AtmosphereLightIntensity)
+            .InclusiveBetween(0, 10)
+            .WithMessage("Интенсивность атмосферного света должна быть в диапазоне от 0 до 10");
     }
 }
 
