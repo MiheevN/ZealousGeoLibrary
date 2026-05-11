@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Community Map (2D) Preview</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../wwwroot/css/zealous-ui.css">
+    <link rel="stylesheet" href="../wwwroot/css/community-map.css">
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            background: var(--zgl-bg);
+            color: var(--zgl-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .preview-shell {
+            box-sizing: border-box;
+            padding: 1rem;
+            min-height: 100vh;
+        }
+
+        .community-map-container {
+            min-height: 80vh;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-shell">
+        <div class="community-map-container">
+            <div class="map-header">
+                <h3>Community Map (2D)</h3>
+                <div class="participants-count" id="participants-count">Total Participants: 0</div>
+            </div>
+            <div id="map" class="map-canvas" style="--zgl-map-height: 640px;"></div>
+        </div>
+    </div>
+
+    <script src="../wwwroot/js/community-map.js"></script>
+    <script>
+        const sampleParticipants = [
+            { Id: '1', Name: 'Moscow', Latitude: 55.7558, Longitude: 37.6176, Address: 'Moscow, Russia', Email: 'moscow@example.com', City: 'Moscow', Country: 'Russia' },
+            { Id: '2', Name: 'Berlin', Latitude: 52.5200, Longitude: 13.4050, Address: 'Berlin, Germany', Email: 'berlin@example.com', City: 'Berlin', Country: 'Germany' },
+            { Id: '3', Name: 'New York', Latitude: 40.7128, Longitude: -74.0060, Address: 'New York, USA', Email: 'ny@example.com', City: 'New York', Country: 'USA' },
+            { Id: '4', Name: 'Tokyo', Latitude: 35.6762, Longitude: 139.6503, Address: 'Tokyo, Japan', Email: 'tokyo@example.com', City: 'Tokyo', Country: 'Japan' },
+            { Id: '5', Name: 'Sydney', Latitude: -33.8688, Longitude: 151.2093, Address: 'Sydney, Australia', Email: 'sydney@example.com', City: 'Sydney', Country: 'Australia' },
+            { Id: '6', Name: 'Cape Town', Latitude: -33.9249, Longitude: 18.4241, Address: 'Cape Town, South Africa', Email: 'capetown@example.com', City: 'Cape Town', Country: 'South Africa' },
+            { Id: '7', Name: 'Rio', Latitude: -22.9068, Longitude: -43.1729, Address: 'Rio de Janeiro, Brazil', Email: 'rio@example.com', City: 'Rio', Country: 'Brazil' },
+            { Id: '8', Name: 'Reykjavík', Latitude: 64.1466, Longitude: -21.9426, Address: 'Reykjavík, Iceland', Email: 'iceland@example.com', City: 'Reykjavík', Country: 'Iceland' }
+        ];
+
+        window.setDotNetHelper({
+            invokeMethodAsync: (method, ...args) => {
+                console.log('blazor invoke:', method, args);
+                return Promise.resolve();
+            }
+        });
+
+        window.initializeCommunityMap('', 20, 20, 1, 'map');
+        window.loadParticipantsOnMap(sampleParticipants, 'map');
+        document.getElementById('participants-count').textContent =
+            `Total Participants: ${sampleParticipants.length}`;
+    </script>
+</body>
+</html>

@@ -14,6 +14,7 @@
 
 <HeadContent>
     <link href="/_content/ZealousMindedPeopleGeo/css/community-map.css" rel="stylesheet" />
+    <script src="/_content/ZealousMindedPeopleGeo/js/community-map.js"></script>
 </HeadContent>
 
 <div class="community-map-container">
@@ -24,7 +25,7 @@
         </div>
     </div>
 
-    <div id="map" class="map-canvas" style="--zgl-map-height: @Height;"></div>
+    <div id="@MapId" class="map-canvas" style="--zgl-map-height: @Height;"></div>
 
     @if (_isLoading)
     {
@@ -33,9 +34,6 @@
             <div>Загрузка карты...</div>
         </div>
     }
-
-    @* Ссылки на внешние ресурсы *@
-    <script src="/_content/ZealousMindedPeopleGeo/js/community-map.js"></script>
 
     @if (ShowParticipantsList)
     {
