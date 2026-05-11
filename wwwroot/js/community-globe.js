@@ -126,6 +126,9 @@ class CommunityGlobe {
             cameraZoomInMaxSpeed: 0.9,
             cameraZoomOutSpeed: 1.15,
             cameraZoomSlowdownDistance: 1.1,
+            cameraRotateMinSpeed: 0.18,
+            cameraRotateMaxSpeed: 1.0,
+            cameraRotateSlowdownDistance: 1.5,
             levelOfDetail: 2,
             earthTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_daymap.jpg",
             normalTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_normal_map.tif",
@@ -589,6 +592,7 @@ class CommunityGlobe {
         }
         this.updateCameraControlLimits();
         this.controls.zoomSpeed = this.calculateCameraZoomSpeed(this.camera.position.length(), false);
+        this.controls.rotateSpeed = this.calculateCameraRotateSpeed(this.camera.position.length());
         this.controls.autoRotate = this.state.isAutoRotating;
         this.controls.autoRotateSpeed = this.options.autoRotateSpeed;
         this.controls.addEventListener('start', () => this.pauseAutoRotationForInteraction());
@@ -1157,6 +1161,24 @@ class CommunityGlobe {
         this.controls.zoomSpeed = this.calculateCameraZoomSpeed(this.camera.position.length(), event.deltaY < 0);
     }
 
+    calculateCameraRotateSpeed(cameraDistance) {
+        const { minDistance } = this.getCameraDistanceLimits();
+        const minSpeed = this.getPositiveNumber(this.options.cameraRotateMinSpeed, 0.18);
+        const maxSpeed = Math.max(minSpeed, this.getPositiveNumber(this.options.cameraRotateMaxSpeed, 1.0));
+        const slowdownDistance = this.getPositiveNumber(this.options.cameraRotateSlowdownDistance, 1.5);
+        const progress = this.clamp((cameraDistance - minDistance) / slowdownDistance, 0, 1);
+
+        return minSpeed + (maxSpeed - minSpeed) * progress;
+    }
+
+    updateCameraRotateSpeed() {
+        if (!this.controls || !this.camera) {
+            return;
+        }
+
+        this.controls.rotateSpeed = this.calculateCameraRotateSpeed(this.camera.position.length());
+    }
+
     updateCameraControlLimits() {
         if (!this.controls) return;
 
@@ -1638,6 +1660,7 @@ class CommunityGlobe {
 
         if (this.controls) {
             this.updateCameraControlLimits();
+            this.updateCameraRotateSpeed();
             this.controls.update();
         }
         this.applyCameraDistanceSafety();
@@ -1996,6 +2019,9 @@ class CommunityGlobe {
                 'cameraZoomInMaxSpeed',
                 'cameraZoomOutSpeed',
                 'cameraZoomSlowdownDistance',
+                'cameraRotateMinSpeed',
+                'cameraRotateMaxSpeed',
+                'cameraRotateSlowdownDistance',
                 'sunLightFollowCamera',
                 'sunLightDistance',
                 'ambientLightColor',

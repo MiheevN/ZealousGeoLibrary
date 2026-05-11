@@ -44,6 +44,9 @@ function createGlobePrototypeInstance(CommunityGlobe, options = {}) {
         cameraZoomInMaxSpeed: 0.9,
         cameraZoomOutSpeed: 1.15,
         cameraZoomSlowdownDistance: 1.1,
+        cameraRotateMinSpeed: 0.18,
+        cameraRotateMaxSpeed: 1.0,
+        cameraRotateSlowdownDistance: 1.5,
         participantMarkerReferenceDistance: 2.6,
         participantMarkerMinScale: 0.35,
         participantMarkerMaxScale: 1.2,
@@ -100,6 +103,20 @@ test('zooming in slows near the surface while zooming out remains responsive', a
     assert.equal(nearInSpeed, 0.16);
     assert.equal(farInSpeed, 0.9);
     assert.equal(outSpeed, 1.15);
+});
+
+test('camera rotate sensitivity decreases as the camera approaches the surface', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+
+    const nearSpeed = globe.calculateCameraRotateSpeed(1.03);
+    const midSpeed = globe.calculateCameraRotateSpeed(1.78);
+    const farSpeed = globe.calculateCameraRotateSpeed(3.2);
+
+    assert.equal(nearSpeed, 0.18);
+    assert.equal(farSpeed, 1.0);
+    assert.ok(nearSpeed < midSpeed && midSpeed < farSpeed, 'rotate speed should grow with camera distance');
+    assert.ok(Math.abs(midSpeed - 0.59) < 0.01, 'rotate speed should be near the midpoint at the slowdown midpoint');
 });
 
 test('participant marker scale follows camera distance within configured bounds', async () => {
