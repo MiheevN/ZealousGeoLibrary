@@ -9,6 +9,7 @@ namespace ZealousMindedPeopleGeo.Components;
 
 public partial class CommunityMapComponent : IAsyncDisposable
 {
+    [Parameter] public string MapId { get; set; } = "map";
     [Parameter] public string Height { get; set; } = "500px";
     [Parameter] public bool ShowParticipantsList { get; set; } = true;
     [Parameter] public EventCallback<Participant> OnMarkerClick { get; set; }
@@ -37,17 +38,22 @@ public partial class CommunityMapComponent : IAsyncDisposable
             Logger.LogInformation("Загружено {Count} участников для карты", Participants.Count());
 
             var apiKey = Options.Value.GoogleMapsApiKey ?? "";
-            var centerLat = Options.Value.Map?.DefaultLatitude ?? 55.7558;
-            var centerLng = Options.Value.Map?.DefaultLongitude ?? 37.6176;
-            var zoom = Options.Value.Map?.DefaultZoom ?? 10;
+            var centerLat = Options.Value.Map?.DefaultLatitude ?? 20.0;
+            var centerLng = Options.Value.Map?.DefaultLongitude ?? 0.0;
+            var zoom = Options.Value.Map?.DefaultZoom ?? 2;
 
             _dotNetRef = DotNetObjectReference.Create(this);
             await JSRuntime.InvokeVoidAsync("setDotNetHelper", _dotNetRef);
-            await JSRuntime.InvokeVoidAsync("initializeCommunityMap", apiKey, centerLat, centerLng, zoom);
+            await JSRuntime.InvokeVoidAsync(
+                "initializeCommunityMap",
+                apiKey,
+                centerLat,
+                centerLng,
+                zoom,
+                MapId);
 
-            await Task.Delay(1000);
             var participantsJson = JsonSerializer.Serialize(Participants);
-            await JSRuntime.InvokeVoidAsync("loadParticipantsOnMap", participantsJson);
+            await JSRuntime.InvokeVoidAsync("loadParticipantsOnMap", participantsJson, MapId);
 
             _isLoading = false;
             StateHasChanged();
@@ -68,7 +74,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
         {
             SelectedParticipant = participant;
             await InvokeAsync(StateHasChanged);
-            
+
             if (OnMarkerClick.HasDelegate)
             {
                 await OnMarkerClick.InvokeAsync(participant);
@@ -88,9 +94,21 @@ public partial class CommunityMapComponent : IAsyncDisposable
         InvokeAsync(StateHasChanged);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("disposeCommunityMap", MapId);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Соединение JS уже закрыто (например, на странице переключили компонент).
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось освободить ресурсы карты {MapId}", MapId);
+        }
+
         _dotNetRef?.Dispose();
-        return ValueTask.CompletedTask;
     }
 }
