@@ -257,6 +257,11 @@ public class GlobeOptions
     public double MinZoom { get; set; } = 1.03;
     public double MaxZoom { get; set; } = 4.0;
     public int LevelOfDetail { get; set; } = 2;
+    public bool SunLightFollowCamera { get; set; } = true;
+    public double SunLightDistance { get; set; } = 6.0;
+    public double SunLightIntensity { get; set; } = 2.8;
+    public double AmbientLightIntensity { get; set; } = 1.2;
+    public double HemisphereLightIntensity { get; set; } = 0.8;
 }
 ```
 

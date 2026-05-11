@@ -111,9 +111,17 @@
                 </h2>
                 <div id="lightSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
+                        <div class="mb-2 form-check">
+                            <input type="checkbox" class="form-check-input" id="sunLightFollowCamera" @bind="Settings.SunLightFollowCamera" />
+                            <label class="form-check-label" for="sunLightFollowCamera">Свет со стороны камеры</label>
+                        </div>
                         <div class="mb-2">
                             <label class="form-label">Яркость солнца: @Settings.SunLightIntensity</label>
                             <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.SunLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Дистанция солнца: @Settings.SunLightDistance</label>
+                            <input type="range" class="form-range" min="2.0" max="12.0" step="0.5" @bind="Settings.SunLightDistance" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Цвет солнца</label>
@@ -126,6 +134,10 @@
                         <div class="mb-2">
                             <label class="form-label">Цвет окружения</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.AmbientLightColor" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Мягкий небесный свет: @Settings.HemisphereLightIntensity</label>
+                            <input type="range" class="form-range" min="0.0" max="3.0" step="0.1" @bind="Settings.HemisphereLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
                 </div>
@@ -258,10 +270,17 @@
             CloudsOpacity = 0.1,
             CloudsSpeed = 0.01,
             EnableAtmosphereGlow = true,
-            SunLightIntensity = 3.0,
+            SunLightFollowCamera = true,
+            SunLightDistance = 6.0,
+            SunLightIntensity = 2.8,
             SunLightColor = "#ffffff",
-            AmbientLightIntensity = 4.0,
-            AmbientLightColor = "#404040"
+            AmbientLightIntensity = 1.2,
+            AmbientLightColor = "#9db7d1",
+            HemisphereLightIntensity = 0.8,
+            HemisphereSkyColor = "#d8f1ff",
+            HemisphereGroundColor = "#253042",
+            AtmosphereLightIntensity = 0.7,
+            AtmosphereLightColor = "#8fdcff"
         };
     }
 
@@ -340,9 +359,16 @@
         public double CloudsOpacity { get; set; }
         public double CloudsSpeed { get; set; }
         public bool EnableAtmosphereGlow { get; set; }
+        public bool SunLightFollowCamera { get; set; } = true;
+        public double SunLightDistance { get; set; }
         public double SunLightIntensity { get; set; }
         public string SunLightColor { get; set; } = "#ffffff";
         public double AmbientLightIntensity { get; set; }
-        public string AmbientLightColor { get; set; } = "#404040";
+        public string AmbientLightColor { get; set; } = "#9db7d1";
+        public double HemisphereLightIntensity { get; set; }
+        public string HemisphereSkyColor { get; set; } = "#d8f1ff";
+        public string HemisphereGroundColor { get; set; } = "#253042";
+        public double AtmosphereLightIntensity { get; set; }
+        public string AtmosphereLightColor { get; set; } = "#8fdcff";
     }
 }

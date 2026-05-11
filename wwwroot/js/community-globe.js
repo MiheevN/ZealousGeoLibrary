@@ -140,12 +140,17 @@ class CommunityGlobe {
             countryLineColor: '#444444',
             countryLineWidth: 0.5,
             // Настройки освещения
-            sunLightIntensity: 3.0,
+            sunLightFollowCamera: true,
+            sunLightDistance: 6,
+            sunLightIntensity: 2.8,
             sunLightColor: '#ffffff',
-            ambientLightIntensity: 4,
-            ambientLightColor: '#404040',
-            atmosphereLightIntensity: 1,
-            atmosphereLightColor: '#00aaff',
+            ambientLightIntensity: 1.2,
+            ambientLightColor: '#9db7d1',
+            hemisphereLightIntensity: 0.8,
+            hemisphereSkyColor: '#d8f1ff',
+            hemisphereGroundColor: '#253042',
+            atmosphereLightIntensity: 0.7,
+            atmosphereLightColor: '#8fdcff',
         };
         this.options = { ...defaultOptions };
         Object.entries(options || {}).forEach(([key, value]) => {
@@ -170,6 +175,10 @@ class CommunityGlobe {
         this.camera = null;
         this.renderer = null;
         this.controls = null;
+        this.sunLight = null;
+        this.ambientLight = null;
+        this.hemisphereLight = null;
+        this.atmosphereLight = null;
         this.earthGroup = null;
         this.atmosphere = null;
         this.clouds = null;
@@ -436,6 +445,7 @@ class CommunityGlobe {
         });
 
         const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        earth.receiveShadow = true;
         this.earthGroup.add(earth);
         this.earthRotation = 0;
     }
@@ -495,19 +505,65 @@ class CommunityGlobe {
         // Преобразуем цвет из hex в Color
         const sunColor = new THREE.Color(this.options.sunLightColor);
         const ambientColor = new THREE.Color(this.options.ambientLightColor);
+        const hemisphereSkyColor = new THREE.Color(this.options.hemisphereSkyColor);
+        const hemisphereGroundColor = new THREE.Color(this.options.hemisphereGroundColor);
         const atmosphereColor = new THREE.Color(this.options.atmosphereLightColor);
 
         const sunLight = new THREE.DirectionalLight(sunColor, this.options.sunLightIntensity);
-        sunLight.position.set(5, 3, 5);
         sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.left = -1.8;
+        sunLight.shadow.camera.right = 1.8;
+        sunLight.shadow.camera.top = 1.8;
+        sunLight.shadow.camera.bottom = -1.8;
+        sunLight.shadow.camera.near = 0.1;
+        sunLight.shadow.camera.far = 12;
+        sunLight.shadow.bias = -0.0002;
+        this.sunLight = sunLight;
+        this.scene.add(sunLight.target);
         this.scene.add(sunLight);
 
         const ambientLight = new THREE.AmbientLight(ambientColor, this.options.ambientLightIntensity);
+        this.ambientLight = ambientLight;
         this.scene.add(ambientLight);
+
+        const hemisphereLight = new THREE.HemisphereLight(
+            hemisphereSkyColor,
+            hemisphereGroundColor,
+            this.options.hemisphereLightIntensity
+        );
+        this.hemisphereLight = hemisphereLight;
+        this.scene.add(hemisphereLight);
 
         const atmosphereLight = new THREE.PointLight(atmosphereColor, this.options.atmosphereLightIntensity, 100);
         atmosphereLight.position.set(0, 0, 3);
+        this.atmosphereLight = atmosphereLight;
         this.scene.add(atmosphereLight);
+
+        this.syncSunLightWithCamera();
+    }
+
+    getCameraAlignedSunPosition() {
+        const distance = this.getPositiveNumber(this.options.sunLightDistance, 6);
+        const position = this.camera?.position?.clone?.() ?? new THREE.Vector3(0, 0, 1);
+
+        if (position.lengthSq() < 0.000001) {
+            position.set(0, 0, 1);
+        }
+
+        return position.setLength(distance);
+    }
+
+    syncSunLightWithCamera() {
+        if (!this.sunLight || !this.camera || this.options.sunLightFollowCamera === false) {
+            return;
+        }
+
+        this.sunLight.position.copy(this.getCameraAlignedSunPosition());
+        this.sunLight.target.position.set(0, 0, 0);
+        this.sunLight.target.updateMatrixWorld();
+        this.sunLight.updateMatrixWorld();
     }
 
     setupControls() {
@@ -856,6 +912,8 @@ class CommunityGlobe {
         const tipEdges = new THREE.LineSegments(new THREE.EdgesGeometry(tipGeometry), edgeMaterial);
 
         [tip, body].forEach(mesh => {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             mesh.userData.participantMarker = marker;
             mesh.userData.participant = participant;
             this.participantMarkerHitTargets.push(mesh);
@@ -1583,6 +1641,7 @@ class CommunityGlobe {
             this.controls.update();
         }
         this.applyCameraDistanceSafety();
+        this.syncSunLightWithCamera();
         this.updateParticipantMarkerTransforms();
         this.updateParticipantLabelBillboards();
         this.updateParticipantMarkerRipples(this.getAnimationTimeMs());
@@ -1784,18 +1843,23 @@ class CommunityGlobe {
     }
 
     setSunLightIntensity(intensity) {
+        const parsedIntensity = Number(intensity);
+        if (!Number.isFinite(parsedIntensity)) return;
+
         if (this.scene) {
-            const sunLight = this.scene.children.find(child => child instanceof THREE.DirectionalLight);
+            const sunLight = this.sunLight ?? this.scene.children.find(child => child instanceof THREE.DirectionalLight);
             if (sunLight) {
-                sunLight.intensity = intensity;
-                console.log('Яркость солнца изменена на:', intensity);
+                sunLight.intensity = parsedIntensity;
+                console.log('Яркость солнца изменена на:', parsedIntensity);
             }
         }
     }
 
     setSunLightColor(colorHex) {
+        if (!colorHex) return;
+
         if (this.scene) {
-            const sunLight = this.scene.children.find(child => child instanceof THREE.DirectionalLight);
+            const sunLight = this.sunLight ?? this.scene.children.find(child => child instanceof THREE.DirectionalLight);
             if (sunLight) {
                 sunLight.color = new THREE.Color(colorHex);
                 console.log('Цвет солнца изменен на:', colorHex);
@@ -1804,21 +1868,52 @@ class CommunityGlobe {
     }
 
     setAmbientLightIntensity(intensity) {
+        const parsedIntensity = Number(intensity);
+        if (!Number.isFinite(parsedIntensity)) return;
+
         if (this.scene) {
-            const ambientLight = this.scene.children.find(child => child instanceof THREE.AmbientLight);
+            const ambientLight = this.ambientLight ?? this.scene.children.find(child => child instanceof THREE.AmbientLight);
             if (ambientLight) {
-                ambientLight.intensity = intensity;
-                console.log('Яркость окружения изменена на:', intensity);
+                ambientLight.intensity = parsedIntensity;
+                console.log('Яркость окружения изменена на:', parsedIntensity);
+            }
+        }
+    }
+
+    setAmbientLightColor(colorHex) {
+        if (!colorHex) return;
+
+        if (this.scene) {
+            const ambientLight = this.ambientLight ?? this.scene.children.find(child => child instanceof THREE.AmbientLight);
+            if (ambientLight) {
+                ambientLight.color = new THREE.Color(colorHex);
+                console.log('Цвет окружения изменен на:', colorHex);
+            }
+        }
+    }
+
+    setHemisphereLightIntensity(intensity) {
+        const parsedIntensity = Number(intensity);
+        if (!Number.isFinite(parsedIntensity)) return;
+
+        if (this.scene) {
+            const hemisphereLight = this.hemisphereLight ?? this.scene.children.find(child => child instanceof THREE.HemisphereLight);
+            if (hemisphereLight) {
+                hemisphereLight.intensity = parsedIntensity;
+                console.log('Яркость небесного света изменена на:', parsedIntensity);
             }
         }
     }
 
     setAtmosphereLightIntensity(intensity) {
+        const parsedIntensity = Number(intensity);
+        if (!Number.isFinite(parsedIntensity)) return;
+
         if (this.scene) {
-            const atmosphereLight = this.scene.children.find(child => child instanceof THREE.PointLight);
+            const atmosphereLight = this.atmosphereLight ?? this.scene.children.find(child => child instanceof THREE.PointLight);
             if (atmosphereLight) {
-                atmosphereLight.intensity = intensity;
-                console.log('Яркость атмосферного света изменена на:', intensity);
+                atmosphereLight.intensity = parsedIntensity;
+                console.log('Яркость атмосферного света изменена на:', parsedIntensity);
             }
         }
     }
@@ -1900,13 +1995,25 @@ class CommunityGlobe {
                 'cameraZoomInMinSpeed',
                 'cameraZoomInMaxSpeed',
                 'cameraZoomOutSpeed',
-                'cameraZoomSlowdownDistance'
+                'cameraZoomSlowdownDistance',
+                'sunLightFollowCamera',
+                'sunLightDistance',
+                'ambientLightColor',
+                'hemisphereLightIntensity',
+                'hemisphereSkyColor',
+                'hemisphereGroundColor',
+                'atmosphereLightIntensity',
+                'atmosphereLightColor'
             ].forEach(key => this.updateOptionFromSettings(settings, key));
             
             this.setAutoRotation(settings.autoRotate, settings.autoRotateSpeed);
             this.setSunLightIntensity(settings.sunLightIntensity);
             this.setSunLightColor(settings.sunLightColor);
             this.setAmbientLightIntensity(settings.ambientLightIntensity);
+            this.setAmbientLightColor(settings.ambientLightColor);
+            this.setHemisphereLightIntensity(settings.hemisphereLightIntensity);
+            this.setAtmosphereLightIntensity(settings.atmosphereLightIntensity);
+            this.syncSunLightWithCamera();
             
             this.toggleAtmosphere(settings.enableAtmosphereGlow);
             this.toggleClouds(settings.enableClouds);
