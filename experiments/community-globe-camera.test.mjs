@@ -169,6 +169,53 @@ test('participant label offset keeps text beside and above the marker at close z
     assert.ok(nearOffset.depth < farOffset.depth, 'zooming in should move the label from the marker top toward the sharp tip');
 });
 
+test('participant label connector targets the marker vertical spline when text is offset', async () => {
+    const CommunityGlobe = await loadCommunityGlobeClass();
+    const globe = createGlobePrototypeInstance(CommunityGlobe);
+    const marker = new THREE.Group();
+    const label = new THREE.Object3D();
+    const connector = new THREE.Line(
+        new THREE.BufferGeometry(),
+        new THREE.LineBasicMaterial({ transparent: true, opacity: 1 })
+    );
+
+    label.position.set(0.05, 0.12, -0.03);
+    marker.userData = { label, labelConnector: connector };
+
+    globe.updateParticipantLabelConnector(marker);
+
+    const positions = Array.from(connector.geometry.getAttribute('position').array);
+    assert.deepEqual(
+        positions.map(value => round(value, 3)),
+        [0, 0.12, 0, 0.05, 0.12, -0.03],
+        'connector should run from the marker spline target to the label center'
+    );
+    assert.equal(connector.visible, true);
+
+    label.position.set(0.00001, 0.12, -0.00001);
+    globe.updateParticipantLabelConnector(marker);
+
+    assert.equal(connector.visible, false, 'connector should hide when the label center is already on the marker spline');
+
+    const visual = new THREE.Group();
+    visual.scale.setScalar(0.5);
+    visual.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 4);
+    marker.userData.visual = visual;
+    label.position.set(0.05, 0.12, -0.03);
+
+    globe.updateParticipantLabelConnector(marker);
+
+    const tiltedPositions = Array.from(connector.geometry.getAttribute('position').array);
+    const expectedTiltedAnchor = new THREE.Vector3(0, 0.12 / visual.scale.y, 0)
+        .multiply(visual.scale)
+        .applyQuaternion(visual.quaternion);
+    assert.deepEqual(
+        tiltedPositions.slice(0, 3).map(value => round(value, 3)),
+        expectedTiltedAnchor.toArray().map(value => round(value, 3)),
+        'connector anchor should follow the tilted marker body axis'
+    );
+});
+
 test('participant marker click centers camera on the rendered marker position at close zoom', async () => {
     const CommunityGlobe = await loadCommunityGlobeClass();
     const globe = createGlobePrototypeInstance(CommunityGlobe);

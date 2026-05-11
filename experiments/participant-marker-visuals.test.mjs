@@ -55,6 +55,18 @@ test('participant labels keep screen-space clearance from marker points by defau
     assert.match(source, /getNonNegativeNumber\(this\.options\.participantMarkerLabelGap,\s*0\)/, 'zero label gap should be accepted');
 });
 
+test('offset participant labels draw connectors back to the marker spline', async () => {
+    const { source } = await loadCommunityGlobeClass();
+
+    assert.match(source, /createParticipantLabelConnector\(participant\)/, 'markers should create a connector for offset labels');
+    assert.match(source, /marker\.userData\.labelConnector\s*=\s*labelConnector/, 'connector should be stored with the marker');
+    assert.match(source, /new THREE\.LineBasicMaterial\(/, 'connector should render as a 3D line');
+    assert.match(source, /getParticipantLabelConnectorAnchor/, 'connector anchor should follow the marker spline');
+    assert.match(source, /positionAttribute\.setXYZ\(0,\s*anchor\.x,\s*anchor\.y,\s*anchor\.z\)/, 'connector should start on the marker spline target');
+    assert.match(source, /positionAttribute\.setXYZ\(1,\s*labelPosition\.x,\s*labelPosition\.y,\s*labelPosition\.z\)/, 'connector should end at the label center');
+    assert.match(source, /this\.updateParticipantLabelConnector\(marker\);/, 'connector should update when label position changes');
+});
+
 test('participant labels stay renderable during close zoom', async () => {
     const { source } = await loadCommunityGlobeClass();
 

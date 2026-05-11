@@ -100,6 +100,9 @@ class CommunityGlobe {
             participantMarkerLabelSideOffset: 0,
             participantMarkerLabelUpOffset: 0,
             participantMarkerLabelCloseLift: 0,
+            participantMarkerLabelConnectorColor: null,
+            participantMarkerLabelConnectorOpacity: 0.9,
+            participantMarkerLabelConnectorThreshold: 0.002,
             participantLabelLiftDistance: 1.1,
             participantLabelLoweringDistance: 1.1,
             participantLabelHiddenOpacity: 0.12,
@@ -865,9 +868,13 @@ class CommunityGlobe {
 
         const label = this.createParticipantLabelMesh(participant, dimensions);
         if (label) {
+            const labelConnector = this.createParticipantLabelConnector(participant);
+            marker.add(labelConnector);
+            marker.userData.labelConnector = labelConnector;
             marker.add(label);
             marker.userData.label = label;
             this.participantLabels.push(label);
+            this.updateParticipantLabelConnector(marker);
         }
 
         const rippleGroup = this.createParticipantRippleGroup(participant, dimensions);
@@ -933,6 +940,32 @@ class CommunityGlobe {
             console.error(`❌ Ошибка создания метки для участника ${participant.name}:`, error);
             return null;
         }
+    }
+
+    createParticipantLabelConnector(participant = {}) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+
+        const material = new THREE.LineBasicMaterial({
+            color: participant.labelConnectorColor
+                || this.options.participantMarkerLabelConnectorColor
+                || participant.markerColor
+                || this.options.participantPointColor
+                || this.options.highlightedPointColor
+                || '#e0fcff',
+            transparent: true,
+            opacity: this.getClampedNumber(this.options.participantMarkerLabelConnectorOpacity, 0.9, 0, 1),
+            linewidth: 2,
+            depthTest: false,
+            depthWrite: false
+        });
+
+        const connector = new THREE.Line(geometry, material);
+        connector.visible = false;
+        connector.frustumCulled = false;
+        connector.renderOrder = 9;
+
+        return connector;
     }
 
     createParticipantRippleGroup(participant, dimensions) {
@@ -1355,6 +1388,59 @@ class CommunityGlobe {
             material.transparent = true;
             material.opacity = opacity;
         });
+        this.updateParticipantLabelConnectorOpacity(label.parent, opacity);
+    }
+
+    updateParticipantLabelConnectorOpacity(marker, labelOpacity) {
+        const connector = marker?.userData?.labelConnector;
+        const material = connector?.material;
+        if (!material) return;
+
+        material.transparent = true;
+        material.opacity = labelOpacity * this.getClampedNumber(this.options.participantMarkerLabelConnectorOpacity, 0.9, 0, 1);
+    }
+
+    getParticipantLabelConnectorAnchor(marker, labelDepth) {
+        const y = this.getFiniteNumber(labelDepth, 0);
+        const visual = marker?.userData?.visual;
+
+        if (!visual) {
+            return new THREE.Vector3(0, y, 0);
+        }
+
+        const visualScaleY = this.getPositiveNumber(visual.scale?.y, 1);
+        const anchor = new THREE.Vector3(0, y / visualScaleY, 0);
+        anchor.multiply(visual.scale);
+        anchor.applyQuaternion(visual.quaternion);
+        anchor.add(visual.position);
+
+        return anchor;
+    }
+
+    updateParticipantLabelConnector(marker) {
+        const label = marker?.userData?.label;
+        const connector = marker?.userData?.labelConnector;
+        if (!label || !connector?.geometry) return;
+
+        const labelPosition = new THREE.Vector3(
+            this.getFiniteNumber(label.position?.x, 0),
+            this.getFiniteNumber(label.position?.y, 0),
+            this.getFiniteNumber(label.position?.z, 0)
+        );
+        const anchor = this.getParticipantLabelConnectorAnchor(marker, labelPosition.y);
+        const threshold = this.getPositiveNumber(this.options.participantMarkerLabelConnectorThreshold, 0.002);
+
+        let positionAttribute = connector.geometry.getAttribute('position');
+        if (!positionAttribute || positionAttribute.count < 2) {
+            connector.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+            positionAttribute = connector.geometry.getAttribute('position');
+        }
+
+        positionAttribute.setXYZ(0, anchor.x, anchor.y, anchor.z);
+        positionAttribute.setXYZ(1, labelPosition.x, labelPosition.y, labelPosition.z);
+        positionAttribute.needsUpdate = true;
+        connector.geometry.computeBoundingSphere();
+        connector.visible = labelPosition.distanceTo(anchor) > threshold;
     }
 
     updateParticipantLabelBillboard(label) {
@@ -1404,6 +1490,7 @@ class CommunityGlobe {
                     labelOffset.depth,
                     sidePosition.z + liftPosition.z
                 );
+                this.updateParticipantLabelConnector(marker);
             }
 
             visual.quaternion.identity();
@@ -1794,6 +1881,9 @@ class CommunityGlobe {
                 'participantMarkerLabelSideOffset',
                 'participantMarkerLabelUpOffset',
                 'participantMarkerLabelCloseLift',
+                'participantMarkerLabelConnectorColor',
+                'participantMarkerLabelConnectorOpacity',
+                'participantMarkerLabelConnectorThreshold',
                 'participantLabelLiftDistance',
                 'participantLabelLoweringDistance',
                 'participantLabelHiddenOpacity',
