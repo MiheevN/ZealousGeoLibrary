@@ -17,6 +17,18 @@
     - `GeoJson.cs`
 
 ### Добавлено
+- **Хранение гео-данных в базе данных через EF Core (Issue #55)**
+  - Провайдеро-независимое хранилище на базе Entity Framework Core (SQLite, PostgreSQL, SQL Server и др.)
+  - `DatabaseGeoDataContainerManager` и `DatabaseGeoDataContainer` реализуют существующие интерфейсы `IGeoDataContainerManager` / `IGeoDataContainer` — API не меняется
+  - Поддержка нескольких глобусов в одной таблице с изоляцией по `ContainerId` (составной ключ `ContainerId` + `Id`)
+  - Добавление участников по одному и пакетная загрузка из массива объектов с пропуском дубликатов
+  - Загрузка и выгрузка JSON напрямую в БД (`LoadFromJsonAsync`, `LoadFromJsonFileAsync`, `ExportToJsonAsync`)
+  - Регистрация через `AddGeoDataDatabase(configureDbContext)` и инициализация схемы через `EnsureGeoDataDatabaseCreatedAsync()`
+  - Общая логика загрузки/JSON вынесена в базовый класс `GeoDataContainerManagerBase` (общий для in-memory и БД менеджеров)
+  - Сущность `GeoDataParticipantEntity` и контекст `GeoDataDbContext` для маппинга `Participant`
+  - Тестовый проект `ZealousMindedPeopleGeo.Tests` с покрытием сценариев БД (SQLite in-memory)
+  - Пример `examples/GeoDataDatabaseExample.razor`
+
 - **Компонент настроек глобуса** (`CommunityGlobeSettings.razor`)
   - Полная настройка параметров глобуса через UI
   - Аккордеон с группировкой настроек (размеры, точки, вращение, освещение, атмосфера, облака, камера, цвета)

@@ -566,6 +566,74 @@ private void HandleDataChanged(string containerId, GeoDataChangeType changeType)
 }
 ```
 
+## 🗄️ Хранение гео-данных в базе данных
+
+Помимо хранения в памяти, библиотека поддерживает постоянное хранение гео-данных в реляционной базе данных через [Entity Framework Core](https://learn.microsoft.com/ef/core/). Реализация **не зависит от конкретного провайдера БД** — вы выбираете провайдер (SQLite, PostgreSQL, SQL Server и т. д.) при регистрации сервисов.
+
+`DatabaseGeoDataContainerManager` реализует тот же интерфейс `IGeoDataContainerManager`, что и хранилище в памяти, поэтому весь код работы с контейнерами (добавление по одному, загрузка массивом, загрузка/выгрузка JSON, несколько глобусов, подписка на изменения) остаётся неизменным — меняется только способ регистрации.
+
+### Регистрация сервисов
+
+```csharp
+// В Program.cs — выберите любой провайдер EF Core
+builder.Services.AddGeoDataDatabase(options =>
+    options.UseSqlite("Data Source=geodata.db"));
+
+// Пример для PostgreSQL:
+// builder.Services.AddGeoDataDatabase(options =>
+//     options.UseNpgsql(builder.Configuration.GetConnectionString("GeoData")));
+
+var app = builder.Build();
+
+// Создание схемы БД при старте (для разработки/демо).
+// В продакшене используйте миграции EF Core.
+await app.Services.EnsureGeoDataDatabaseCreatedAsync();
+```
+
+Для управления схемой в продакшене подключите [миграции EF Core](https://learn.microsoft.com/ef/core/managing-schemas/migrations/) к контексту `GeoDataDbContext` вместо `EnsureGeoDataDatabaseCreatedAsync`.
+
+### Работа с несколькими глобусами
+
+Каждый именованный контейнер (`containerId`) соответствует отдельному глобусу. Данные разных глобусов изолированы друг от друга в одной таблице за счёт колонки `ContainerId` (составной ключ `ContainerId` + `Id`), поэтому один и тот же участник может присутствовать в разных глобусах.
+
+```csharp
+@inject IGeoDataContainerManager ContainerManager
+
+// Данные сохраняются в БД и переживают перезапуск приложения
+var europe = ContainerManager.GetOrCreateContainer("europe");
+var asia = ContainerManager.GetOrCreateContainer("asia");
+
+// Добавление по одному
+await europe.AddParticipantAsync(new Participant { Name = "Берлин", Latitude = 52.52, Longitude = 13.405 });
+
+// Загрузка массивом (дубликаты по Id пропускаются)
+await asia.AddParticipantsAsync(new[]
+{
+    new Participant { Name = "Токио", Latitude = 35.6762, Longitude = 139.6503 },
+    new Participant { Name = "Дели", Latitude = 28.6139, Longitude = 77.2090 }
+});
+
+// Список всех глобусов, для которых есть данные в БД
+var globeIds = ContainerManager.GetContainerIds();
+```
+
+### Загрузка и выгрузка JSON
+
+API загрузки/выгрузки JSON идентичен хранилищу в памяти, но данные читаются и пишутся в БД:
+
+```csharp
+// Загрузка массива участников из JSON-строки прямо в БД
+await ContainerManager.LoadFromJsonAsync("europe", jsonContent);
+
+// Загрузка из файла
+await ContainerManager.LoadFromJsonFileAsync("europe", "data/europe.json");
+
+// Выгрузка содержимого глобуса из БД в JSON
+var json = await ContainerManager.ExportToJsonAsync("europe");
+```
+
+> 💡 Полный пример Blazor-страницы см. в [`examples/GeoDataDatabaseExample.razor`](examples/GeoDataDatabaseExample.razor).
+
 ## 💾 Кэширование
 
 Интеллектуальное кэширование для оптимизации производительности:
