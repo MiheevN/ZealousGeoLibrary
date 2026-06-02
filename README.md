@@ -82,6 +82,43 @@ var app = builder.Build();
 
 ### 3. Использование компонентов в Razor Pages
 
+#### Витрина всех возможностей (LibraryShowcaseComponent)
+
+`LibraryShowcaseComponent` — единый компонент, который демонстрирует **всю**
+функциональность библиотеки на одной странице: два независимых 3D глобуса, 2D карту,
+панели управления и настроек, форму регистрации участника, PWA-менеджер и экспорт данных.
+
+Каждое представление настроено собственным изолированным набором демонстрационных
+данных (именованный контейнер гео-данных или явный список участников), поэтому изменения
+в одном инстансе **не влияют** на другие.
+
+```razor
+@using ZealousMindedPeopleGeo.Components
+
+<PageTitle>Возможности библиотеки</PageTitle>
+
+<LibraryShowcaseComponent />
+```
+
+Готовые наборы данных доступны через `DemoDataSets` (`RussianCities`, `WorldCapitals`,
+`TechHubs`) — каждый вызов возвращает свежую независимую копию участников.
+
+Изоляция обеспечивается двумя новыми параметрами:
+
+- `CommunityGlobeViewer.DataContainerId` — загружает участников из указанного именованного
+  контейнера вместо общего репозитория;
+- `CommunityMapComponent.Participants` — отображает явный список участников без обращения
+  к общему репозиторию.
+
+```razor
+<!-- Два глобуса с независимыми данными -->
+<CommunityGlobeViewer GlobeId="globe-a" DataContainerId="data-a" Width="600" Height="400" />
+<CommunityGlobeViewer GlobeId="globe-b" DataContainerId="data-b" Width="600" Height="400" />
+
+<!-- Карта с явным набором участников -->
+<CommunityMapComponent MapId="map-c" Participants="@myParticipants" />
+```
+
 #### Одиночный 3D глобус
 
 ```razor

@@ -1,9 +1,12 @@
+@using ZealousMindedPeopleGeo.Models
 @using ZealousMindedPeopleGeo.Services.Mapping
 @using ZealousMindedPeopleGeo.Services.Repositories
+@using ZealousMindedPeopleGeo.Services.GeoDataContainer
 @inject IJSRuntime JSRuntime
 @inject GlobeStateService GlobeStateService
 @inject IGlobeMediator GlobeMediator
 @inject IParticipantRepository ParticipantRepository
+@inject IGeoDataContainerManager ContainerManager
 @implements IDisposable
 
 <HeadContent>
@@ -35,6 +38,14 @@
     [Parameter] public string GlobeId { get; set; } = "default";
     [Parameter] public int Width { get; set; } = 800;
     [Parameter] public int Height { get; set; } = 600;
+
+    /// <summary>
+    /// Необязательный идентификатор именованного контейнера гео-данных.
+    /// Если задан, участники загружаются из этого изолированного контейнера,
+    /// а не из общего <see cref="IParticipantRepository"/>. Это позволяет
+    /// нескольким экземплярам глобуса отображать независимые наборы данных.
+    /// </summary>
+    [Parameter] public string? DataContainerId { get; set; }
 
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
@@ -164,7 +175,17 @@
         {
             Console.WriteLine($"🔄 Загрузка участников для глобуса {GlobeId}...");
 
-            var participants = await ParticipantRepository.GetAllParticipantsAsync();
+            IEnumerable<Participant> participants;
+            if (!string.IsNullOrEmpty(DataContainerId))
+            {
+                var container = ContainerManager.GetOrCreateContainer(DataContainerId);
+                participants = await container.GetAllParticipantsAsync();
+                Console.WriteLine($"📦 Источник данных глобуса {GlobeId}: контейнер '{DataContainerId}'");
+            }
+            else
+            {
+                participants = await ParticipantRepository.GetAllParticipantsAsync();
+            }
             var participantsList = participants.ToList();
 
             Console.WriteLine($"📊 Загружено {participantsList.Count} участников для глобуса {GlobeId}");
