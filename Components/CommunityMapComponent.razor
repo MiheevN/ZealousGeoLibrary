@@ -21,7 +21,7 @@
     <div class="map-header">
         <h3>Community Map</h3>
         <div class="participants-count">
-            Total Participants: @Participants.Count()
+            Total Participants: @ParticipantsView.Count()
         </div>
     </div>
 
@@ -38,9 +38,9 @@
     @if (ShowParticipantsList)
     {
         <div class="participants-panel">
-            <h4>Community Members (@Participants.Count())</h4>
+            <h4>Community Members (@ParticipantsView.Count())</h4>
             <div class="participants-list">
-                @foreach (var participant in Participants.Where(p => p.Latitude != 0 && p.Longitude != 0))
+                @foreach (var participant in ParticipantsView.Where(p => p.Latitude != 0 && p.Longitude != 0))
                 {
                     <div class="participant-card" @onclick="() => ShowParticipantInfo(participant)">
                         <div class="participant-avatar">

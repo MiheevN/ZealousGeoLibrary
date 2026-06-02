@@ -1,0 +1,232 @@
+@using ZealousMindedPeopleGeo.Models
+@using ZealousMindedPeopleGeo.Services.GeoDataContainer
+@using ZealousMindedPeopleGeo.Services.Mapping
+@inject IGeoDataContainerManager ContainerManager
+@implements IDisposable
+
+<HeadContent>
+    <link href="/_content/ZealousMindedPeopleGeo/css/library-showcase.css" rel="stylesheet" />
+</HeadContent>
+
+<div class="zgl-showcase">
+    <header class="zgl-showcase-header">
+        <h2>ZealousMindedPeopleGeo — витрина возможностей</h2>
+        <p class="zgl-showcase-subtitle">
+            Все компоненты библиотеки на одной странице. Каждое представление настроено
+            собственным независимым набором данных, поэтому изменения в одном инстансе
+            не влияют на другие.
+        </p>
+    </header>
+
+    <nav class="zgl-showcase-tabs">
+        @foreach (var tab in Tabs)
+        {
+            <button class="zgl-tab @(tab.Key == _activeTab ? "active" : "")"
+                    @onclick="() => SetActiveTab(tab.Key)">
+                @tab.Title
+            </button>
+        }
+    </nav>
+
+    <section class="zgl-showcase-body">
+        @* --- 3D глобус №1: Города России --- *@
+        <div class="zgl-tab-panel @(_activeTab == "globe-russia" ? "active" : "")">
+            <h3>3D глобус №1 — Города России</h3>
+            <p class="zgl-panel-note">
+                Источник данных: изолированный контейнер
+                <code>@RussianGlobeContainer</code> (@(DataSetCount(RussianGlobeContainer)) точек).
+            </p>
+            <CommunityGlobeViewer GlobeId="@RussianGlobeId"
+                                  DataContainerId="@RussianGlobeContainer"
+                                  Width="760" Height="480" />
+        </div>
+
+        @* --- 3D глобус №2: Столицы мира (изоляция данных) --- *@
+        <div class="zgl-tab-panel @(_activeTab == "globe-capitals" ? "active" : "")">
+            <h3>3D глобус №2 — Столицы мира</h3>
+            <p class="zgl-panel-note">
+                Отдельный глобус с другим контейнером
+                <code>@CapitalsGlobeContainer</code> (@(DataSetCount(CapitalsGlobeContainer)) точек).
+                Данные полностью независимы от глобуса №1.
+            </p>
+            <CommunityGlobeViewer GlobeId="@CapitalsGlobeId"
+                                  DataContainerId="@CapitalsGlobeContainer"
+                                  Width="760" Height="480" />
+        </div>
+
+        @* --- 2D карта: Технологические хабы --- *@
+        <div class="zgl-tab-panel @(_activeTab == "map" ? "active" : "")">
+            <h3>2D карта — Технологические хабы</h3>
+            <p class="zgl-panel-note">
+                Карта получает явный список участников (@(_techHubs.Count) точек),
+                не затрагивая общий репозиторий и глобусы.
+            </p>
+            <CommunityMapComponent MapId="showcase-tech-map"
+                                   Participants="_techHubs"
+                                   Height="480px"
+                                   ShowParticipantsList="true" />
+        </div>
+
+        @* --- Управление и настройки глобуса --- *@
+        <div class="zgl-tab-panel @(_activeTab == "controls" ? "active" : "")">
+            <h3>Управление и настройки глобуса</h3>
+            <p class="zgl-panel-note">
+                Эти панели управляют глобусом <code>@RussianGlobeId</code>
+                (вкладка «3D глобус №1»).
+            </p>
+            <div class="zgl-controls-grid">
+                <CommunityGlobeControls GlobeId="@RussianGlobeId"
+                                        CurrentLatitude="55.7558"
+                                        CurrentLongitude="37.6173" />
+                <CommunityGlobeSettings GlobeId="@RussianGlobeId" />
+            </div>
+        </div>
+
+        @* --- Форма регистрации участника --- *@
+        <div class="zgl-tab-panel @(_activeTab == "form" ? "active" : "")">
+            <h3>Форма добавления участника</h3>
+            <p class="zgl-panel-note">
+                Форма пишет в собственный демонстрационный контейнер
+                <code>@FormGlobeContainer</code> и отображает точку на отдельном глобусе ниже.
+            </p>
+            <div class="zgl-form-grid">
+                <GeoDataParticipantForm DataContainerId="@FormGlobeContainer"
+                                        GlobeId="@FormGlobeId"
+                                        Title="Добавить участника"
+                                        OnParticipantAdded="HandleParticipantAdded" />
+                <CommunityGlobeViewer GlobeId="@FormGlobeId"
+                                      DataContainerId="@FormGlobeContainer"
+                                      Width="520" Height="420" />
+            </div>
+            @if (!string.IsNullOrEmpty(_formMessage))
+            {
+                <div class="alert alert-success">@_formMessage</div>
+            }
+        </div>
+
+        @* --- PWA --- *@
+        <div class="zgl-tab-panel @(_activeTab == "pwa" ? "active" : "")">
+            <h3>PWA — установка и оффлайн</h3>
+            <p class="zgl-panel-note">
+                Компонент управления Progressive Web App: установка, обновление кэша и уведомления.
+            </p>
+            <PwaManagerComponent ShowInstallPrompt="true" AutoCheckUpdates="true" />
+        </div>
+
+        @* --- Контейнеры данных и JSON-экспорт --- *@
+        <div class="zgl-tab-panel @(_activeTab == "data" ? "active" : "")">
+            <h3>Контейнеры данных и экспорт</h3>
+            <p class="zgl-panel-note">
+                Каждое представление использует собственный именованный контейнер.
+                Это и обеспечивает изоляцию данных между инстансами.
+            </p>
+            <table class="zgl-data-table">
+                <thead>
+                    <tr><th>Контейнер</th><th>Назначение</th><th>Точек</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var (id, purpose) in ContainerDescriptions)
+                    {
+                        <tr>
+                            <td><code>@id</code></td>
+                            <td>@purpose</td>
+                            <td>@DataSetCount(id)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="zgl-export-controls">
+                <select @bind="_exportContainerId" class="form-select">
+                    @foreach (var (id, _) in ContainerDescriptions)
+                    {
+                        <option value="@id">@id</option>
+                    }
+                </select>
+                <button class="btn btn-secondary" @onclick="ExportToJsonAsync">Экспортировать в JSON</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_jsonExport))
+            {
+                <pre class="zgl-json-export">@_jsonExport</pre>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    // --- Идентификаторы изолированных представлений ---
+    private const string RussianGlobeId = "showcase-russia";
+    private const string RussianGlobeContainer = "showcase-russia-data";
+    private const string CapitalsGlobeId = "showcase-capitals";
+    private const string CapitalsGlobeContainer = "showcase-capitals-data";
+    private const string FormGlobeId = "showcase-form";
+    private const string FormGlobeContainer = "showcase-form-data";
+
+    private readonly List<(string Key, string Title)> Tabs = new()
+    {
+        ("globe-russia", "3D глобус №1"),
+        ("globe-capitals", "3D глобус №2"),
+        ("map", "2D карта"),
+        ("controls", "Управление"),
+        ("form", "Форма"),
+        ("pwa", "PWA"),
+        ("data", "Данные"),
+    };
+
+    private IReadOnlyList<(string Id, string Purpose)> ContainerDescriptions => new List<(string, string)>
+    {
+        (RussianGlobeContainer, "3D глобус №1 — Города России"),
+        (CapitalsGlobeContainer, "3D глобус №2 — Столицы мира"),
+        (FormGlobeContainer, "Форма регистрации участника"),
+    };
+
+    private string _activeTab = "globe-russia";
+    private List<Participant> _techHubs = new();
+    private string _exportContainerId = RussianGlobeContainer;
+    private string? _jsonExport;
+    private string? _formMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Каждое представление наполняется собственным независимым набором данных.
+        await ContainerManager.LoadDataAsync(RussianGlobeContainer, DemoDataSets.RussianCities());
+        await ContainerManager.LoadDataAsync(CapitalsGlobeContainer, DemoDataSets.WorldCapitals());
+
+        // Форма стартует с пустым контейнером, чтобы пользователь добавлял точки сам.
+        ContainerManager.GetOrCreateContainer(FormGlobeContainer);
+
+        // 2D-карта получает явный список — данные не попадают в общий репозиторий.
+        _techHubs = DemoDataSets.TechHubs();
+
+        ContainerManager.OnDataChanged += HandleDataChanged;
+    }
+
+    private void SetActiveTab(string key)
+    {
+        _activeTab = key;
+    }
+
+    private int DataSetCount(string containerId) => ContainerManager.GetContainer(containerId)?.Count ?? 0;
+
+    private async Task ExportToJsonAsync()
+    {
+        _jsonExport = await ContainerManager.ExportToJsonAsync(_exportContainerId);
+    }
+
+    private void HandleParticipantAdded(Participant participant)
+    {
+        _formMessage = $"Добавлен участник «{participant.Name}» ({participant.Latitude:F4}, {participant.Longitude:F4}).";
+        StateHasChanged();
+    }
+
+    private void HandleDataChanged(string containerId, GeoDataChangeType changeType)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ContainerManager.OnDataChanged -= HandleDataChanged;
+    }
+}

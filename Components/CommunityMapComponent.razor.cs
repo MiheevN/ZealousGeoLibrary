@@ -14,8 +14,16 @@ public partial class CommunityMapComponent : IAsyncDisposable
     [Parameter] public bool ShowParticipantsList { get; set; } = true;
     [Parameter] public EventCallback<Participant> OnMarkerClick { get; set; }
 
+    /// <summary>
+    /// Необязательный явный набор участников для отображения на карте.
+    /// Если задан, карта использует именно его вместо общего
+    /// <see cref="Services.Repositories.IParticipantRepository"/>. Это позволяет
+    /// нескольким картам показывать независимые, изолированные данные.
+    /// </summary>
+    [Parameter] public IEnumerable<Participant>? Participants { get; set; }
+
     private Participant? SelectedParticipant;
-    private IEnumerable<Participant> Participants = new List<Participant>();
+    private IEnumerable<Participant> ParticipantsView = new List<Participant>();
     private bool _isLoading = true;
     private DotNetObjectReference<CommunityMapComponent>? _dotNetRef;
 
@@ -34,8 +42,8 @@ public partial class CommunityMapComponent : IAsyncDisposable
             _isLoading = true;
             StateHasChanged();
 
-            Participants = await ParticipantRepository.GetAllParticipantsAsync();
-            Logger.LogInformation("Загружено {Count} участников для карты", Participants.Count());
+            ParticipantsView = Participants ?? await ParticipantRepository.GetAllParticipantsAsync();
+            Logger.LogInformation("Загружено {Count} участников для карты", ParticipantsView.Count());
 
             var apiKey = Options.Value.GoogleMapsApiKey ?? "";
             var centerLat = Options.Value.Map?.DefaultLatitude ?? 20.0;
@@ -52,7 +60,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
                 zoom,
                 MapId);
 
-            var participantsJson = JsonSerializer.Serialize(Participants);
+            var participantsJson = JsonSerializer.Serialize(ParticipantsView);
             await JSRuntime.InvokeVoidAsync("loadParticipantsOnMap", participantsJson, MapId);
 
             _isLoading = false;
@@ -69,7 +77,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
     [JSInvokable]
     public async Task OnParticipantMarkerClick(string participantId)
     {
-        var participant = Participants.FirstOrDefault(p => p.Id.ToString() == participantId);
+        var participant = ParticipantsView.FirstOrDefault(p => p.Id.ToString() == participantId);
         if (participant != null)
         {
             SelectedParticipant = participant;
