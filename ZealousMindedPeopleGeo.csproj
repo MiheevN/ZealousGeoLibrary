@@ -8,7 +8,7 @@
 
     <!-- Информация о пакете -->
     <PackageId>ZealousMindedPeopleGeo</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>Zealous Minded People Community</Authors>
     <Company>Zealous Minded People</Company>
     <Description>Библиотека для создания интерактивных географических приложений сообщества людей, объединенных стремлением сделать мир добрее и гармоничнее. Включает карты, 3D глобус, геокодирование, PWA поддержку и многое другое.</Description>
@@ -75,9 +75,18 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
+  <!-- Тестовый проект не входит в сборку библиотеки -->
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Content Remove="tests/**/*" />
+    <None Remove="tests/**/*" />
+  </ItemGroup>
+
   <!-- Ссылки на пакеты -->
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.7" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.7" />

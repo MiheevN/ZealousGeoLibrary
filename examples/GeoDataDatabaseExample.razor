@@ -1,0 +1,155 @@
+@page "/geodata-database-example"
+@using ZealousMindedPeopleGeo.Services.GeoDataContainer
+@using ZealousMindedPeopleGeo.Models
+@inject IGeoDataContainerManager ContainerManager
+@implements IDisposable
+
+@*
+    Пример работы с гео-данными, которые хранятся в базе данных.
+
+    Менеджер контейнеров регистрируется в Program.cs:
+
+        builder.Services.AddGeoDataDatabase(options =>
+            options.UseSqlite("Data Source=geodata.db"));
+
+        var app = builder.Build();
+        await app.Services.EnsureGeoDataDatabaseCreatedAsync();
+
+    После этого тот же интерфейс IGeoDataContainerManager работает поверх БД:
+    данные переживают перезапуск приложения, а каждый глобус (containerId)
+    хранится изолированно в одной таблице.
+*@
+
+<h3>Гео-данные в базе данных</h3>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h4>Глобус</h4></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Идентификатор глобуса (containerId):</label>
+                    <input type="text" @bind="_globeId" class="form-control" />
+                </div>
+
+                <div class="btn-group mb-3">
+                    <button class="btn btn-primary" @onclick="AddOne">Добавить одного</button>
+                    <button class="btn btn-info" @onclick="LoadArray">Загрузить массив</button>
+                    <button class="btn btn-secondary" @onclick="ExportJson">Экспорт в JSON</button>
+                    <button class="btn btn-danger" @onclick="ClearGlobe">Очистить</button>
+                </div>
+
+                <p>Участников в текущем глобусе (из БД): <strong>@CurrentCount</strong></p>
+
+                <h5>Глобусы с данными в БД:</h5>
+                <ul>
+                    @foreach (var id in ContainerManager.GetContainerIds())
+                    {
+                        <li>@id (@ContainerManager.GetContainer(id)?.Count)</li>
+                    }
+                </ul>
+
+                @if (!string.IsNullOrEmpty(_message))
+                {
+                    <div class="alert @_messageClass">@_message</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h4>JSON</h4></div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(_jsonExport))
+                {
+                    <pre class="bg-light p-3">@_jsonExport</pre>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _globeId = "europe";
+    private string? _message;
+    private string _messageClass = "alert-info";
+    private string? _jsonExport;
+    private int _counter;
+
+    private int CurrentCount => ContainerManager.GetContainer(_globeId)?.Count ?? 0;
+
+    protected override void OnInitialized()
+    {
+        ContainerManager.OnDataChanged += HandleDataChanged;
+    }
+
+    // Добавление объектов по одному — сохраняется напрямую в БД
+    private async Task AddOne()
+    {
+        var container = ContainerManager.GetOrCreateContainer(_globeId);
+        var participant = new Participant
+        {
+            Id = Guid.NewGuid(),
+            Name = $"Точка {++_counter}",
+            Email = $"point{_counter}@example.com",
+            Address = "Адрес",
+            Location = "Локация",
+            Latitude = 55.7558 + _counter,
+            Longitude = 37.6176 + _counter
+        };
+
+        var result = await container.AddParticipantAsync(participant);
+        Show(result.Success
+            ? $"Добавлен '{participant.Name}' в глобус '{_globeId}'"
+            : $"Ошибка: {result.ErrorMessage}", result.Success);
+    }
+
+    // Загрузка из массива объектов — пакетная вставка в БД
+    private async Task LoadArray()
+    {
+        var participants = new[]
+        {
+            new Participant { Id = Guid.NewGuid(), Name = "Берлин", Latitude = 52.5200, Longitude = 13.4050 },
+            new Participant { Id = Guid.NewGuid(), Name = "Париж", Latitude = 48.8566, Longitude = 2.3522 },
+            new Participant { Id = Guid.NewGuid(), Name = "Мадрид", Latitude = 40.4168, Longitude = -3.7038 }
+        };
+
+        var result = await ContainerManager.LoadDataAsync(_globeId, participants);
+        Show(result.Success
+            ? $"Загружено {result.ProcessedCount} участников в глобус '{_globeId}'"
+            : $"Ошибка: {result.ErrorMessage}", result.Success);
+    }
+
+    private async Task ExportJson()
+    {
+        _jsonExport = await ContainerManager.ExportToJsonAsync(_globeId);
+    }
+
+    private async Task ClearGlobe()
+    {
+        var container = ContainerManager.GetContainer(_globeId);
+        if (container is null)
+        {
+            Show($"Глобус '{_globeId}' пуст", false);
+            return;
+        }
+
+        var result = await container.ClearAsync();
+        Show($"Удалено {result.ProcessedCount} участников из '{_globeId}'", result.Success);
+    }
+
+    private void Show(string message, bool success)
+    {
+        _message = message;
+        _messageClass = success ? "alert-success" : "alert-danger";
+    }
+
+    private void HandleDataChanged(string containerId, GeoDataChangeType changeType)
+        => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        ContainerManager.OnDataChanged -= HandleDataChanged;
+    }
+}

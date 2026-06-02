@@ -1,6 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services.GeoDataContainer.Persistence;
 using ZealousMindedPeopleGeo.Services.Mapping;
 
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
@@ -12,7 +14,7 @@ namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 public static class GeoDataLoaderExtensions
 {
     /// <summary>
-    /// Регистрирует сервисы для работы с именованными контейнерами гео-данных
+    /// Регистрирует сервисы для работы с именованными контейнерами гео-данных (хранение в памяти)
     /// </summary>
     /// <param name="services">Коллекция сервисов</param>
     /// <returns>Коллекция сервисов для цепочки вызовов</returns>
@@ -20,6 +22,56 @@ public static class GeoDataLoaderExtensions
     {
         services.AddSingleton<IGeoDataContainerManager, GeoDataContainerManager>();
         return services;
+    }
+
+    /// <summary>
+    /// Регистрирует сервисы для работы с именованными контейнерами гео-данных
+    /// с хранением в базе данных. Менеджер контейнеров (<see cref="IGeoDataContainerManager"/>)
+    /// будет использовать БД вместо памяти, что позволяет сохранять данные множества
+    /// глобусов между запусками приложения.
+    /// </summary>
+    /// <param name="services">Коллекция сервисов</param>
+    /// <param name="configureDbContext">
+    /// Делегат настройки контекста БД. Провайдер выбирается потребителем библиотеки,
+    /// например: <c>options =&gt; options.UseSqlite("Data Source=geodata.db")</c>.
+    /// </param>
+    /// <returns>Коллекция сервисов для цепочки вызовов</returns>
+    /// <remarks>
+    /// После построения провайдера сервисов вызовите
+    /// <see cref="EnsureGeoDataDatabaseCreatedAsync"/>, чтобы создать схему БД,
+    /// либо примените миграции EF Core самостоятельно.
+    /// </remarks>
+    public static IServiceCollection AddGeoDataDatabase(
+        this IServiceCollection services,
+        Action<DbContextOptionsBuilder> configureDbContext)
+    {
+        ArgumentNullException.ThrowIfNull(configureDbContext);
+
+        // Фабрика контекстов безопасна для многопоточной среды (в т.ч. Blazor)
+        services.AddDbContextFactory<GeoDataDbContext>(configureDbContext);
+
+        // Менеджер контейнеров с хранением в БД заменяет реализацию по умолчанию
+        services.AddSingleton<IGeoDataContainerManager, DatabaseGeoDataContainerManager>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Создает схему базы данных гео-данных, если она ещё не существует
+    /// (через <c>EnsureCreated</c>). Удобно для разработки, тестов и сценариев
+    /// без миграций. Для продакшена рекомендуется использовать миграции EF Core.
+    /// </summary>
+    /// <param name="serviceProvider">Провайдер сервисов</param>
+    /// <param name="ct">Токен отмены операции</param>
+    /// <returns>Задача инициализации</returns>
+    public static async Task EnsureGeoDataDatabaseCreatedAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken ct = default)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<GeoDataDbContext>>();
+        await using var context = await factory.CreateDbContextAsync(ct);
+        await context.Database.EnsureCreatedAsync(ct);
     }
 
     /// <summary>
