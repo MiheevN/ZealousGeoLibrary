@@ -10,6 +10,7 @@
 - **3D глобус сообщества** - Трехмерная визуализация планеты с интерактивными точками участников
 - **Настройки глобуса** - Полная настройка параметров глобуса (размеры, освещение, атмосфера, облака)
 - **Динамическое управление** - Включение/выключение атмосферы и облаков в реальном времени
+- **Синхронизация между пользователями** - Изменения точек обновляются у активных пользователей без постоянного опроса
 - **Множественные глобусы** - Поддержка нескольких независимых 3D глобусов на одной странице
 - **Именованные контейнеры гео-данных** - Удобная организация данных в именованных контейнерах для разных глобусов
 - **Управление состоянием** - Централизованное управление состоянием всех глобусов
@@ -564,6 +565,29 @@ private void HandleDataChanged(string containerId, GeoDataChangeType changeType)
     Console.WriteLine($"Container '{containerId}' changed: {changeType}");
     // GeoDataChangeType: Added, Updated, Removed, Cleared, BulkLoaded
 }
+```
+
+### Автоматическая синхронизация без polling
+
+`AddZealousMindedPeopleGeo(...)`, `AddZealousMindedPeopleGeoServices()`,
+`AddGeoDataContainers()` и `AddGeoDataDatabase(...)` регистрируют общий
+`IGeoDataChangeNotifier`. Встроенные контейнеры и репозитории публикуют изменения
+через него, а активные компоненты Blazor обновляют отображение через обычный
+рендеринг Blazor:
+
+- `CommunityGlobeViewer` с `DataContainerId` перезагружает точки при изменении этого контейнера;
+- `CommunityGlobeViewer` без `DataContainerId` перезагружает точки при изменении общего `IParticipantRepository`;
+- `CommunityMapComponent` без явного параметра `Participants` обновляет маркеры при изменении общего `IParticipantRepository`.
+
+Для собственных репозиториев участников публикуйте событие после успешной записи:
+
+```csharp
+@inject IGeoDataChangeNotifier ChangeNotifier
+
+ChangeNotifier.Publish(
+    GeoDataChangeNotification.ForParticipantRepository(
+        GeoDataChangeType.Added,
+        participant.Id));
 ```
 
 ## 🗄️ Хранение гео-данных в базе данных
