@@ -86,6 +86,46 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
         }
     }
 
+    public async ValueTask<GlobeOperationResult> AddParticipantAsync(string containerId, Participant participant, CancellationToken ct = default)
+    {
+        if (participant == null)
+        {
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Participant cannot be null" };
+        }
+
+        try
+        {
+            if (_module == null)
+            {
+                return new GlobeOperationResult { Success = false, ErrorMessage = "Globe module not initialized" };
+            }
+
+            var participantData = new
+            {
+                id = participant.Id.ToString(),
+                participant.Name,
+                participant.Latitude,
+                participant.Longitude,
+                location = $"{participant.Name} ({participant.Latitude:F4}, {participant.Longitude:F4})"
+            };
+
+            var success = await _module.InvokeAsync<bool>("addParticipant", containerId, participantData);
+
+            if (success)
+            {
+                _logger.LogInformation("✅ Добавлен участник {Name} в глобус {ContainerId}", participant.Name, containerId);
+                return new GlobeOperationResult { Success = true, ProcessedCount = 1 };
+            }
+
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Participant already exists or globe instance not found" };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Ошибка при добавлении участника {Name} в контейнер {ContainerId}", participant.Name, containerId);
+            return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
     public async ValueTask<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
     {
         if (participants == null)

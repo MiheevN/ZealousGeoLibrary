@@ -8,7 +8,7 @@
 
     <!-- Информация о пакете -->
     <PackageId>ZealousMindedPeopleGeo</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Authors>Zealous Minded People Community</Authors>
     <Company>Zealous Minded People</Company>
     <Description>Библиотека для создания интерактивных географических приложений сообщества людей, объединенных стремлением сделать мир добрее и гармоничнее. Включает карты, 3D глобус, геокодирование, PWA поддержку и многое другое.</Description>
@@ -18,6 +18,7 @@
       ✨ Возможности:
       • Интерактивная карта сообщества на Google Maps
       • 3D глобус с Three.js и интерактивным управлением
+      • Синхронизация изменений между пользователями без постоянного опроса
       • Геокодирование через Nominatim OpenStreetMap API
       • Гибкие источники данных (In-Memory, Google Sheets, JSON)
       • Полная PWA поддержка с оффлайн функциональностью
@@ -33,7 +34,7 @@
 
       📚 Подробная документация: https://github.com/zealousmindedpeople/geo-library
     </PackageDescription>
-    <PackageTags>geography;maps;community;blazor;threejs;pwa;geocoding;localization;validation;caching</PackageTags>
+    <PackageTags>geography;maps;community;blazor;threejs;pwa;geocoding;localization;validation;caching;realtime;synchronization</PackageTags>
     <PackageProjectUrl>https://github.com/zealousmindedpeople/geo-library</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <!-- Иконка пакета будет добавлена позже -->
@@ -41,6 +42,14 @@
     <RepositoryUrl>https://github.com/zealousmindedpeople/geo-library.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReleaseNotes>
+      v1.2.0
+
+      - Добавлена синхронизация изменений гео-данных между активными Blazor-пользователями без polling.
+      - Новый общий уведомитель IGeoDataChangeNotifier публикует изменения контейнеров и встроенных репозиториев.
+      - CommunityGlobeViewer и CommunityMapComponent автоматически обновляют точки при релевантных изменениях.
+      - InMemoryParticipantRepository в тестовой регистрации теперь singleton, чтобы данные были общими между пользователями.
+      - Исправлен путь одиночного добавления точки на 3D-глобус: существующие маркеры больше не заменяются одной новой точкой.
+
       v1.1.0
 
       - Новый компонент LibraryShowcaseComponent — единая витрина всех возможностей библиотеки

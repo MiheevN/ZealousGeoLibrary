@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using ZealousMindedPeopleGeo.Models;
 using ZealousMindedPeopleGeo.Services.GeoDataContainer.Persistence;
 using ZealousMindedPeopleGeo.Services.Mapping;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
@@ -20,7 +22,8 @@ public static class GeoDataLoaderExtensions
     /// <returns>Коллекция сервисов для цепочки вызовов</returns>
     public static IServiceCollection AddGeoDataContainers(this IServiceCollection services)
     {
-        services.AddSingleton<IGeoDataContainerManager, GeoDataContainerManager>();
+        services.AddGeoDataChangeNotifications();
+        services.TryAddSingleton<IGeoDataContainerManager, GeoDataContainerManager>();
         return services;
     }
 
@@ -46,6 +49,8 @@ public static class GeoDataLoaderExtensions
         Action<DbContextOptionsBuilder> configureDbContext)
     {
         ArgumentNullException.ThrowIfNull(configureDbContext);
+
+        services.AddGeoDataChangeNotifications();
 
         // Фабрика контекстов безопасна для многопоточной среды (в т.ч. Blazor)
         services.AddDbContextFactory<GeoDataDbContext>(configureDbContext);
@@ -282,16 +287,17 @@ public class GlobeDataInitializer
                 return addResult;
             }
 
-            // 3. Добавляем участника на глобус
-            var globeResult = await _globeMediator.AddParticipantAsync(htmlContainerId, participant);
+            // 3. Обновляем глобус полным текущим набором, чтобы удалить устаревшие точки
+            var participants = (await container.GetAllParticipantsAsync(ct)).ToList();
+            var globeResult = await _globeMediator.AddParticipantsAsync(htmlContainerId, participants);
 
             if (globeResult.Success)
             {
                 // 4. Обновляем состояние
                 _globeStateService.UpdateState(globeId, s =>
                 {
-                    s.Participants.Add(participant);
-                    s.ParticipantCount = s.Participants.Count;
+                    s.Participants = participants;
+                    s.ParticipantCount = participants.Count;
                 });
             }
 

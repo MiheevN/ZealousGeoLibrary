@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services.GeoDataContainer;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Services.Repositories;
 
@@ -12,10 +14,14 @@ public class InMemoryParticipantRepository : IParticipantRepository
 {
     private readonly ConcurrentDictionary<Guid, Participant> _participants = new();
     private readonly ILogger<InMemoryParticipantRepository> _logger;
+    private readonly IGeoDataChangeNotifier? _changeNotifier;
 
-    public InMemoryParticipantRepository(ILogger<InMemoryParticipantRepository> logger)
+    public InMemoryParticipantRepository(
+        ILogger<InMemoryParticipantRepository> logger,
+        IGeoDataChangeNotifier? changeNotifier = null)
     {
         _logger = logger;
+        _changeNotifier = changeNotifier;
     }
 
     public ValueTask<RepositoryResult> AddParticipantAsync(Participant participant, CancellationToken ct = default)
@@ -44,6 +50,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
             _participants[participant.Id] = participant;
 
             _logger.LogInformation("Participant {Name} added with ID {Id}", participant.Name, participant.Id);
+            PublishChange(GeoDataChangeType.Added, participant.Id);
 
             return ValueTask.FromResult(new RepositoryResult
             {
@@ -127,6 +134,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
             _participants[participant.Id] = participant;
 
             _logger.LogInformation("Participant {Name} updated with ID {Id}", participant.Name, participant.Id);
+            PublishChange(GeoDataChangeType.Updated, participant.Id);
 
             return ValueTask.FromResult(new RepositoryResult
             {
@@ -153,6 +161,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
             if (_participants.TryRemove(id, out var removedParticipant))
             {
                 _logger.LogInformation("Participant {Name} deleted with ID {Id}", removedParticipant.Name, id);
+                PublishChange(GeoDataChangeType.Removed, id);
 
                 return ValueTask.FromResult(new RepositoryResult
                 {
@@ -195,5 +204,14 @@ public class InMemoryParticipantRepository : IParticipantRepository
     /// <summary>
     /// Очищает все данные (для тестирования)
     /// </summary>
-    public void ClearAll() => _participants.Clear();
+    public void ClearAll()
+    {
+        _participants.Clear();
+        PublishChange(GeoDataChangeType.Cleared, null);
+    }
+
+    private void PublishChange(GeoDataChangeType changeType, Guid? participantId)
+    {
+        _changeNotifier?.Publish(GeoDataChangeNotification.ForParticipantRepository(changeType, participantId));
+    }
 }

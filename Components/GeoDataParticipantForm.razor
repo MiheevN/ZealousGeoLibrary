@@ -189,14 +189,15 @@
             // 4. Добавление на глобус (если указан)
             if (!string.IsNullOrEmpty(GlobeId) && !string.IsNullOrEmpty(EffectiveGlobeContainerId))
             {
-                var globeResult = await GlobeMediator.AddParticipantAsync(EffectiveGlobeContainerId, participant);
+                var participants = (await container.GetAllParticipantsAsync()).ToList();
+                var globeResult = await GlobeMediator.AddParticipantsAsync(EffectiveGlobeContainerId, participants);
 
                 if (globeResult.Success)
                 {
                     GlobeStateService.UpdateState(GlobeId, s =>
                     {
-                        s.Participants.Add(participant);
-                        s.ParticipantCount = s.Participants.Count;
+                        s.Participants = participants;
+                        s.ParticipantCount = participants.Count;
                     });
                     Logger.LogInformation("Participant '{Name}' added to globe '{GlobeId}'", participant.Name, GlobeId);
                 }
