@@ -1,0 +1,40 @@
+@page "/globe"
+@using ZealousMindedPeopleGeo.Services.GeoDataContainer
+@inject IGeoDataContainerManager ContainerManager
+@implements IDisposable
+
+<PageTitle>Глобус</PageTitle>
+
+<h1>Один глобус, города России</h1>
+<p>Контейнер <code>@ContainerId</code>, точек: @Count.</p>
+
+<CommunityGlobeViewer GlobeId="@GlobeId"
+                      DataContainerId="@ContainerId"
+                      Width="900"
+                      Height="640" />
+
+@code {
+    private const string GlobeId = "preview-russia";
+    private const string ContainerId = "preview-russia-data";
+
+    private int Count => ContainerManager.GetContainer(ContainerId)?.Count ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ContainerManager.LoadDataAsync(ContainerId, DemoDataSets.RussianCities());
+        ContainerManager.OnDataChanged += OnDataChanged;
+    }
+
+    private void OnDataChanged(string containerId, GeoDataChangeType changeType)
+    {
+        if (containerId == ContainerId)
+        {
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        ContainerManager.OnDataChanged -= OnDataChanged;
+    }
+}

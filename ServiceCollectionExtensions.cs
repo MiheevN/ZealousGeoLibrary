@@ -58,11 +58,18 @@ namespace ZealousMindedPeopleGeo
         public static IServiceCollection AddZealousMindedPeopleGeoServices(
             this IServiceCollection services)
         {
+            // Пустые опции: карта и геокодирование читают IOptions даже без appsettings.
+            services.AddOptions<ZealousMindedPeopleGeoOptions>();
+            services.AddMemoryCache();
+
             // Регистрация HTTP клиента для геокодирования
-            services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>(client =>
+            services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
             {
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("ZealousMindedPeopleGeo/1.0");
             });
+            services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
+            services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
+            services.AddScoped<IPwaService, PwaService>();
 
             // Регистрация сервисов с зависимостями
             services.AddScoped<IParticipantRepository, InMemoryParticipantRepository>();

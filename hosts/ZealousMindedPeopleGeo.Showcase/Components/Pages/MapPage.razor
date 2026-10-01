@@ -1,0 +1,19 @@
+@page "/map"
+
+<PageTitle>Карта</PageTitle>
+
+<h1>Карта технологических хабов</h1>
+
+<CommunityMapComponent MapId="preview-tech-map"
+                       Participants="_hubs"
+                       Height="640px"
+                       ShowParticipantsList="true" />
+
+@code {
+    private List<Participant> _hubs = new();
+
+    protected override void OnInitialized()
+    {
+        _hubs = DemoDataSets.TechHubs();
+    }
+}
