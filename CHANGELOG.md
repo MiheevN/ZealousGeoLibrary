@@ -80,6 +80,12 @@
   - Антарктида не рисовалась совсем: полоса от −180° до 180° схлопывалась в нулевую ширину
   - Тесты `experiments/community-map-2d.test.mjs` падали на Node 21+, где `globalThis.navigator` доступен только для чтения
 
+- **PwaService: "Illegal return statement" при каждом открытии витрины**
+  - Скрипты для `eval` с `return` на верхнем уровне заменены функциями ES-модуля `wwwroot/js/pwa.js`, модуль подключается через `import`
+  - `PwaManagerComponent` получает реальное состояние установки и кэша; публичный API `PwaService` не изменился
+  - Заголовок и текст уведомления передаются аргументами, а не подставляются в текст скрипта
+  - `PwaManagerComponent` реализует `IDisposable`, таймер проверки обновлений останавливается вместе с компонентом
+
 - **Ошибка "Cannot read properties of null (reading 'removeChild')"**
   - Добавлена проверка `contains()` перед вызовом `removeChild()` в `setupScene()`
   - Добавлен флаг `_isRendering` для предотвращения конфликтов рендеринга
