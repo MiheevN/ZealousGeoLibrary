@@ -59,7 +59,13 @@
             }
         });
 
-        window.initializeCommunityMap('', 20, 20, 1, 'map');
+        // Проекцию и центральный меридиан можно задать в адресе:
+        // community-map-preview.html?projection=equirectangular&centralMeridian=150
+        const query = new URLSearchParams(window.location.search);
+        window.initializeCommunityMap('', 20, 20, 1, 'map', {
+            projection: query.get('projection') || 'equalEarth',
+            centralMeridian: Number(query.get('centralMeridian') || 0)
+        });
         window.loadParticipantsOnMap(sampleParticipants, 'map');
         document.getElementById('participants-count').textContent =
             `Total Participants: ${sampleParticipants.length}`;

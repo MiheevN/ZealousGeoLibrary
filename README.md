@@ -119,6 +119,51 @@ var app = builder.Build();
 <CommunityMapComponent MapId="map-c" Participants="@myParticipants" />
 ```
 
+#### 2D карта: проекция и центральный меридиан
+
+`CommunityMapComponent` рисует карту в равновеликой проекции
+[Equal Earth](https://doi.org/10.1080/13658816.2018.1504949): площади материков
+сохраняются, а карта выглядит привычно. При `zoom = 1` мир целиком вписан в окно;
+при приближении карту можно двигать, пока её край не упрётся в край окна.
+
+Как опция доступна прежняя равнопромежуточная проекция (`Equirectangular`) —
+прямоугольная карта, которая бесконечно прокручивается по горизонтали.
+Центральный меридиан задаётся в градусах: `0` — Гринвич, `150` — Тихий океан в центре.
+
+```razor
+@using ZealousMindedPeopleGeo.Models
+
+<!-- Equal Earth с Тихим океаном в центре -->
+<CommunityMapComponent MapId="map-pacific" CentralMeridian="150" />
+
+<!-- Прежняя прямоугольная проекция -->
+<CommunityMapComponent MapId="map-flat" Projection="MapProjection.Equirectangular" />
+```
+
+Значения по умолчанию для всех карт задаются в `ZealousMindedPeopleGeoOptions.Map`.
+Центр и зум стоит указать явно: у `MapConfiguration` они по умолчанию равны
+Москве и `DefaultZoom = 10`.
+
+```csharp
+builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
+{
+    options.Map = new MapConfiguration
+    {
+        Projection = MapProjection.EqualEarth,
+        CentralMeridian = 150,
+        DefaultLatitude = 20,
+        DefaultLongitude = 150,
+        DefaultZoom = 1
+    };
+});
+```
+
+Без Blazor карта инициализируется напрямую из JavaScript:
+
+```js
+initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralMeridian: 150 });
+```
+
 #### Одиночный 3D глобус
 
 ```razor

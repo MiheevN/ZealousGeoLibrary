@@ -22,6 +22,18 @@ public partial class CommunityMapComponent : IAsyncDisposable
     /// </summary>
     [Parameter] public IEnumerable<Participant>? Participants { get; set; }
 
+    /// <summary>
+    /// Проекция карты. Если не задана, берётся из <see cref="MapConfiguration.Projection"/>
+    /// (по умолчанию Equal Earth).
+    /// </summary>
+    [Parameter] public MapProjection? Projection { get; set; }
+
+    /// <summary>
+    /// Центральный меридиан карты в градусах. Если не задан, берётся из
+    /// <see cref="MapConfiguration.CentralMeridian"/> (по умолчанию 0 — Гринвич).
+    /// </summary>
+    [Parameter] public double? CentralMeridian { get; set; }
+
     private Participant? SelectedParticipant;
     private IEnumerable<Participant> ParticipantsView = new List<Participant>();
     private bool _isLoading = true;
@@ -49,6 +61,8 @@ public partial class CommunityMapComponent : IAsyncDisposable
             var centerLat = Options.Value.Map?.DefaultLatitude ?? 20.0;
             var centerLng = Options.Value.Map?.DefaultLongitude ?? 0.0;
             var zoom = Options.Value.Map?.DefaultZoom ?? 2;
+            var projection = Projection ?? Options.Value.Map?.Projection ?? MapProjection.EqualEarth;
+            var centralMeridian = CentralMeridian ?? Options.Value.Map?.CentralMeridian ?? 0.0;
 
             _dotNetRef = DotNetObjectReference.Create(this);
             await JSRuntime.InvokeVoidAsync("setDotNetHelper", _dotNetRef);
@@ -58,7 +72,9 @@ public partial class CommunityMapComponent : IAsyncDisposable
                 centerLat,
                 centerLng,
                 zoom,
-                MapId);
+                MapId,
+                // JS принимает имя проекции без учёта регистра: "EqualEarth", "Equirectangular".
+                new { projection = projection.ToString(), centralMeridian });
 
             var participantsJson = JsonSerializer.Serialize(ParticipantsView);
             await JSRuntime.InvokeVoidAsync("loadParticipantsOnMap", participantsJson, MapId);
