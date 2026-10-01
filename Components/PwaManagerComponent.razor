@@ -3,6 +3,7 @@
 @using ZealousMindedPeopleGeo.Services
 @inject IPwaService PwaService
 @inject ILogger<PwaManagerComponent> Logger
+@implements IDisposable
 
 <HeadContent>
     <link href="/_content/ZealousMindedPeopleGeo/css/pwa-manager.css" rel="stylesheet" />
@@ -147,6 +148,7 @@
 
     private System.Timers.Timer? _updateTimer;
 
+    // PwaService ходит в JS, поэтому данные загружаются только после интерактивного рендера, не при пререндеринге.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)

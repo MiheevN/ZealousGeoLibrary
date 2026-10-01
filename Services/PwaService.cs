@@ -1,23 +1,40 @@
 using Microsoft.JSInterop;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 namespace ZealousMindedPeopleGeo.Services;
 
 /// <summary>
 /// Сервис для управления PWA функциональностью
 /// </summary>
+/// <remarks>
+/// Все методы обращаются к JS-модулю <c>js/pwa.js</c>, поэтому вызывать их можно только
+/// из интерактивного рендера (<c>OnAfterRenderAsync</c> и позже), но не при пререндеринге.
+/// </remarks>
 public class PwaService : IPwaService, IAsyncDisposable
 {
+    private const string ModulePath = "/_content/ZealousMindedPeopleGeo/js/pwa.js";
+    private const string ServiceWorkerPath = "/_content/ZealousMindedPeopleGeo/sw.js";
+
     private readonly IJSRuntime _jsRuntime;
     private readonly ILogger<PwaService> _logger;
-    private IJSObjectReference? _pwaHelper = null;
+    private Task<IJSObjectReference>? _moduleTask;
     private bool _isInitialized = false;
 
     public PwaService(IJSRuntime jsRuntime, ILogger<PwaService> logger)
     {
         _jsRuntime = jsRuntime;
         _logger = logger;
+    }
+
+    // Один импорт на все вызовы; неудачный импорт повторяется при следующем обращении.
+    private Task<IJSObjectReference> GetModuleAsync()
+    {
+        if (_moduleTask == null || _moduleTask.IsFaulted || _moduleTask.IsCanceled)
+        {
+            _moduleTask = _jsRuntime.InvokeAsync<IJSObjectReference>("import", ModulePath).AsTask();
+        }
+
+        return _moduleTask;
     }
 
     /// <summary>
@@ -29,42 +46,8 @@ public class PwaService : IPwaService, IAsyncDisposable
 
         try
         {
-            await _jsRuntime.InvokeVoidAsync("eval",
-                @"if ('serviceWorker' in navigator) {
-                    window.addEventListener('load', async () => {
-                        try {
-                            const registration = await navigator.serviceWorker.register('/_content/ZealousMindedPeopleGeo/sw.js');
-                            console.log('Service Worker registered successfully:', registration.scope);
-
-                            // Проверяем обновления
-                            registration.addEventListener('updatefound', () => {
-                                const newWorker = registration.installing;
-                                if (newWorker) {
-                                    newWorker.addEventListener('statechange', () => {
-                                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                            // Новый контент доступен, предлагаем обновление
-                                            if (confirm('Доступно обновление приложения. Обновить сейчас?')) {
-                                                window.location.reload();
-                                            }
-                                        }
-                                    });
-                                }
-                            });
-
-                            // Слушаем сообщения от сервис-воркера
-                            navigator.serviceWorker.addEventListener('message', (event) => {
-                                if (event.data && event.data.type === 'SW_UPDATE_READY') {
-                                    if (confirm('Доступно обновление приложения. Обновить сейчас?')) {
-                                        window.location.reload();
-                                    }
-                                }
-                            });
-
-                        } catch (error) {
-                            console.error('Service Worker registration failed:', error);
-                        }
-                    });
-                }");
+            var module = await GetModuleAsync();
+            await module.InvokeVoidAsync("registerServiceWorker", ServiceWorkerPath);
 
             _isInitialized = true;
             _logger.LogInformation("PWA service initialized successfully");
@@ -83,8 +66,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            return await _jsRuntime.InvokeAsync<bool>("eval",
-                @"return 'serviceWorker' in navigator && 'PushManager' in window");
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<bool>("isPwaSupported");
         }
         catch (Exception ex)
         {
@@ -100,9 +83,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            return await _jsRuntime.InvokeAsync<bool>("eval",
-                @"return window.matchMedia('(display-mode: standalone)').matches ||
-                        window.navigator.standalone === true");
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<bool>("isRunningAsPwa");
         }
         catch (Exception ex)
         {
@@ -118,17 +100,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            var isInstallable = await _jsRuntime.InvokeAsync<bool>("eval",
-                @"return 'beforeinstallprompt' in window");
-
-            var isInstalled = await IsRunningAsPwaAsync();
-
-            return new PwaInstallInfo
-            {
-                CanInstall = isInstallable && !isInstalled,
-                IsInstalled = isInstalled,
-                IsSupported = await IsPwaSupportedAsync()
-            };
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<PwaInstallInfo>("getInstallInfo");
         }
         catch (Exception ex)
         {
@@ -149,25 +122,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            var result = await _jsRuntime.InvokeAsync<bool>("eval",
-                @"return new Promise((resolve) => {
-                    if ('beforeinstallprompt' in window) {
-                        const promptEvent = window.beforeinstallprompt;
-                        if (promptEvent) {
-                            promptEvent.prompt();
-                            promptEvent.userChoice.then((choiceResult) => {
-                                resolve(choiceResult.outcome === 'accepted');
-                                delete window.beforeinstallprompt;
-                            });
-                        } else {
-                            resolve(false);
-                        }
-                    } else {
-                        resolve(false);
-                    }
-                })");
-
-            return result;
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<bool>("showInstallPrompt");
         }
         catch (Exception ex)
         {
@@ -183,10 +139,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            await _jsRuntime.InvokeVoidAsync("eval",
-                @"if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
-                }");
+            var module = await GetModuleAsync();
+            await module.InvokeVoidAsync("clearCache");
         }
         catch (Exception ex)
         {
@@ -201,14 +155,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            await _jsRuntime.InvokeVoidAsync("eval",
-                @"if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistration().then(registration => {
-                        if (registration) {
-                            registration.update();
-                        }
-                    });
-                }");
+            var module = await GetModuleAsync();
+            await module.InvokeVoidAsync("updateServiceWorker");
         }
         catch (Exception ex)
         {
@@ -223,63 +171,8 @@ public class PwaService : IPwaService, IAsyncDisposable
     {
         try
         {
-            var cacheInfo = await _jsRuntime.InvokeAsync<string>("eval",
-                @"return new Promise(async (resolve) => {
-                    if ('caches' in window) {
-                        try {
-                            const cacheNames = await caches.keys();
-                            let totalSize = 0;
-                            const cacheDetails = [];
-
-                            for (const name of cacheNames) {
-                                const cache = await caches.open(name);
-                                const keys = await cache.keys();
-                                let cacheSize = 0;
-
-                                for (const request of keys) {
-                                    try {
-                                        const response = await cache.match(request);
-                                        if (response) {
-                                            const blob = await response.blob();
-                                            cacheSize += blob.size;
-                                        }
-                                    } catch (e) {
-                                        // Игнорируем ошибки при подсчете размера
-                                    }
-                                }
-
-                                cacheDetails.push({
-                                    name: name,
-                                    size: cacheSize,
-                                    itemCount: keys.length
-                                });
-
-                                totalSize += cacheSize;
-                            }
-
-                            resolve(JSON.stringify({
-                                totalSize: totalSize,
-                                cacheCount: cacheNames.length,
-                                caches: cacheDetails
-                            }));
-                        } catch (error) {
-                            resolve(JSON.stringify({
-                                totalSize: 0,
-                                cacheCount: 0,
-                                caches: []
-                            }));
-                        }
-                    } else {
-                        resolve(JSON.stringify({
-                            totalSize: 0,
-                            cacheCount: 0,
-                            caches: []
-                        }));
-                    }
-                })");
-
-            var info = JsonSerializer.Deserialize<PwaCacheInfo>(cacheInfo) ?? new PwaCacheInfo();
-            return info;
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<PwaCacheInfo?>("getCacheInfo") ?? new PwaCacheInfo();
         }
         catch (Exception ex)
         {
@@ -297,56 +190,16 @@ public class PwaService : IPwaService, IAsyncDisposable
         {
             var notificationOptions = options ?? new NotificationOptions();
 
-            var result = await _jsRuntime.InvokeAsync<bool>("eval",
-                $@"return new Promise((resolve) => {{
-                    if ('Notification' in window && 'serviceWorker' in navigator) {{
-                        if (Notification.permission === 'granted') {{
-                            navigator.serviceWorker.getRegistration().then(registration => {{
-                                if (registration) {{
-                                    registration.showNotification('{title}', {{
-                                        body: '{body}',
-                                        icon: '{notificationOptions.Icon ?? "/_content/ZealousMindedPeopleGeo/icons/icon-192x192.png"}',
-                                        badge: '{notificationOptions.Badge ?? "/_content/ZealousMindedPeopleGeo/icons/badge-72x72.png"}',
-                                        tag: '{notificationOptions.Tag ?? "general"}',
-                                        requireInteraction: {notificationOptions.RequireInteraction.ToString().ToLower()},
-                                        silent: {notificationOptions.Silent.ToString().ToLower()}
-                                    }});
-                                    resolve(true);
-                                }} else {{
-                                    resolve(false);
-                                }}
-                            }});
-                        }} else if (Notification.permission !== 'denied') {{
-                            Notification.requestPermission().then(permission => {{
-                                if (permission === 'granted') {{
-                                    navigator.serviceWorker.getRegistration().then(registration => {{
-                                        if (registration) {{
-                                            registration.showNotification('{title}', {{
-                                                body: '{body}',
-                                                icon: '{notificationOptions.Icon ?? "/_content/ZealousMindedPeopleGeo/icons/icon-192x192.png"}',
-                                                badge: '{notificationOptions.Badge ?? "/_content/ZealousMindedPeopleGeo/icons/badge-72x72.png"}',
-                                                tag: '{notificationOptions.Tag ?? "general"}',
-                                                requireInteraction: {notificationOptions.RequireInteraction.ToString().ToLower()},
-                                                silent: {notificationOptions.Silent.ToString().ToLower()}
-                                            }});
-                                            resolve(true);
-                                        }} else {{
-                                            resolve(false);
-                                        }}
-                                    }});
-                                }} else {{
-                                    resolve(false);
-                                }}
-                            }});
-                        }} else {{
-                            resolve(false);
-                        }}
-                    }} else {{
-                        resolve(false);
-                    }}
-                }})");
-
-            return result;
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<bool>("sendNotification", title, new
+            {
+                body,
+                icon = notificationOptions.Icon ?? "/_content/ZealousMindedPeopleGeo/icons/icon-192x192.png",
+                badge = notificationOptions.Badge ?? "/_content/ZealousMindedPeopleGeo/icons/badge-72x72.png",
+                tag = notificationOptions.Tag ?? "general",
+                requireInteraction = notificationOptions.RequireInteraction,
+                silent = notificationOptions.Silent
+            });
         }
         catch (Exception ex)
         {
@@ -357,17 +210,23 @@ public class PwaService : IPwaService, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_pwaHelper != null)
+        if (_moduleTask is { IsCompletedSuccessfully: true })
         {
             try
             {
-                await _pwaHelper.DisposeAsync();
+                await _moduleTask.Result.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Цепь уже закрыта, браузер освободил модуль сам.
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error disposing PWA helper");
             }
         }
+
+        _moduleTask = null;
     }
 }
 
