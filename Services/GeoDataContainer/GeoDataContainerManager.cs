@@ -67,9 +67,17 @@ public class GeoDataContainerManager : GeoDataContainerManagerBase
             return false;
         }
 
-        if (_containers.TryRemove(containerId, out _))
+        if (_containers.TryRemove(containerId, out var removed))
         {
             Logger.LogInformation("Removed geo-data container: {ContainerId}", containerId);
+
+            // Подписчики (например, глобусы) должны узнать, что данные контейнера пропали,
+            // как и при удалении контейнера из БД.
+            if (removed.Count > 0)
+            {
+                HandleDataChanged(containerId, GeoDataChangeType.Cleared);
+            }
+
             return true;
         }
 

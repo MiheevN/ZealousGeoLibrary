@@ -44,6 +44,34 @@ http://localhost:5290 — обзор, `/map` — 2D карта с переклю
 Хост подключает стили библиотеки так же, как любое приложение, — одной строкой
 `zealous-geo.css` в `Components/App.razor` (см. «Встраивание в проект»).
 
+### Тесты
+
+Два набора: .NET-тесты библиотеки и Node-тесты JavaScript, CSS и разметки.
+
+```bash
+dotnet test tests/ZealousMindedPeopleGeo.Tests
+node --test experiments/*.test.mjs
+```
+
+`node --test experiments/` без маски на Node 22 не работает: Node принимает папку за модуль.
+
+Что проверяют .NET-тесты (`tests/ZealousMindedPeopleGeo.Tests`):
+
+- `GeoData/` — общий контракт хранилищ гео-данных. Одни и те же тесты прогоняются
+  на хранилище в памяти и в БД (SQLite in-memory), поэтому реализации не расходятся
+  в результатах операций и событиях `OnDataChanged`;
+- `Components/` — Razor-компоненты через [bUnit](https://bunit.dev): какие параметры
+  уходят в JavaScript и что видит пользователь;
+- `Validation/` — правила `ParticipantValidator` и связанных валидаторов;
+- `Models/` — демонстрационные наборы, в том числе что они проходят валидацию;
+- `Services/` — регистрация сервисов и `PwaService`.
+
+Покрытие кода (отчёт Cobertura появится в `tests/ZealousMindedPeopleGeo.Tests/TestResults/`):
+
+```bash
+dotnet test tests/ZealousMindedPeopleGeo.Tests --collect:"XPlat Code Coverage"
+```
+
 ## 📦 Встраивание в проект
 
 ### Пошаговая интеграция:

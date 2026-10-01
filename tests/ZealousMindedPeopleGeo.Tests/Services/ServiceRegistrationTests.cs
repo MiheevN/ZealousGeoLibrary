@@ -6,9 +6,8 @@ using ZealousMindedPeopleGeo.Services.GeoDataContainer;
 using ZealousMindedPeopleGeo.Services.Geocoding;
 using ZealousMindedPeopleGeo.Services.Mapping;
 using ZealousMindedPeopleGeo.Services.Repositories;
-using Xunit;
 
-namespace ZealousMindedPeopleGeo.Tests;
+namespace ZealousMindedPeopleGeo.Tests.Services;
 
 /// <summary>
 /// Витрина и страница глобуса падают на первом рендере, если служба не зарегистрирована.

@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.JSInterop;
 using ZealousMindedPeopleGeo.Services;
-using Xunit;
 
-namespace ZealousMindedPeopleGeo.Tests;
+namespace ZealousMindedPeopleGeo.Tests.Services;
 
 /// <summary>
 /// PwaService ходит в браузер только через модуль js/pwa.js: eval с return в начале скрипта падал с SyntaxError.

@@ -197,7 +197,11 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
             _participants.Clear();
             _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} participants", ContainerId, count);
 
-            NotifyDataChanged(GeoDataChangeType.Cleared);
+            // Как и хранилище в БД: нет изменений — нет события.
+            if (count > 0)
+            {
+                NotifyDataChanged(GeoDataChangeType.Cleared);
+            }
 
             return ValueTask.FromResult(GeoDataOperationResult.Ok(count));
         }

@@ -18,7 +18,8 @@ public class ParticipantValidator : AbstractValidator<Participant>
             .WithMessage(localizationService.GetString("MinLength", 2))
             .MaximumLength(100)
             .WithMessage(localizationService.GetString("MaxLength", 100))
-            .Matches(@"^[a-zA-Zа-яА-Я\s\-']+$")
+            // Буквы любого алфавита (включая «ё» и диакритику: José, Brasília), пробелы, дефисы, апострофы.
+            .Matches(@"^[\p{L}\p{M}\s\-']+$")
             .WithMessage("Имя может содержать только буквы, пробелы, дефисы и апострофы");
 
         RuleFor(p => p.Email)
@@ -178,7 +179,8 @@ public class ParticipantRegistrationValidator : AbstractValidator<ParticipantReg
             .WithMessage(localizationService.GetString("MinLength", 2))
             .MaximumLength(100)
             .WithMessage(localizationService.GetString("MaxLength", 100))
-            .Matches(@"^[a-zA-Zа-яА-Я\s\-']+$")
+            // Буквы любого алфавита (включая «ё» и диакритику: José, Brasília), пробелы, дефисы, апострофы.
+            .Matches(@"^[\p{L}\p{M}\s\-']+$")
             .WithMessage("Имя может содержать только буквы, пробелы, дефисы и апострофы");
 
         RuleFor(p => p.Email)
