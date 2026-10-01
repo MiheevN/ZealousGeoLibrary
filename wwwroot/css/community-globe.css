@@ -394,6 +394,11 @@
     padding: 1rem;
 }
 
+/* Свёрнутые секции скрыты и без Bootstrap: аккордеон переключает сам компонент. */
+.globe-settings-panel .accordion-collapse:not(.show) {
+    display: none;
+}
+
 .globe-settings-panel .accordion {
     display: grid;
     gap: 0.65rem;

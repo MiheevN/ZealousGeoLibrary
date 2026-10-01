@@ -18,11 +18,11 @@
             <!-- Размеры -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#sizeSettings">
+                    <button class="accordion-button @(IsOpen("sizeSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("sizeSettings") ? "true" : "false")' aria-controls="sizeSettings" @onclick='() => ToggleSection("sizeSettings")'>
                         📐 Размеры
                     </button>
                 </h2>
-                <div id="sizeSettings" class="accordion-collapse collapse show" data-bs-parent="#settingsAccordion">
+                <div id="sizeSettings" class="accordion-collapse collapse @(IsOpen("sizeSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Ширина: @Settings.Width px</label>
@@ -39,11 +39,11 @@
             <!-- Точки участников -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pointSettings">
+                    <button class="accordion-button @(IsOpen("pointSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("pointSettings") ? "true" : "false")' aria-controls="pointSettings" @onclick='() => ToggleSection("pointSettings")'>
                         📍 Точки участников
                     </button>
                 </h2>
-                <div id="pointSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+                <div id="pointSettings" class="accordion-collapse collapse @(IsOpen("pointSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Размер метки: @Settings.ParticipantPointSize</label>
@@ -80,11 +80,11 @@
             <!-- Вращение -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#rotationSettings">
+                    <button class="accordion-button @(IsOpen("rotationSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("rotationSettings") ? "true" : "false")' aria-controls="rotationSettings" @onclick='() => ToggleSection("rotationSettings")'>
                         🔄 Вращение
                     </button>
                 </h2>
-                <div id="rotationSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+                <div id="rotationSettings" class="accordion-collapse collapse @(IsOpen("rotationSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="autoRotate" @bind="Settings.AutoRotate" />
@@ -101,11 +101,11 @@
             <!-- Освещение -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#lightSettings">
+                    <button class="accordion-button @(IsOpen("lightSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("lightSettings") ? "true" : "false")' aria-controls="lightSettings" @onclick='() => ToggleSection("lightSettings")'>
                         💡 Освещение
                     </button>
                 </h2>
-                <div id="lightSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+                <div id="lightSettings" class="accordion-collapse collapse @(IsOpen("lightSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="sunLightFollowCamera" @bind="Settings.SunLightFollowCamera" />
@@ -142,11 +142,11 @@
             <!-- Атмосфера и облака -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#atmosphereSettings">
+                    <button class="accordion-button @(IsOpen("atmosphereSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("atmosphereSettings") ? "true" : "false")' aria-controls="atmosphereSettings" @onclick='() => ToggleSection("atmosphereSettings")'>
                         🌫️ Атмосфера и облака
                     </button>
                 </h2>
-                <div id="atmosphereSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+                <div id="atmosphereSettings" class="accordion-collapse collapse @(IsOpen("atmosphereSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableAtmosphere" @bind="Settings.EnableAtmosphereGlow" />
@@ -179,11 +179,11 @@
             <!-- Камера -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#cameraSettings">
+                    <button class="accordion-button @(IsOpen("cameraSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("cameraSettings") ? "true" : "false")' aria-controls="cameraSettings" @onclick='() => ToggleSection("cameraSettings")'>
                         📷 Камера
                     </button>
                 </h2>
-                <div id="cameraSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+                <div id="cameraSettings" class="accordion-collapse collapse @(IsOpen("cameraSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableZoom" @bind="Settings.EnableZoom" />
@@ -204,11 +204,11 @@
             <!-- Цвета -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colorSettings">
+                    <button class="accordion-button @(IsOpen("colorSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("colorSettings") ? "true" : "false")' aria-controls="colorSettings" @onclick='() => ToggleSection("colorSettings")'>
                         🎨 Цвета
                     </button>
                 </h2>
-                <div id="colorSettings" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+                <div id="colorSettings" class="accordion-collapse collapse @(IsOpen("colorSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2">
                             <label class="form-label">Цвет фона</label>
@@ -232,6 +232,14 @@
     [Parameter] public EventCallback<GlobeSettings> OnSettingsChanged { get; set; }
 
     private GlobeSettings Settings { get; set; } = new();
+
+    // Аккордеон переключает Blazor: Bootstrap JS приложениям подключать не нужно.
+    // Как в аккордеоне Bootstrap, открыта одна секция за раз.
+    private string? _openSection = "sizeSettings";
+
+    private bool IsOpen(string section) => _openSection == section;
+
+    private void ToggleSection(string section) => _openSection = IsOpen(section) ? null : section;
     private string JsonPreview => JsonSerializer.Serialize(Settings, new JsonSerializerOptions { WriteIndented = true });
     private string ContainerId => $"globe-{GlobeId}";
 

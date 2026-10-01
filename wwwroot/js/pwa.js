@@ -3,6 +3,9 @@
 // рендера, поэтому при пререндеринге он не загружается и не вызывается.
 
 const UPDATE_CONFIRM_MESSAGE = 'Доступно обновление приложения. Обновить сейчас?';
+const MANIFEST = '_content/ZealousMindedPeopleGeo/manifest.json';
+const TOUCH_ICON = '_content/ZealousMindedPeopleGeo/icons/icon-192x192.png';
+const THEME_COLOR = '#0e1013';
 
 // Браузер присылает beforeinstallprompt один раз; сохраняем событие, чтобы показать промпт по кнопке.
 let deferredInstallPrompt = null;
@@ -27,7 +30,58 @@ function clearInstallPrompt() {
     delete window.beforeinstallprompt;
 }
 
+// Подключает манифест библиотеки, если у приложения нет своего. Браузер принимает манифест,
+// добавленный скриптом, и предлагает установить сайт без правок в разметке приложения.
+export function ensureManifest(doc = document) {
+    if (doc.querySelector('link[rel="manifest"]')) {
+        return false;
+    }
+
+    const manifest = doc.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = new URL(MANIFEST, doc.baseURI).href;
+    doc.head.appendChild(manifest);
+
+    if (!doc.querySelector('meta[name="theme-color"]')) {
+        const themeColor = doc.createElement('meta');
+        themeColor.name = 'theme-color';
+        themeColor.content = THEME_COLOR;
+        doc.head.appendChild(themeColor);
+    }
+
+    if (!doc.querySelector('link[rel="apple-touch-icon"]')) {
+        const touchIcon = doc.createElement('link');
+        touchIcon.rel = 'apple-touch-icon';
+        touchIcon.href = new URL(TOUCH_ICON, doc.baseURI).href;
+        doc.head.appendChild(touchIcon);
+    }
+
+    return true;
+}
+
+// Воркер библиотеки лежит в /_content/..., а обслуживать должен все страницы приложения.
+// Браузер разрешает такую область, только если сервер отдаёт sw.js с заголовком
+// Service-Worker-Allowed. Проверяем заранее: без заголовка офлайн-кэш просто выключен,
+// и в консоли не появляется ошибка регистрации.
+async function isScopeAllowed(scriptUrl, scope) {
+    const script = new URL(scriptUrl, document.baseURI);
+    const scriptFolder = script.pathname.slice(0, script.pathname.lastIndexOf('/') + 1);
+    if (scope.startsWith(scriptFolder)) {
+        return true;
+    }
+
+    try {
+        const response = await fetch(script.href, { method: 'HEAD', cache: 'no-store' });
+        const allowed = response.headers.get('Service-Worker-Allowed');
+        return response.ok && allowed !== null && scope.startsWith(new URL(allowed, script).pathname);
+    } catch {
+        return false;
+    }
+}
+
 export async function registerServiceWorker(scriptUrl) {
+    ensureManifest();
+
     if (!('serviceWorker' in navigator)) {
         return false;
     }
@@ -37,12 +91,18 @@ export async function registerServiceWorker(scriptUrl) {
         await new Promise((resolve) => window.addEventListener('load', resolve, { once: true }));
     }
 
+    // Область воркера — корень приложения с учётом <base href>.
+    const scope = new URL('.', document.baseURI).pathname;
+    if (!(await isScopeAllowed(scriptUrl, scope))) {
+        console.info('[ZealousMindedPeopleGeo] Офлайн-кэш выключен: сервер не отдаёт sw.js с заголовком '
+            + 'Service-Worker-Allowed (см. README, раздел «PWA и сервис-воркер»).');
+        return false;
+    }
+
     try {
-        // scope '/' — воркер обслуживает страницы приложения, а не только /_content/...
-        // Хост должен отдавать sw.js с заголовком Service-Worker-Allowed: / (см. README, раздел PWA).
         // updateViaCache: 'none' — проверка новой версии sw.js всегда идёт мимо HTTP-кэша.
         const registration = await navigator.serviceWorker.register(scriptUrl, {
-            scope: '/',
+            scope,
             updateViaCache: 'none'
         });
         console.log('Service Worker registered successfully:', registration.scope);

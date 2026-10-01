@@ -41,8 +41,9 @@ http://localhost:5290 — обзор, `/map` — 2D карта с переклю
 центрального меридиана и набора данных, `/globe` — 3D глобус, `/showcase` — все
 компоненты на одной странице.
 
-Хост подключает стили библиотеки так же, как любое приложение, — одной строкой
-`zealous-geo.css` в `Components/App.razor` (см. «Встраивание в проект»).
+Хост настроен так, как достаточно любому сайту: ссылка на библиотеку и
+`AddZealousMindedPeopleGeo()` в `Program.cs`, в `Components/App.razor` подключений
+библиотеки нет (см. «Встраивание в проект»).
 
 ### Тесты
 
@@ -74,67 +75,59 @@ dotnet test tests/ZealousMindedPeopleGeo.Tests --collect:"XPlat Code Coverage"
 
 ## 📦 Встраивание в проект
 
-### Пошаговая интеграция:
+Достаточно двух шагов.
 
-1. **Установите пакет NuGet**
+1. **Установите пакет**
    ```bash
    dotnet add package ZealousMindedPeopleGeo
    ```
 
-2. **Зарегистрируйте сервисы в Program.cs**
+2. **Зарегистрируйте сервисы в `Program.cs`**
    ```csharp
-   builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
-   builder.Services.AddSingleton<IParticipantRepository, InMemoryParticipantRepository>();
+   builder.Services.AddZealousMindedPeopleGeo();
    ```
 
-3. **Подключите стили библиотеки** — одна строка в `<head>`, после Bootstrap и до стилей приложения
-   ```html
-   <link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />
-   ```
-   В Blazor Web App это `Components/App.razor`, в Blazor WebAssembly — `wwwroot/index.html`.
-   `zealous-geo.css` подключает общие токены темы `zealous-ui.css` и стили всех компонентов.
-   Сами компоненты стили не подключают: `<HeadOutlet>` выводит в `<head>` только последний
-   отрисованный `<HeadContent>`, и на странице с несколькими компонентами стили остальных терялись.
-
-4. **Добавьте using в Razor страницу**
-   ```razor
-   @using ZealousMindedPeopleGeo.Components
-   ```
-
-5. **Используйте компонент**
-   ```razor
-   <CommunityGlobeComponent Width="800" Height="600" ShowControls="true" />
-   ```
-
-6. **Настройте appsettings.json** (опционально)
-   ```json
-   {
-     "GoogleMaps": {
-       "ApiKey": "YOUR_API_KEY"
-     }
-   }
-   ```
-
-### 2. Регистрация сервисов
-
-В файле `Program.cs`:
+Этого хватает всем компонентам. Варианты с настройками регистрируют тот же набор сервисов:
 
 ```csharp
-using ZealousMindedPeopleGeo.Services.Repositories;
-using ZealousMindedPeopleGeo.Services.Mapping;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Регистрация сервисов библиотеки
+// секция "ZealousMindedPeopleGeo" в appsettings.json
 builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
-// Репозиторий участников (для тестирования)
-builder.Services.AddSingleton<IParticipantRepository, InMemoryParticipantRepository>();
-
-var app = builder.Build();
+// настройки в коде
+builder.Services.AddZealousMindedPeopleGeo(options => options.Map = new MapConfiguration { DefaultZoom = 1 });
 ```
 
-### 3. Использование компонентов в Razor Pages
+Участники хранятся в памяти, пока в настройках не указан `GoogleSheetId`, тогда — в Google
+Sheets. Свой `IParticipantRepository` или хранилище гео-данных в БД (`AddGeoDataDatabase`)
+можно зарегистрировать до или после: библиотека их не перезапишет, а повторный вызов
+`AddZealousMindedPeopleGeo` ничего не дублирует.
+
+Компоненты интерактивные, поэтому приложению нужен интерактивный рендеринг Blazor
+(`AddInteractiveServerComponents()` и `@rendermode="InteractiveServer"`, как в шаблоне
+Blazor Web App).
+
+### Что библиотека подключает сама
+
+- **Стили** (`zealous-geo.css`). Blazor сам загружает JS-инициализатор библиотеки
+  `ZealousMindedPeopleGeo.lib.module.js`, и тот добавляет стили в `<head>` после Bootstrap
+  и до стилей приложения. Чтобы стили были уже при первой отрисовке, без мелькания, их
+  можно подключить и вручную, второй раз они не добавятся:
+  ```html
+  <link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />
+  ```
+- **Скрипты** карты, глобуса и PWA: компоненты загружают их модулями.
+- **Манифест PWA, цвет темы и иконку** добавляет `PwaManagerComponent`, если у приложения
+  нет своего манифеста.
+
+### Необязательно
+
+- **Bootstrap 5.** Компоненты размечены его классами и с ним выглядят как задумано; без него
+  остаются рабочими, но оформлены проще.
+- **Офлайн-кэш.** Сервис-воркер библиотеки регистрируется, только если сервер отдаёт `sw.js`
+  с заголовком `Service-Worker-Allowed` (см. «PWA и сервис-воркер»). Без заголовка сайт и
+  установка приложения работают.
+
+### Использование компонентов
 
 #### Витрина всех возможностей (LibraryShowcaseComponent)
 
@@ -361,7 +354,12 @@ initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralM
 
 ## 📱 PWA и сервис-воркер
 
-`PwaManagerComponent` регистрирует сервис-воркер библиотеки `/_content/ZealousMindedPeopleGeo/sw.js` со scope `/`, иначе он не обслуживал бы страницы приложения. Чтобы браузер разрешил такой scope, хост отдаёт `sw.js` с заголовком `Service-Worker-Allowed` (в `Program.cs`, до `UseStaticFiles`/`MapStaticAssets`):
+Офлайн-кэш необязателен. `PwaManagerComponent` регистрирует сервис-воркер библиотеки
+`/_content/ZealousMindedPeopleGeo/sw.js` со scope приложения (`/` или `<base href>`), иначе он
+не обслуживал бы страницы. Браузер разрешает такой scope, только если сервер отдаёт `sw.js`
+с заголовком `Service-Worker-Allowed`; библиотека проверяет заголовок заранее и без него
+воркер не регистрирует. Чтобы включить офлайн-кэш, добавьте в `Program.cs` до
+`UseStaticFiles`/`MapStaticAssets`:
 
 ```csharp
 app.Use(async (context, next) =>
@@ -376,12 +374,17 @@ app.Use(async (context, next) =>
 });
 ```
 
-Без заголовка регистрация завершится ошибкой `SecurityError` в консоли браузера.
+Без заголовка в консоли браузера одно информационное сообщение, а сайт и установка
+приложения работают как обычно.
 
 ### Установка приложения
 
-Чтобы браузер предложил установить сайт как приложение, подключите манифест библиотеки
-в `<head>` (`Components/App.razor`), как это сделано в хосте витрины:
+Браузер предлагает установить сайт как приложение без дополнительной настройки:
+`PwaManagerComponent` добавляет в `<head>` манифест библиотеки, цвет темы и иконку для iOS,
+если у приложения нет своего манифеста. Сервис-воркер для установки не нужен. Свой манифест
+приложение подключает как обычно, и тогда библиотека его не трогает. Подключить манифест
+библиотеки можно и вручную, чтобы он был на всех страницах, а не только там, где есть
+`PwaManagerComponent`:
 
 ```html
 <meta name="theme-color" content="#0e1013" />
@@ -521,19 +524,11 @@ public interface IThreeJsGlobeService
 
 1. **Добавьте в `Program.cs`:**
    ```csharp
-   // Базовая регистрация сервисов библиотеки
-   builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
-
-   // Репозиторий участников (для тестирования)
-   builder.Services.AddSingleton<IParticipantRepository, InMemoryParticipantRepository>();
+   builder.Services.AddZealousMindedPeopleGeo();
    ```
+   Стили и скрипты библиотека подключит сама.
 
-2. **Подключите стили в `<head>`** (`Components/App.razor` или `wwwroot/index.html`):
-   ```html
-   <link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />
-   ```
-
-3. **Используйте компонент в Razor странице:**
+2. **Используйте компонент в Razor странице:**
    ```razor
    @page "/globe"
    @using ZealousMindedPeopleGeo.Components
@@ -576,8 +571,8 @@ var isValid = await ValidationService.IsAddressValidForGeocodingAsync(address);
 
 ```csharp
 // В Program.cs
-builder.Services.AddZealousMindedPeopleGeoServices(); // Автоматически регистрирует контейнеры
-// или отдельно:
+builder.Services.AddZealousMindedPeopleGeo(); // Регистрирует и контейнеры гео-данных
+// или только контейнеры:
 builder.Services.AddGeoDataContainers();
 ```
 
@@ -903,10 +898,11 @@ ZealousMindedPeopleGeo/
 │   ├── GlobeOptions.cs                   # Настройки глобуса
 │   └── GlobeState.cs                     # Состояние глобуса
 └── wwwroot/             # Статические ресурсы
+    ├── ZealousMindedPeopleGeo.lib.module.js # JS-инициализатор: Blazor загружает его сам, он подключает стили
     ├── js/              # JavaScript модули
     │   └── community-globe.js            # Основной модуль глобуса
     ├── css/             # Стили
-    │   ├── zealous-geo.css               # Все стили одним файлом, подключается в <head>
+    │   ├── zealous-geo.css               # Все стили одним файлом, в <head> его добавляет инициализатор
     │   ├── zealous-ui.css                # Общие токены темной темы
     │   └── community-globe.css и др.     # Стили отдельных компонентов
     └── assets/          # Ресурсы

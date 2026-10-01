@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZealousMindedPeopleGeo.Models;
@@ -17,7 +18,19 @@ namespace ZealousMindedPeopleGeo
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Добавляет сервисы ZealousMindedPeopleGeo в DI контейнер
+        /// Добавляет всё, что нужно компонентам ZealousMindedPeopleGeo, без настроек:
+        /// участники хранятся в памяти, стили и скрипты библиотека подключает сама.
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        /// <returns>Коллекция сервисов для цепочки вызовов</returns>
+        public static IServiceCollection AddZealousMindedPeopleGeo(this IServiceCollection services)
+        {
+            return services.AddZealousMindedPeopleGeoCore();
+        }
+
+        /// <summary>
+        /// Добавляет сервисы ZealousMindedPeopleGeo с настройками из секции
+        /// <see cref="ZealousMindedPeopleGeoOptions.SectionName"/> конфигурации.
         /// </summary>
         /// <param name="services">Коллекция сервисов</param>
         /// <param name="configuration">Конфигурация приложения</param>
@@ -26,73 +39,13 @@ namespace ZealousMindedPeopleGeo
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            // Настройка конфигурации
             services.Configure<ZealousMindedPeopleGeoOptions>(
                 configuration.GetSection(ZealousMindedPeopleGeoOptions.SectionName));
-
-            // Регистрация HTTP клиента для Google Maps API
-            services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("ZealousMindedPeopleGeo/1.0");
-            });
-
-            // Регистрация основных сервисов
-            services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
-            services.AddScoped<IGoogleMapsService, GoogleMapsService>();
-            services.AddScoped<IParticipantService, ParticipantService>();
-
-            // Регистрация интерфейсов источников данных (с адаптерами Google)
-            services.AddScoped<IParticipantRepository, GoogleSheetsParticipantRepository>();
-            services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
-            services.AddScoped<IMapService, GoogleMapsServiceAdapter>();
-            services.AddScoped<ICachingService, CachingService>();
-
-            return services;
+            return services.AddZealousMindedPeopleGeoCore();
         }
 
         /// <summary>
-        /// Добавляет сервисы ZealousMindedPeopleGeo для тестирования (без внешних зависимостей)
-        /// </summary>
-        /// <param name="services">Коллекция сервисов</param>
-        /// <returns>Коллекция сервисов для цепочки вызовов</returns>
-        public static IServiceCollection AddZealousMindedPeopleGeoServices(
-            this IServiceCollection services)
-        {
-            // Пустые опции: карта и геокодирование читают IOptions даже без appsettings.
-            services.AddOptions<ZealousMindedPeopleGeoOptions>();
-            services.AddMemoryCache();
-
-            // Регистрация HTTP клиента для геокодирования
-            services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("ZealousMindedPeopleGeo/1.0");
-            });
-            services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
-            services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
-            services.AddScoped<IPwaService, PwaService>();
-
-            // Регистрация сервисов с зависимостями
-            services.AddScoped<IParticipantRepository, InMemoryParticipantRepository>();
-            services.AddScoped<IThreeJsGlobeService, ThreeJsGlobeService>();
-            services.AddScoped<IGlobeMediator, GlobeMediatorService>();
-            services.AddScoped<GlobeStateService>();
-            services.AddScoped<ICachingService, CachingService>();
-            services.AddScoped<IGeoJsonService, FileGeoJsonService>();
-
-            // Регистрация основного сервиса участников
-            services.AddScoped<IParticipantService, ParticipantService>();
-
-            // Регистрация менеджера именованных контейнеров гео-данных
-            services.AddGeoDataContainers();
-
-            // Регистрация инициализатора данных глобуса
-            services.AddScoped<GlobeDataInitializer>();
-
-            return services;
-        }
-
-        /// <summary>
-        /// Добавляет сервисы ZealousMindedPeopleGeo с пользовательской конфигурацией
+        /// Добавляет сервисы ZealousMindedPeopleGeo с настройками из делегата.
         /// </summary>
         /// <param name="services">Коллекция сервисов</param>
         /// <param name="configureOptions">Делегат для настройки опций</param>
@@ -102,20 +55,72 @@ namespace ZealousMindedPeopleGeo
             Action<ZealousMindedPeopleGeoOptions> configureOptions)
         {
             services.Configure(configureOptions);
+            return services.AddZealousMindedPeopleGeoCore();
+        }
 
-            // Регистрация HTTP клиента для Google Maps API
+        /// <summary>
+        /// То же, что <see cref="AddZealousMindedPeopleGeo(IServiceCollection)"/>; оставлено
+        /// для совместимости.
+        /// </summary>
+        /// <param name="services">Коллекция сервисов</param>
+        /// <returns>Коллекция сервисов для цепочки вызовов</returns>
+        public static IServiceCollection AddZealousMindedPeopleGeoServices(
+            this IServiceCollection services)
+        {
+            return services.AddZealousMindedPeopleGeoCore();
+        }
+
+        // Общий набор для всех вариантов регистрации. TryAdd оставляет сервисы, которые
+        // приложение зарегистрировало раньше (например, свой IParticipantRepository или
+        // AddGeoDataDatabase), а повторный вызов ничего не дублирует.
+        private static IServiceCollection AddZealousMindedPeopleGeoCore(this IServiceCollection services)
+        {
+            if (services.Any(descriptor => descriptor.ServiceType == typeof(ZealousMindedPeopleGeoMarker)))
+            {
+                return services;
+            }
+            services.AddSingleton<ZealousMindedPeopleGeoMarker>();
+
+            // Без appsettings опции пустые: карта и геокодирование всё равно читают IOptions.
+            services.AddOptions<ZealousMindedPeopleGeoOptions>();
+            services.AddMemoryCache();
+
             services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
             {
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("ZealousMindedPeopleGeo/1.0");
             });
+            services.TryAddScoped<IGeocodingService, GoogleMapsGeocodingService>();
+            services.TryAddScoped<IMapService, GoogleMapsServiceAdapter>();
+            services.TryAddScoped<IGoogleSheetsService, GoogleSheetsService>();
+            services.TryAddScoped<IParticipantRepository>(CreateParticipantRepository);
+            services.TryAddScoped<IParticipantService, ParticipantService>();
+            services.TryAddScoped<ICachingService, CachingService>();
+            services.TryAddScoped<IGeoJsonService, FileGeoJsonService>();
+            services.TryAddScoped<IPwaService, PwaService>();
 
-            // Регистрация основных сервисов
-            services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
-            services.AddScoped<IGoogleMapsService, GoogleMapsService>();
-            services.AddScoped<IParticipantService, ParticipantService>();
-            services.AddScoped<ICachingService, CachingService>();
+            // 3D глобус и именованные контейнеры гео-данных (в памяти, если приложение
+            // не выбрало хранение в БД через AddGeoDataDatabase).
+            services.TryAddScoped<IThreeJsGlobeService, ThreeJsGlobeService>();
+            services.TryAddScoped<IGlobeMediator, GlobeMediatorService>();
+            services.TryAddScoped<GlobeStateService>();
+            services.TryAddSingleton<IGeoDataContainerManager, GeoDataContainerManager>();
+            services.TryAddScoped<GlobeDataInitializer>();
 
             return services;
+        }
+
+        // Google Sheets — только если в настройках указана таблица; иначе участники
+        // хранятся в памяти, и компоненты работают без внешних сервисов.
+        private static IParticipantRepository CreateParticipantRepository(IServiceProvider provider)
+        {
+            var options = provider.GetRequiredService<IOptions<ZealousMindedPeopleGeoOptions>>().Value;
+            return string.IsNullOrWhiteSpace(options.GoogleSheetId)
+                ? ActivatorUtilities.CreateInstance<InMemoryParticipantRepository>(provider)
+                : ActivatorUtilities.CreateInstance<GoogleSheetsParticipantRepository>(provider);
+        }
+
+        private sealed class ZealousMindedPeopleGeoMarker
+        {
         }
 
         /// <summary>

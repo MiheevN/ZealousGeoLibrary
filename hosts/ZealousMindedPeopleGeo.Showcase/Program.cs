@@ -9,12 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddZealousMindedPeopleGeoServices();
+
+// Всё, что нужно компонентам библиотеки. Стили и скрипты она подключает сама.
+builder.Services.AddZealousMindedPeopleGeo();
 
 var app = builder.Build();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-// sw.js библиотеки лежит в /_content/..., а управлять должен всем сайтом (см. README, раздел PWA).
+
+// Необязательно: офлайн-кэш. Без этого заголовка сайт и установка PWA работают,
+// но сервис-воркер библиотеки не регистрируется (см. README, раздел PWA).
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.Equals("/_content/ZealousMindedPeopleGeo/sw.js", StringComparison.OrdinalIgnoreCase))

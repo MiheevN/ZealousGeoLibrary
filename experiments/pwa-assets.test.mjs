@@ -58,8 +58,10 @@ test('images referenced by service worker and PwaService exist', async () => {
         readText('wwwroot/js/pwa.js'),
         readText('Services/PwaService.cs')
     ]);
+    // Пути встречаются и от корня (/_content/...), и относительно <base href> (_content/...).
     const urls = sources.flatMap((source) =>
-        [...source.matchAll(/\/_content\/ZealousMindedPeopleGeo\/[\w\-./]+\.(?:png|svg|ico|webp)/g)].map((m) => m[0]));
+        [...source.matchAll(/\/?_content\/ZealousMindedPeopleGeo\/[\w\-./]+\.(?:png|svg|ico|webp|json)/g)]
+            .map((m) => (m[0].startsWith('/') ? m[0] : `/${m[0]}`)));
 
     assert.ok(urls.length > 0, 'icons are referenced');
     for (const url of new Set(urls)) {
@@ -67,8 +69,9 @@ test('images referenced by service worker and PwaService exist', async () => {
     }
 });
 
-test('showcase host links the manifest', async () => {
-    const app = await readText('hosts/ZealousMindedPeopleGeo.Showcase/Components/App.razor');
+test('PWA module adds the library manifest itself, so the app needs no markup', async () => {
+    const pwa = await readText('wwwroot/js/pwa.js');
 
-    assert.match(app, /<link rel="manifest" href="_content\/ZealousMindedPeopleGeo\/manifest\.json"/);
+    assert.match(pwa, /const MANIFEST = '_content\/ZealousMindedPeopleGeo\/manifest\.json';/);
+    assert.match(pwa, /export async function registerServiceWorker[\s\S]*?ensureManifest\(\);/, 'registration adds the manifest');
 });
