@@ -89,6 +89,19 @@ public class CommunityMapComponentTests : BunitContext
     }
 
     [Fact]
+    public void GoogleMapsApiKey_IsNotSentToBrowser()
+    {
+        _options.GoogleMapsApiKey = "server-side-geocoding-key";
+
+        var init = WaitForInitialization(RenderMap(p => p.Add(c => c.MapId, "map-key")));
+
+        Assert.DoesNotContain(
+            JSInterop.Invocations.SelectMany(invocation => invocation.Arguments),
+            argument => argument?.ToString()?.Contains("server-side-geocoding-key") == true);
+        Assert.Equal("", init.Arguments[0]);
+    }
+
+    [Fact]
     public void Participants_AreSentToMapAndListed()
     {
         var participants = new List<Participant>

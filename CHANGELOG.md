@@ -88,6 +88,10 @@
   - Экспорт функции для вызова из Blazor
 
 ### Исправлено
+- **Ключ Google Maps уходил в браузер**: `CommunityMapComponent` передавал `GoogleMapsApiKey` первым аргументом `initializeCommunityMap`, хотя скрипт его игнорирует. В Blazor Server аргументы JS interop отправляются в браузер, поэтому серверный ключ геокодирования видел каждый посетитель. Теперь передаётся пустая строка
+
+- **Раздел README «Конфигурация» описывал несуществующие ключи** (`GoogleMaps:ApiKey`, `GoogleSheets:SpreadsheetId`, `Caching`, `PWA`). Теперь в нём секция `ZealousMindedPeopleGeo` с реальными ключами, что делает каждый из них, как хранить ключи вне репозитория и как подключить Google Sheets. Удалены устаревшие разделы «Тестирование» и «Качество кода»; тест проверяет, что ключи из README связываются с настройками
+
 - **`AddZealousMindedPeopleGeo(configuration)` и `AddZealousMindedPeopleGeo(options => …)` регистрировали не всё**: компонентам не хватало `GlobeStateService`, `IGlobeMediator`, `IGeoDataContainerManager`, `IPwaService`, `IMemoryCache` (для `CachingService`), а варианту с делегатом — ещё `IParticipantRepository` и `IGeocodingService`. `IGoogleMapsService` перерегистрировался без `HttpClient`. Участники больше не уходят в Google Sheets без указанной таблицы
 
 - **Аккордеон настроек глобуса не раскрывался**: секции переключались через Bootstrap JS (`data-bs-toggle`), который никто не подключал. Теперь их переключает компонент, а свёрнутые секции скрывает CSS библиотеки

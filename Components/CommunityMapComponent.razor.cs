@@ -79,7 +79,6 @@ public partial class CommunityMapComponent : IAsyncDisposable
             ParticipantsView = Participants ?? await ParticipantRepository.GetAllParticipantsAsync();
             Logger.LogInformation("Загружено {Count} участников для карты", ParticipantsView.Count());
 
-            var apiKey = Options.Value.GoogleMapsApiKey ?? "";
             var projection = Projection ?? Options.Value.Map?.Projection ?? MapProjection.EqualEarth;
             var centralMeridian = CentralMeridian ?? Options.Value.Map?.CentralMeridian ?? 0.0;
             var centerLat = CenterLatitude ?? Options.Value.Map?.DefaultLatitude ?? 20.0;
@@ -96,7 +95,9 @@ public partial class CommunityMapComponent : IAsyncDisposable
             await JSRuntime.InvokeVoidAsync("setDotNetHelper", _dotNetRef);
             await JSRuntime.InvokeVoidAsync(
                 "initializeCommunityMap",
-                apiKey,
+                // Первый аргумент (ключ Google Maps) скрипт игнорирует. Ключ из настроек
+                // нужен только серверному геокодированию, в браузер его не отправляем.
+                string.Empty,
                 centerLat,
                 centerLng,
                 zoom,

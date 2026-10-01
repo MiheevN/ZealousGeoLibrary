@@ -17,7 +17,6 @@
 - **In-Memory репозиторий** - Простое хранение данных участников в памяти
 - **Модульная архитектура** - Четкое разделение ответственности между компонентами
 - **Адаптивный дизайн** - Адаптация под различные размеры экрана и устройства
-- **Нулевые предупреждения** - Код соответствует современным стандартам .NET 9
 
 ## 🚀 Быстрый старт
 
@@ -94,8 +93,10 @@ dotnet test tests/ZealousMindedPeopleGeo.Tests --collect:"XPlat Code Coverage"
 builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
 // настройки в коде
-builder.Services.AddZealousMindedPeopleGeo(options => options.Map = new MapConfiguration { DefaultZoom = 1 });
+builder.Services.AddZealousMindedPeopleGeo(options => options.EnableGeocoding = false);
 ```
+
+Какие настройки есть и когда они нужны — в разделе «Конфигурация».
 
 Участники хранятся в памяти, пока в настройках не указан `GoogleSheetId`, тогда — в Google
 Sheets. Свой `IParticipantRepository` или хранилище гео-данных в БД (`AddGeoDataDatabase`)
@@ -313,44 +314,85 @@ initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralM
 
 ## 🔧 Конфигурация
 
-### appsettings.json
+Настройки необязательны: без них работают глобус, карта, контейнеры гео-данных и PWA,
+участники хранятся в памяти. Ключ Google нужен только для поиска координат по адресу,
+таблица Google — только чтобы хранить участников в ней.
+
+Библиотека читает секцию `ZealousMindedPeopleGeo`, если сервисы зарегистрированы с
+конфигурацией:
+
+```csharp
+builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
+```
 
 ```json
 {
-  "Caching": {
-    "DefaultOptions": {
-      "SlidingExpiration": "00:30:00",
-      "Priority": "Normal"
-    },
-    "TypeSpecificOptions": {
-      "Participants": {
-        "SlidingExpiration": "00:15:00",
-        "Priority": "High"
-      },
-      "Geocoding": {
-        "SlidingExpiration": "24:00:00",
-        "Priority": "Normal"
-      }
+  "ZealousMindedPeopleGeo": {
+    "GoogleMapsApiKey": "",
+    "EnableGeocoding": true,
+    "GoogleSheetId": "",
+    "Map": {
+      "Projection": "EqualEarth",
+      "CentralMeridian": 0,
+      "DefaultLatitude": 20,
+      "DefaultLongitude": 0,
+      "DefaultZoom": 1
     }
-  },
-  "GoogleMaps": {
-    "ApiKey": "YOUR_GOOGLE_MAPS_API_KEY",
-    "DefaultCenterLatitude": 55.7558,
-    "DefaultCenterLongitude": 37.6176,
-    "DefaultZoom": 10
-  },
-  "GoogleSheets": {
-    "CredentialsPath": "credentials.json",
-    "ApplicationName": "Zealous Minded People Geography",
-    "SpreadsheetId": "YOUR_SPREADSHEET_ID"
-  },
-  "PWA": {
-    "EnableServiceWorker": true,
-    "EnableNotifications": true,
-    "UpdateCheckInterval": "00:05:00"
   }
 }
 ```
+
+| Ключ | По умолчанию | Что делает |
+|---|---|---|
+| `GoogleMapsApiKey` | пусто | Ключ Google Maps Platform с включённым Geocoding API. По нему `GeoDataParticipantForm` и `IParticipantService.RegisterParticipantAsync` находят координаты адреса. Без ключа форма сообщает, что ключ не настроен, и точку не добавляет. Карта и глобус ключ не используют. |
+| `EnableGeocoding` | `true` | `false` выключает запросы к Google, даже если ключ задан. |
+| `GoogleSheetId` | пусто | ID таблицы Google — часть адреса между `/d/` и `/edit`. Если задан, участники (`IParticipantRepository`) хранятся в этой таблице, иначе в памяти. |
+| `GoogleServiceAccountKey` | пусто | Содержимое JSON-ключа сервисного аккаунта Google (сам JSON, не путь к файлу). Обязателен вместе с `GoogleSheetId`. |
+| `Map:Projection` | `EqualEarth` | Проекция 2D-карты: `EqualEarth` или `Equirectangular`. |
+| `Map:CentralMeridian` | `0` | Центральный меридиан 2D-карты в градусах, от −180 до 180. |
+| `Map:DefaultLatitude`, `Map:DefaultLongitude`, `Map:DefaultZoom` | см. ниже | Начальный вид 2D-карты; `DefaultZoom = 1` — мир целиком. |
+
+Без секции `Map` карта открывается на широте 20 и центральном меридиане с зумом 2. Если
+секция `Map` задана, укажите в ней центр и зум явно: иначе действуют значения класса
+`MapConfiguration` — Москва и `DefaultZoom = 10`. Параметры `CommunityMapComponent`
+(`Projection`, `CentralMeridian`, `Zoom`, `CenterLatitude`, `CenterLongitude`) важнее
+настроек.
+
+В `ZealousMindedPeopleGeoOptions` есть ещё `EnableParticipantValidation`,
+`EnableRateLimiting`, `MaxParticipantsPerHour`, `DefaultCulture` и `Map:MapTheme`, но
+библиотека их пока не читает. Глобус настраивается параметрами компонентов и панелью
+настроек (см. «Настройки глобуса»), длительность кэша — в коде (см. «Кэширование»).
+
+### Ключи и секреты
+
+Не храните ключ Google и JSON сервисного аккаунта в `appsettings.json` в репозитории.
+Для разработки подойдут user secrets, на сервере — переменные окружения (двоеточие в
+имени ключа заменяется на `__`):
+
+```bash
+dotnet user-secrets init
+dotnet user-secrets set "ZealousMindedPeopleGeo:GoogleMapsApiKey" "<ключ>"
+dotnet user-secrets set "ZealousMindedPeopleGeo:GoogleServiceAccountKey" "$(cat service-account.json)"
+
+export ZealousMindedPeopleGeo__GoogleMapsApiKey="<ключ>"
+```
+
+Ключ используется только на сервере: компоненты не передают его в браузер. В Blazor
+WebAssembly настройки загружает сам браузер, поэтому ключ из них виден пользователям.
+
+### Участники в Google Sheets
+
+1. Создайте сервисный аккаунт в Google Cloud, включите для проекта Google Sheets API и
+   скачайте JSON-ключ аккаунта.
+2. Откройте таблицу на редактирование для адреса аккаунта — поле `client_email` в JSON.
+3. Задайте `GoogleSheetId` и `GoogleServiceAccountKey`.
+
+Участники пишутся на лист `Sheet1`, столбцы A–I: время регистрации, имя, адрес, широта,
+долгота, город, страна, соцсети, сообщение. В русской локали Google называет первый лист
+«Лист1» — переименуйте его в `Sheet1`. Первая строка — заголовки, данные читаются со
+второй. Заголовки записывает `IParticipantService.InitializeStorageAsync()`; без его
+вызова оставьте первую строку под заголовки сами. Таблица поддерживает только добавление
+и чтение: изменение и удаление участников возвращают ошибку.
 
 ## 📱 PWA и сервис-воркер
 
@@ -812,17 +854,6 @@ var geocodingResult = await CachingService.GetOrCreateGeocodingResultAsync(
     cancellationToken);
 ```
 
-## 🧪 Тестирование
-
-### Проверка функциональности
-
-Библиотека протестирована и готова к использованию. Для проверки работоспособности:
-
-1. Соберите проект: `dotnet build`
-2. Используйте компоненты в вашем Blazor приложении
-3. Проверьте консоль браузера на отсутствие ошибок
-4. Убедитесь что 3D глобус корректно отображается и интерактивен
-
 ## 📦 Архитектура
 
 ### Модульная система
@@ -863,7 +894,7 @@ else
 
 Рекомендации по безопасности:
 
-1. **API ключи** - Храните ключи Google Maps API в защищенной конфигурации
+1. **API ключи** - Храните ключи Google вне репозитория (см. «Конфигурация» → «Ключи и секреты»)
 2. **Валидация** - Всегда используйте встроенную валидацию данных
 3. **CORS** - Настройте политику CORS для защиты от CSRF атак
 4. **HTTPS** - Используйте HTTPS для всех запросов
@@ -911,20 +942,13 @@ ZealousMindedPeopleGeo/
 
 ### Сборка проекта
 
-```bash
-# Сборка библиотеки
-dotnet build ZealousMindedPeopleGeo
+Нужен .NET SDK 10.
 
-# Результат: 0 предупреждений, 0 ошибок
+```bash
+dotnet build ZealousMindedPeopleGeo.csproj
 ```
 
-### Качество кода
-
-- ✅ Нулевые предупреждения компилятора
-- ✅ Соответствие стандартам .NET 9
-- ✅ Правильная обработка nullable типов
-- ✅ Оптимизированные async/await паттерны
-- ✅ Корректная работа с памятью и ресурсами
+Тесты и тестовая среда описаны в «Быстром старте».
 
 
 ## 🤝 Вклад в развитие

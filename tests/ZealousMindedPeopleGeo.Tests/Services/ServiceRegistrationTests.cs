@@ -76,6 +76,40 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
+    public void Configuration_BindsKeysDocumentedInReadme()
+    {
+        // Ключи из раздела README «Конфигурация».
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ZealousMindedPeopleGeo:GoogleMapsApiKey"] = "maps-key",
+                ["ZealousMindedPeopleGeo:EnableGeocoding"] = "false",
+                ["ZealousMindedPeopleGeo:GoogleSheetId"] = "sheet-id",
+                ["ZealousMindedPeopleGeo:GoogleServiceAccountKey"] = "{\"client_email\":\"bot@example.iam.gserviceaccount.com\"}",
+                ["ZealousMindedPeopleGeo:Map:Projection"] = "Equirectangular",
+                ["ZealousMindedPeopleGeo:Map:CentralMeridian"] = "150",
+                ["ZealousMindedPeopleGeo:Map:DefaultLatitude"] = "20",
+                ["ZealousMindedPeopleGeo:Map:DefaultLongitude"] = "150",
+                ["ZealousMindedPeopleGeo:Map:DefaultZoom"] = "1"
+            })
+            .Build();
+
+        var options = Resolve<IOptions<ZealousMindedPeopleGeoOptions>>(
+            s => s.AddZealousMindedPeopleGeo(configuration)).Value;
+
+        Assert.Equal("maps-key", options.GoogleMapsApiKey);
+        Assert.False(options.EnableGeocoding);
+        Assert.Equal("sheet-id", options.GoogleSheetId);
+        Assert.Contains("client_email", options.GoogleServiceAccountKey);
+        Assert.NotNull(options.Map);
+        Assert.Equal(MapProjection.Equirectangular, options.Map.Projection);
+        Assert.Equal(150, options.Map.CentralMeridian);
+        Assert.Equal(20, options.Map.DefaultLatitude);
+        Assert.Equal(150, options.Map.DefaultLongitude);
+        Assert.Equal(1, options.Map.DefaultZoom);
+    }
+
+    [Fact]
     public async Task ServicesRegisteredByApplication_AreKept()
     {
         using var connection = new SqliteConnection("DataSource=:memory:");
