@@ -1,5 +1,90 @@
 @page "/"
 
-<PageTitle>Витрина</PageTitle>
+<PageTitle>Обзор · ZealousGeo</PageTitle>
 
-<LibraryShowcaseComponent />
+<section class="panel hero">
+    <div>
+        <div class="page-eyebrow">Тестовая среда · v@(ShowcaseInfo.LibraryVersion)</div>
+        <h1 class="page-title">ZealousMindedPeopleGeo</h1>
+        <p class="page-description">
+            Хост для ручной проверки компонентов библиотеки без боевого сайта: 2D карта
+            в проекции Equal Earth, 3D глобус, формы и PWA. Страницы работают на
+            демонстрационных наборах данных и не трогают общий репозиторий участников.
+        </p>
+        <div class="hero-actions">
+            <a class="button button-primary" href="map"><Icon Name="map" /> Открыть карту</a>
+            <a class="button" href="globe"><Icon Name="globe" /> Открыть глобус</a>
+        </div>
+    </div>
+    <img class="hero-art" src="img/equal-earth.svg" width="550" height="272"
+         alt="Карта мира в проекции Equal Earth" />
+</section>
+
+<section class="section">
+    <h2 class="section-title">Страницы</h2>
+    <div class="feature-grid">
+        @foreach (var link in Pages)
+        {
+            <a class="panel feature-card" href="@link.Href">
+                <span class="feature-icon"><Icon Name="@link.Icon" /></span>
+                <h3>@link.Title</h3>
+                <p>@link.Description</p>
+                <span class="tag-list">
+                    @foreach (var component in link.Components)
+                    {
+                        <span class="tag">@component</span>
+                    }
+                </span>
+            </a>
+        }
+    </div>
+</section>
+
+<section class="section two-columns">
+    <div class="panel">
+        <h2 class="panel-title">Демонстрационные наборы</h2>
+        <table class="data-table">
+            <thead>
+                <tr><th>Набор</th><th>Описание</th><th class="number">Точек</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var set in DemoDataSets.All)
+                {
+                    <tr>
+                        <td>@set.Title<br /><code>@set.Key</code></td>
+                        <td>@set.Description</td>
+                        <td class="number">@set.Create().Count</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h2 class="panel-title">Запуск</h2>
+        <pre class="code-block">dotnet run --project hosts/ZealousMindedPeopleGeo.Showcase</pre>
+        <p class="muted small">С пересборкой при каждом изменении:</p>
+        <pre class="code-block">dotnet watch --project hosts/ZealousMindedPeopleGeo.Showcase</pre>
+        <p class="muted small">
+            Библиотека подключена ссылкой на проект, поэтому правки компонентов, CSS и JS
+            видны после пересборки без публикации пакета.
+        </p>
+    </div>
+</section>
+
+@code {
+    private sealed record PageLink(string Href, string Icon, string Title, string Description, string[] Components);
+
+    private static readonly PageLink[] Pages =
+    {
+        new("map", "map", "2D карта",
+            "Equal Earth или прежняя прямоугольная проекция, центральный меридиан и набор данных переключаются на лету.",
+            new[] { "CommunityMapComponent" }),
+        new("globe", "globe", "3D глобус",
+            "Глобус на Three.js с изолированным контейнером данных и списком точек.",
+            new[] { "CommunityGlobeViewer" }),
+        new("showcase", "grid", "Все компоненты",
+            "Глобусы, карта, управление и настройки, форма участника, PWA и экспорт данных на одной странице.",
+            new[] { "LibraryShowcaseComponent" }),
+    };
+}

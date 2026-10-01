@@ -9,12 +9,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="xunit" Version="2.9.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <!-- Сбор покрытия кода (XPlat Code Coverage), команда запуска описана в README -->
+    <PackageReference Include="coverlet.collector" Version="10.1.0" />
+    <!-- Рендеринг Razor-компонентов и подмена JS interop в тестах -->
+    <PackageReference Include="bunit" Version="2.11.3" />
+    <!-- 10.0.12 тянет SQLitePCLRaw 2.1.12: в 2.1.11 уязвимость GHSA-2m69-gcr7-jv3q -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>

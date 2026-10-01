@@ -39,6 +39,35 @@ namespace ZealousMindedPeopleGeo.Models
         public double DefaultLongitude { get; set; } = 37.6176; // Москва
         public int DefaultZoom { get; set; } = 10;
         public string MapTheme { get; set; } = "default";
+
+        /// <summary>
+        /// Проекция 2D-карты. По умолчанию — равновеликая Equal Earth.
+        /// </summary>
+        public MapProjection Projection { get; set; } = MapProjection.EqualEarth;
+
+        /// <summary>
+        /// Центральный меридиан 2D-карты в градусах (−180…180): 0 — Гринвич,
+        /// 150 — Тихий океан в центре карты.
+        /// </summary>
+        public double CentralMeridian { get; set; }
+    }
+
+    /// <summary>
+    /// Картографическая проекция 2D-карты сообщества
+    /// </summary>
+    public enum MapProjection
+    {
+        /// <summary>
+        /// Равновеликая псевдоцилиндрическая проекция Equal Earth (2018): площади
+        /// материков сохраняются, карта имеет края и не прокручивается по кругу.
+        /// </summary>
+        EqualEarth,
+
+        /// <summary>
+        /// Равнопромежуточная цилиндрическая проекция (плате-карре): прямоугольная
+        /// карта, которая бесконечно прокручивается по горизонтали.
+        /// </summary>
+        Equirectangular
     }
 
 

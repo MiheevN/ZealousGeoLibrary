@@ -9,10 +9,6 @@
 @inject IGeoDataContainerManager ContainerManager
 @implements IDisposable
 
-<HeadContent>
-    <link href="/_content/ZealousMindedPeopleGeo/css/community-globe.css" rel="stylesheet" />
-</HeadContent>
-
 <div id="@ContainerId" class="globe-canvas-container" style="@ContainerStyle">
     @if (_isInitializing)
     {

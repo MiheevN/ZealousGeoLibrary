@@ -1,11 +1,37 @@
 // Статичная 2D-карта сообщества на чистом Canvas.
-// Использует равноугольную проекцию (equirectangular) и не зависит
-// от внешних картографических API. Поддерживает примитивное приближение/отдаление
-// колесом мыши или кнопками и перемещение по карте перетаскиванием.
+// По умолчанию использует равновеликую проекцию Equal Earth (Šavrič, Patterson,
+// Jenny, 2018); как опция доступна равнопромежуточная цилиндрическая проекция
+// (equirectangular). Центральный меридиан настраивается. Карта не зависит
+// от внешних картографических API, поддерживает приближение/отдаление колесом
+// мыши или кнопками и перемещение по карте перетаскиванием.
 
 const mapInstances = new Map();
 const containerStates = new WeakMap();
 let dotNetHelper = null;
+
+const DEG = Math.PI / 180;
+const DEFAULT_PROJECTION = 'equalearth';
+// Доля контейнера, которую карта мира занимает при zoom = 1.
+const FIT_PADDING = 0.96;
+// Шаг дробления рёбер полигонов и линий сетки, в градусах: прямые в градусах
+// отрезки в Equal Earth становятся кривыми.
+const DENSIFY_STEP = 2;
+
+// Коэффициенты полинома Equal Earth из статьи авторов проекции.
+const EE_A1 = 1.340264;
+const EE_A2 = -0.081106;
+const EE_A3 = 0.000893;
+const EE_A4 = 0.003796;
+const EE_M = Math.sqrt(3) / 2;
+
+// Ключи — имена проекций без регистра, пробелов, дефисов и подчёркиваний:
+// 'equalEarth', 'EqualEarth' и 'equal-earth' означают одно и то же.
+const PROJECTIONS = {
+    equalearth: createProjection('equalEarth', equalEarthForward, equalEarthInverse, false),
+    // Прямоугольная карта бесшовно склеивается сама с собой, поэтому её можно
+    // прокручивать по горизонтали бесконечно.
+    equirectangular: createProjection('equirectangular', equirectangularForward, equirectangularInverse, true)
+};
 
 const WORLD_LAND_PATHS = buildWorldLandPaths();
 
@@ -13,7 +39,8 @@ window.setDotNetHelper = (helper) => {
     dotNetHelper = helper;
 };
 
-window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId) => {
+// options: { projection: 'equalEarth' | 'equirectangular', centralMeridian: градусы }.
+window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId, options) => {
     // apiKey оставлен в сигнатуре для обратной совместимости и игнорируется:
     // карта работает полностью локально, без обращений к Google Maps.
     const targetId = containerId || 'map';
@@ -23,15 +50,21 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
         return;
     }
 
+    // Повторная инициализация того же контейнера не должна оставлять
+    // подписки предыдущего экземпляра.
+    mapInstances.get(targetId)?.dispose();
+
     const instance = createMapInstance(container, {
         centerLat: numberOrDefault(centerLat, 20),
         centerLng: numberOrDefault(centerLng, 0),
-        zoom: numberOrDefault(zoom, 2)
+        zoom: numberOrDefault(zoom, 2),
+        projection: options?.projection,
+        centralMeridian: numberOrDefault(options?.centralMeridian, 0)
     });
 
     mapInstances.set(targetId, instance);
     instance.draw();
-    console.log(`Карта сообщества инициализирована (${targetId})`);
+    console.log(`Карта сообщества инициализирована (${targetId}, ${instance.projection})`);
 };
 
 window.loadParticipantsOnMap = (participantsJson, containerId) => {
@@ -139,6 +172,9 @@ function createMapInstance(container, initialState) {
 
     const controls = createZoomControls(container);
 
+    const projection = resolveProjection(initialState.projection);
+    const centralMeridian = wrapLng(initialState.centralMeridian);
+
     const state = {
         canvas,
         ctx: canvas.getContext('2d'),
@@ -148,10 +184,14 @@ function createMapInstance(container, initialState) {
         participants: [],
         userLocation: null,
         focused: null,
-        // Текущее состояние камеры
+        // Проекция и полигоны суши в её координатах
+        projection,
+        centralMeridian,
+        land: buildProjectedLand(projection, centralMeridian),
+        // Камера: центр в координатах проекции и приближение
         zoom: clampZoom(initialState.zoom),
-        centerLat: clampLat(initialState.centerLat),
-        centerLng: wrapLng(initialState.centerLng),
+        centerX: 0,
+        centerY: 0,
         // Внутренние размеры
         width: 0,
         height: 0,
@@ -164,6 +204,7 @@ function createMapInstance(container, initialState) {
         // Подписки на события
         listeners: []
     };
+    setCenter(state, initialState.centerLat, initialState.centerLng);
 
     const resize = () => {
         const rect = container.getBoundingClientRect();
@@ -202,12 +243,13 @@ function createMapInstance(container, initialState) {
         if (event.button !== 0) {
             return;
         }
+        const view = getView(state);
         state.dragging = true;
         state.dragStart = {
             x: event.clientX,
             y: event.clientY,
-            centerLat: state.centerLat,
-            centerLng: state.centerLng
+            centerX: view.centerX,
+            centerY: view.centerY
         };
         canvas.setPointerCapture?.(event.pointerId);
         canvas.style.cursor = 'grabbing';
@@ -215,11 +257,10 @@ function createMapInstance(container, initialState) {
 
     const onPointerMove = (event) => {
         if (state.dragging && state.dragStart) {
-            const dx = event.clientX - state.dragStart.x;
-            const dy = event.clientY - state.dragStart.y;
-            const { scaleX, scaleY } = projectionScale(state);
-            state.centerLng = wrapLng(state.dragStart.centerLng - dx / scaleX);
-            state.centerLat = clampLat(state.dragStart.centerLat + dy / scaleY);
+            const scale = viewScale(state);
+            state.centerX = state.dragStart.centerX - (event.clientX - state.dragStart.x) / scale;
+            state.centerY = state.dragStart.centerY + (event.clientY - state.dragStart.y) / scale;
+            commitView(state);
             draw();
             return;
         }
@@ -273,9 +314,9 @@ function createMapInstance(container, initialState) {
         draw();
     });
     controls.reset.addEventListener('click', () => {
-        state.zoom = 2;
-        state.centerLat = 20;
-        state.centerLng = 0;
+        // Возврат к виду, с которым карта была инициализирована.
+        state.zoom = clampZoom(initialState.zoom);
+        setCenter(state, initialState.centerLat, initialState.centerLng);
         draw();
     });
 
@@ -286,6 +327,7 @@ function createMapInstance(container, initialState) {
 
     return {
         draw,
+        projection: projection.name,
         setParticipants(list) {
             state.participants = Array.isArray(list) ? list.slice() : [];
             draw();
@@ -295,8 +337,7 @@ function createMapInstance(container, initialState) {
             draw();
         },
         centerOn(lat, lng, zoom) {
-            state.centerLat = clampLat(lat);
-            state.centerLng = wrapLng(lng);
+            setCenter(state, lat, lng);
             if (Number.isFinite(zoom)) {
                 state.zoom = clampZoom(zoom);
             }
@@ -360,7 +401,7 @@ function clampLat(value) {
     if (!Number.isFinite(value)) {
         return 0;
     }
-    return Math.max(-85, Math.min(85, value));
+    return Math.max(-90, Math.min(90, value));
 }
 
 function wrapLng(value) {
@@ -377,232 +418,468 @@ function wrapLng(value) {
     return result;
 }
 
-function projectionScale(state) {
-    // Базовая проекция охватывает 360° по долготе на ширину канвы при zoom = 1.
-    const baseScaleX = state.width / 360;
-    const baseScaleY = state.height / 180;
-    const scaleX = baseScaleX * state.zoom;
-    const scaleY = baseScaleY * state.zoom;
-    return { scaleX, scaleY };
+// Сворачивает значение в отрезок [−period/2, period/2].
+function wrapPeriodic(value, period) {
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
+    return value - period * Math.round(value / period);
 }
 
-function projectToCanvas(state, lat, lng) {
-    const { scaleX, scaleY } = projectionScale(state);
-    const dx = wrapLng(lng - state.centerLng);
-    const x = state.width / 2 + dx * scaleX;
-    const y = state.height / 2 - (lat - state.centerLat) * scaleY;
-    return { x, y };
+// --- Проекции -------------------------------------------------------------
+// Прямое преобразование принимает долготу относительно центрального меридиана
+// и широту в градусах и возвращает [x, y] в единицах проекции (y — на север).
+
+function createProjection(name, forward, inverse, wrapsHorizontally) {
+    const [xMax] = forward(180, 0);
+    const [, yMax] = forward(0, 90);
+    // Контур карты: меридиан +180° с юга на север и меридиан −180° обратно.
+    // Полюса у Equal Earth — отрезки, они замыкают контур.
+    const outline = [];
+    for (let lat = -90; lat <= 90; lat += DENSIFY_STEP) {
+        outline.push(forward(180, lat));
+    }
+    for (let lat = 90; lat >= -90; lat -= DENSIFY_STEP) {
+        outline.push(forward(-180, lat));
+    }
+    return { name, forward, inverse, wrapsHorizontally, xMax, yMax, period: 2 * xMax, outline };
 }
 
-// При отрисовке полигонов важно сохранять «несвёрнутые» смещения относительно
-// предыдущей точки, иначе фигуры, пересекающие линию перемены даты, рисуются
-// как одна сплошная горизонтальная полоса.
-function projectPolygonPoint(state, lat, lng, previousDx) {
-    const { scaleX, scaleY } = projectionScale(state);
-    let dx = lng - state.centerLng;
-    if (previousDx === null) {
-        // Первая точка — нормализуем относительно центра карты.
-        while (dx > 180) {
-            dx -= 360;
-        }
-        while (dx < -180) {
-            dx += 360;
-        }
-    } else {
-        // Последующие точки — минимизируем расстояние от предыдущей вершины.
-        while (dx - previousDx > 180) {
-            dx -= 360;
-        }
-        while (dx - previousDx < -180) {
-            dx += 360;
+function resolveProjection(name) {
+    const key = String(name ?? '').replace(/[\s_-]/g, '').toLowerCase();
+    if (key && !PROJECTIONS[key]) {
+        console.warn(`Неизвестная проекция карты «${name}», используется Equal Earth`);
+    }
+    return PROJECTIONS[key] || PROJECTIONS[DEFAULT_PROJECTION];
+}
+
+function equalEarthForward(lng, lat) {
+    const lambda = lng * DEG;
+    const theta = Math.asin(EE_M * Math.sin(lat * DEG));
+    const t2 = theta * theta;
+    const t6 = t2 * t2 * t2;
+    const x = lambda * Math.cos(theta)
+        / (EE_M * (EE_A1 + 3 * EE_A2 * t2 + t6 * (7 * EE_A3 + 9 * EE_A4 * t2)));
+    const y = theta * (EE_A1 + EE_A2 * t2 + t6 * (EE_A3 + EE_A4 * t2));
+    return [x, y];
+}
+
+// Обратное преобразование: параметрическую широту θ находим из y методом
+// Ньютона, дальше долгота и широта выражаются явно.
+function equalEarthInverse(x, y) {
+    let theta = y;
+    for (let i = 0; i < 12; i += 1) {
+        const t2 = theta * theta;
+        const t6 = t2 * t2 * t2;
+        const delta = (theta * (EE_A1 + EE_A2 * t2 + t6 * (EE_A3 + EE_A4 * t2)) - y)
+            / (EE_A1 + 3 * EE_A2 * t2 + t6 * (7 * EE_A3 + 9 * EE_A4 * t2));
+        theta -= delta;
+        if (Math.abs(delta) < 1e-12) {
+            break;
         }
     }
-    const x = state.width / 2 + dx * scaleX;
-    const y = state.height / 2 - (lat - state.centerLat) * scaleY;
-    return { x, y, dx };
+    const t2 = theta * theta;
+    const t6 = t2 * t2 * t2;
+    const lambda = EE_M * x * (EE_A1 + 3 * EE_A2 * t2 + t6 * (7 * EE_A3 + 9 * EE_A4 * t2))
+        / Math.cos(theta);
+    const lat = Math.asin(Math.max(-1, Math.min(1, Math.sin(theta) / EE_M)));
+    return [lambda / DEG, lat / DEG];
 }
 
-function canvasToLatLng(state, x, y) {
-    const { scaleX, scaleY } = projectionScale(state);
-    const lng = wrapLng(state.centerLng + (x - state.width / 2) / scaleX);
-    const lat = clampLat(state.centerLat - (y - state.height / 2) / scaleY);
-    return { lat, lng };
+function equirectangularForward(lng, lat) {
+    return [lng * DEG, lat * DEG];
+}
+
+function equirectangularInverse(x, y) {
+    return [x / DEG, y / DEG];
+}
+
+// --- Камера ---------------------------------------------------------------
+
+// Пикселей на единицу проекции. При zoom = 1 карта мира целиком вписана в окно.
+function viewScale(state) {
+    const { projection } = state;
+    const fit = Math.min(
+        state.width / (2 * projection.xMax),
+        state.height / (2 * projection.yMax)
+    );
+    return fit * FIT_PADDING * state.zoom;
+}
+
+// Видимая область. Камера не даёт увести карту за край: если по оси карта
+// меньше окна, она центрируется, иначе край карты не отрывается от края окна.
+// Склеивающаяся по горизонтали проекция вместо этого сворачивается по периоду.
+function getView(state) {
+    const { projection } = state;
+    const scale = viewScale(state);
+    const halfWidth = state.width / 2 / scale;
+    const halfHeight = state.height / 2 / scale;
+    return {
+        scale,
+        centerX: projection.wrapsHorizontally
+            ? wrapPeriodic(state.centerX, projection.period)
+            : clampAxis(state.centerX, projection.xMax, halfWidth),
+        centerY: clampAxis(state.centerY, projection.yMax, halfHeight)
+    };
+}
+
+function clampAxis(center, extent, halfView) {
+    if (!Number.isFinite(center)) {
+        return 0;
+    }
+    const limit = Math.max(0, extent - halfView);
+    return Math.max(-limit, Math.min(limit, center));
+}
+
+// После действий пользователя запоминаем уже ограниченный центр, чтобы
+// перетаскивание за край не копило смещение, которое потом нужно «отматывать».
+function commitView(state) {
+    const view = getView(state);
+    state.centerX = view.centerX;
+    state.centerY = view.centerY;
+}
+
+function setCenter(state, lat, lng) {
+    const [x, y] = projectPoint(state, lat, lng);
+    state.centerX = x;
+    state.centerY = y;
 }
 
 function zoomAt(state, factor, pointer) {
-    const before = canvasToLatLng(state, pointer.x, pointer.y);
+    // Точка карты под указателем остаётся на месте.
+    const view = getView(state);
+    const anchorX = view.centerX + (pointer.x - state.width / 2) / view.scale;
+    const anchorY = view.centerY - (pointer.y - state.height / 2) / view.scale;
     state.zoom = clampZoom(state.zoom * factor);
-    const after = canvasToLatLng(state, pointer.x, pointer.y);
-    state.centerLat = clampLat(state.centerLat + (before.lat - after.lat));
-    state.centerLng = wrapLng(state.centerLng + (before.lng - after.lng));
+    const scale = viewScale(state);
+    state.centerX = anchorX - (pointer.x - state.width / 2) / scale;
+    state.centerY = anchorY + (pointer.y - state.height / 2) / scale;
+    commitView(state);
 }
+
+// Координаты точки в плоскости проекции относительно центрального меридиана.
+function projectPoint(state, lat, lng) {
+    return state.projection.forward(wrapLng(lng - state.centralMeridian), clampLat(lat));
+}
+
+function toCanvas(state, view, x, y) {
+    return {
+        x: state.width / 2 + (x - view.centerX) * view.scale,
+        y: state.height / 2 - (y - view.centerY) * view.scale
+    };
+}
+
+function projectToCanvas(state, lat, lng) {
+    const view = getView(state);
+    let [x, y] = projectPoint(state, lat, lng);
+    if (state.projection.wrapsHorizontally) {
+        // Из бесконечной ленты копий мира берём ближайшую к центру окна.
+        x = view.centerX + wrapPeriodic(x - view.centerX, state.projection.period);
+    }
+    return toCanvas(state, view, x, y);
+}
+
+// Все экранные позиции точки: у склеивающейся проекции точка повторяется
+// в каждой видимой копии мира.
+function projectToCanvasCopies(state, view, lat, lng) {
+    const [x, y] = projectPoint(state, lat, lng);
+    return worldCopyOffsets(state, view).map((offset) => toCanvas(state, view, x + offset, y));
+}
+
+function worldCopyOffsets(state, view) {
+    const { projection } = state;
+    const halfWidth = state.width / 2 / view.scale;
+    if (!projection.wrapsHorizontally || !Number.isFinite(halfWidth)) {
+        return [0];
+    }
+    const first = Math.ceil((view.centerX - halfWidth - projection.xMax) / projection.period);
+    const last = Math.floor((view.centerX + halfWidth + projection.xMax) / projection.period);
+    const offsets = [];
+    for (let n = first; n <= last; n += 1) {
+        offsets.push(n * projection.period);
+    }
+    return offsets;
+}
+
+// Возвращает null, если точка экрана лежит вне карты.
+function canvasToLatLng(state, x, y) {
+    const { projection } = state;
+    const view = getView(state);
+    let px = view.centerX + (x - state.width / 2) / view.scale;
+    const py = view.centerY - (y - state.height / 2) / view.scale;
+    if (projection.wrapsHorizontally) {
+        px = wrapPeriodic(px, projection.period);
+    }
+    if (Math.abs(py) > projection.yMax) {
+        return null;
+    }
+    const [relativeLng, lat] = projection.inverse(px, py);
+    if (!Number.isFinite(relativeLng) || Math.abs(relativeLng) > 180 + 1e-9) {
+        return null;
+    }
+    return { lat, lng: wrapLng(relativeLng + state.centralMeridian) };
+}
+
+// --- Суша -----------------------------------------------------------------
+
+// Полигоны суши в координатах проекции. Считаются один раз на проекцию и
+// центральный меридиан, а при отрисовке кадра их остаётся сдвинуть и
+// отмасштабировать. Рёбра полигонов — отрезки в координатах долгота/широта
+// (как в GeoJSON); фигуры, пересекающие линию перемены даты, разрезаны по ней.
+function buildProjectedLand(projection, centralMeridian) {
+    // Долгота относительно центрального меридиана лежит в (−360°, 360°).
+    // При фиксированной широте x линеен по долготе, поэтому копии со сдвигом
+    // ±360° вместе с обрезкой по контуру карты дают разрез по линии перемены
+    // даты. Склеивающейся проекции копии не нужны: их дают копии мира.
+    const shifts = projection.wrapsHorizontally ? [0] : [-360, 0, 360];
+    const rings = [];
+    WORLD_LAND_PATHS.forEach((shape) => {
+        const points = densifyRing(shape, DENSIFY_STEP);
+        const relative = points.map(([lng]) => lng - centralMeridian);
+        const min = Math.min(...relative);
+        const max = Math.max(...relative);
+        for (const shift of shifts) {
+            if (max + shift <= -180 || min + shift >= 180) {
+                continue;
+            }
+            rings.push(points.map(([, lat, seam], index) => {
+                const [x, y] = projection.forward(relative[index] + shift, lat);
+                return [x, y, seam];
+            }));
+        }
+    });
+    return rings;
+}
+
+// Дробит рёбра на отрезки не длиннее step градусов и помечает вершины на
+// линии перемены даты: рёбра вдоль неё — разрез данных, а не берег.
+function densifyRing(ring, step) {
+    const points = [];
+    for (let i = 0; i < ring.length - 1; i += 1) {
+        const [lng0, lat0] = ring[i];
+        const [lng1, lat1] = ring[i + 1];
+        const count = Math.max(1, Math.ceil(Math.max(Math.abs(lng1 - lng0), Math.abs(lat1 - lat0)) / step));
+        for (let j = 0; j < count; j += 1) {
+            const lng = lng0 + (lng1 - lng0) * j / count;
+            points.push([lng, lat0 + (lat1 - lat0) * j / count, Math.abs(lng) === 180]);
+        }
+    }
+    const [lng, lat] = ring[ring.length - 1];
+    points.push([lng, lat, Math.abs(lng) === 180]);
+    return points;
+}
+
+// --- Отрисовка ------------------------------------------------------------
 
 function drawScene(state) {
-    const { ctx, width, height } = state;
+    const { ctx, width, height, projection } = state;
+    const view = getView(state);
     ctx.clearRect(0, 0, width, height);
 
-    drawOcean(ctx, width, height);
-    drawLand(state);
-    drawGraticule(state);
-    drawParticipants(state);
-    drawUserLocation(state);
-    drawFocusedParticipant(state);
-}
-
-function drawOcean(ctx, width, height) {
-    ctx.fillStyle = '#101a26';
+    // Пространство вокруг карты чуть темнее океана.
+    ctx.fillStyle = '#0b1118';
     ctx.fillRect(0, 0, width, height);
+    drawOcean(state, view);
+
+    for (const offset of worldCopyOffsets(state, view)) {
+        ctx.save();
+        if (!projection.wrapsHorizontally) {
+            // Куски полигонов за линией перемены даты отсекает контур карты.
+            tracePath(ctx, projection.outline.map(([x, y]) => toCanvas(state, view, x + offset, y)));
+            ctx.clip();
+        }
+        drawLand(state, view, offset);
+        drawGraticule(state, view, offset);
+        ctx.restore();
+    }
+
+    if (!projection.wrapsHorizontally) {
+        ctx.save();
+        tracePath(ctx, projection.outline.map(([x, y]) => toCanvas(state, view, x, y)));
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.32)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawParticipants(state, view);
+    drawUserLocation(state, view);
+    drawFocusedParticipant(state, view);
 }
 
-function drawLand(state) {
+function drawOcean(state, view) {
+    const { ctx, width, projection } = state;
+    ctx.save();
+    ctx.fillStyle = '#101a26';
+    if (projection.wrapsHorizontally) {
+        // Одна полоса на всю ширину: соседние копии мира не дают шва.
+        const top = toCanvas(state, view, 0, projection.yMax).y;
+        const bottom = toCanvas(state, view, 0, -projection.yMax).y;
+        ctx.fillRect(0, top, width, bottom - top);
+    } else {
+        tracePath(ctx, projection.outline.map(([x, y]) => toCanvas(state, view, x, y)));
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawLand(state, view, offset) {
     const { ctx } = state;
     ctx.save();
     ctx.fillStyle = '#1d2b3a';
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.42)';
     ctx.lineWidth = 1;
 
-    WORLD_LAND_PATHS.forEach((shape) => {
-        // Чтобы избежать «провисания» полигона через всю карту при пересечении
-        // линии смены даты, отрисуем фигуру дважды со смещением ±360°.
-        for (const offset of [-360, 0, 360]) {
-            ctx.beginPath();
-            let previousDx = null;
-            for (const [lng, lat] of shape) {
-                const result = projectPolygonPoint(state, lat, lng + offset, previousDx);
-                if (previousDx === null) {
-                    ctx.moveTo(result.x, result.y);
-                } else {
-                    ctx.lineTo(result.x, result.y);
-                }
-                previousDx = result.dx;
+    state.land.forEach((ring) => {
+        const points = ring.map(([x, y]) => toCanvas(state, view, x + offset, y));
+        tracePath(ctx, points);
+        ctx.fill();
+
+        // Берег обводим без рёбер вдоль линии перемены даты.
+        ctx.beginPath();
+        points.forEach((point, index) => {
+            const onSeam = index > 0 && ring[index][2] && ring[index - 1][2];
+            if (index === 0 || onSeam) {
+                ctx.moveTo(point.x, point.y);
+            } else {
+                ctx.lineTo(point.x, point.y);
             }
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-        }
+        });
+        ctx.stroke();
     });
 
     ctx.restore();
 }
 
-function drawGraticule(state) {
-    const { ctx, width, height } = state;
+function drawGraticule(state, view, offset) {
+    const { ctx, projection } = state;
+    const step = state.zoom >= 6 ? 10 : state.zoom >= 3 ? 20 : 30;
+    const toPoint = (relativeLng, lat) => {
+        const [x, y] = projection.forward(relativeLng, lat);
+        return toCanvas(state, view, x + offset, y);
+    };
+    const regular = 'rgba(148, 163, 184, 0.18)';
+    // Экватор и нулевой меридиан выделены чуть ярче.
+    const accent = 'rgba(148, 163, 184, 0.32)';
+
     ctx.save();
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
     ctx.lineWidth = 1;
 
-    const latStep = state.zoom >= 6 ? 10 : state.zoom >= 3 ? 20 : 30;
-    const lngStep = state.zoom >= 6 ? 10 : state.zoom >= 3 ? 20 : 30;
-
-    for (let lat = -90; lat <= 90; lat += latStep) {
-        const { y } = projectToCanvas(state, lat, state.centerLng);
-        if (y < -10 || y > height + 10) {
-            continue;
+    // Параллели в обеих проекциях — горизонтальные отрезки.
+    for (let lat = 0; lat < 90; lat += step) {
+        for (const parallel of lat === 0 ? [0] : [lat, -lat]) {
+            ctx.strokeStyle = parallel === 0 ? accent : regular;
+            tracePath(ctx, [toPoint(-180, parallel), toPoint(180, parallel)]);
+            ctx.stroke();
         }
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
     }
 
-    for (let lng = -180; lng <= 180; lng += lngStep) {
-        const { x } = projectToCanvas(state, state.centerLat, lng);
-        if (x < -10 || x > width + 10) {
-            continue;
+    // Меридианы идут по настоящим долготам, а рисуются относительно центрального.
+    for (let lng = -180; lng < 180; lng += step) {
+        const relativeLng = wrapLng(lng - state.centralMeridian);
+        if (!projection.wrapsHorizontally && Math.abs(relativeLng) === 180) {
+            continue; // совпадает с контуром карты
         }
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
+        const points = [];
+        for (let lat = -90; lat <= 90; lat += DENSIFY_STEP) {
+            points.push(toPoint(relativeLng, lat));
+        }
+        ctx.strokeStyle = lng === 0 ? accent : regular;
+        tracePath(ctx, points);
         ctx.stroke();
     }
 
-    // Экватор и нулевой меридиан выделены чуть ярче.
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.32)';
-    const equator = projectToCanvas(state, 0, state.centerLng);
-    if (equator.y >= 0 && equator.y <= height) {
-        ctx.beginPath();
-        ctx.moveTo(0, equator.y);
-        ctx.lineTo(width, equator.y);
-        ctx.stroke();
-    }
-    const prime = projectToCanvas(state, state.centerLat, 0);
-    if (prime.x >= 0 && prime.x <= width) {
-        ctx.beginPath();
-        ctx.moveTo(prime.x, 0);
-        ctx.lineTo(prime.x, height);
-        ctx.stroke();
-    }
     ctx.restore();
 }
 
-function drawParticipants(state) {
+function tracePath(ctx, points) {
+    ctx.beginPath();
+    points.forEach((point, index) => {
+        if (index === 0) {
+            ctx.moveTo(point.x, point.y);
+        } else {
+            ctx.lineTo(point.x, point.y);
+        }
+    });
+}
+
+function isOnScreen(state, point, margin) {
+    return point.x >= -margin && point.x <= state.width + margin
+        && point.y >= -margin && point.y <= state.height + margin;
+}
+
+function drawParticipants(state, view) {
     const { ctx } = state;
     state.participants.forEach((participant, index) => {
         if (!isFinitePair(participant.Latitude, participant.Longitude)) {
             return;
         }
-        const { x, y } = projectToCanvas(state, participant.Latitude, participant.Longitude);
-        if (x < -40 || x > state.width + 40 || y < -40 || y > state.height + 40) {
-            return;
-        }
         const radius = state.hoveredParticipantIndex === index ? 11 : 9;
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-        ctx.shadowBlur = 4;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#24dce7';
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#0e1013';
-        ctx.stroke();
-        ctx.restore();
-
         const initial = String(participant.Name || '?').charAt(0).toUpperCase();
-        ctx.save();
-        ctx.fillStyle = '#0e1013';
-        ctx.font = 'bold 11px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(initial, x, y + 0.5);
-        ctx.restore();
+        const positions = projectToCanvasCopies(state, view, participant.Latitude, participant.Longitude);
+        positions.filter((point) => isOnScreen(state, point, 40)).forEach(({ x, y }) => {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 4;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#24dce7';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#0e1013';
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = '#0e1013';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(initial, x, y + 0.5);
+            ctx.restore();
+        });
     });
 }
 
-function drawUserLocation(state) {
+function drawUserLocation(state, view) {
     if (!state.userLocation) {
         return;
     }
     const { ctx } = state;
-    const { x, y } = projectToCanvas(state, state.userLocation.latitude, state.userLocation.longitude);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = '#68f2a0';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#0e1013';
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#0e1013';
-    ctx.fill();
-    ctx.restore();
+    const positions = projectToCanvasCopies(state, view, state.userLocation.latitude, state.userLocation.longitude);
+    positions.forEach(({ x, y }) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#68f2a0';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#0e1013';
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#0e1013';
+        ctx.fill();
+        ctx.restore();
+    });
 }
 
-function drawFocusedParticipant(state) {
+function drawFocusedParticipant(state, view) {
     if (!state.focused) {
         return;
     }
     const { ctx } = state;
-    const { x, y } = projectToCanvas(state, state.focused.lat, state.focused.lng);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, 14, 0, Math.PI * 2);
-    ctx.strokeStyle = '#ffcf5a';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
+    const positions = projectToCanvasCopies(state, view, state.focused.lat, state.focused.lng);
+    positions.forEach(({ x, y }) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 14, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffcf5a';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+    });
 }
 
 function updateHover(state, event) {
@@ -626,15 +903,19 @@ function updateHover(state, event) {
 }
 
 function findParticipantAt(state, pointer) {
+    const view = getView(state);
     for (let i = state.participants.length - 1; i >= 0; i -= 1) {
         const participant = state.participants[i];
         if (!isFinitePair(participant.Latitude, participant.Longitude)) {
             continue;
         }
-        const { x, y } = projectToCanvas(state, participant.Latitude, participant.Longitude);
-        const dx = pointer.x - x;
-        const dy = pointer.y - y;
-        if (dx * dx + dy * dy <= 13 * 13) {
+        const positions = projectToCanvasCopies(state, view, participant.Latitude, participant.Longitude);
+        const hit = positions.some(({ x, y }) => {
+            const dx = pointer.x - x;
+            const dy = pointer.y - y;
+            return dx * dx + dy * dy <= 13 * 13;
+        });
+        if (hit) {
             return i;
         }
     }

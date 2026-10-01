@@ -1,14 +1,36 @@
 @inherits LayoutComponentBase
+@inject IWebHostEnvironment HostEnvironment
 
-<nav class="navbar navbar-dark bg-dark px-3">
-    <a class="navbar-brand" href="/">ZealousMindedPeopleGeo</a>
-    <div class="d-flex gap-3">
-        <a class="nav-link text-white" href="/">Витрина</a>
-        <a class="nav-link text-white" href="/globe">Глобус</a>
-        <a class="nav-link text-white" href="/map">Карта</a>
-    </div>
-</nav>
+<div class="app">
+    <aside class="app-sidebar">
+        <div class="app-sidebar-inner">
+            <a class="app-brand" href="">
+                <span class="app-brand-mark"><Icon Name="globe" /></span>
+                <span>
+                    <span class="app-brand-name">ZealousGeo</span>
+                    <span class="app-brand-sub">Тестовая среда</span>
+                </span>
+            </a>
 
-<main class="container-fluid py-3">
-    @Body
-</main>
+            <nav class="app-nav" aria-label="Разделы">
+                <NavLink href="" Match="NavLinkMatch.All"><Icon Name="home" /> Обзор</NavLink>
+                <div class="app-nav-section">Компоненты</div>
+                <NavLink href="map"><Icon Name="map" /> 2D карта</NavLink>
+                <NavLink href="globe"><Icon Name="globe" /> 3D глобус</NavLink>
+                <NavLink href="showcase"><Icon Name="grid" /> Все компоненты</NavLink>
+            </nav>
+
+            <div class="app-sidebar-footer">
+                <span>Библиотека <strong>v@(ShowcaseInfo.LibraryVersion)</strong></span>
+                <span>.NET <strong>@Environment.Version</strong></span>
+                <span>Среда <strong>@HostEnvironment.EnvironmentName</strong></span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="app-main">
+        <div class="app-content">
+            @Body
+        </div>
+    </main>
+</div>

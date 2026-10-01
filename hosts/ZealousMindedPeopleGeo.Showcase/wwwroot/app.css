@@ -1,0 +1,683 @@
+/* Оболочка хоста витрины. Цвета и радиусы — токены библиотеки из zealous-ui.css,
+   чтобы хост и компоненты выглядели как одно приложение. Bootstrap нужен только
+   самим компонентам библиотеки; оболочка от него не зависит. */
+
+:root {
+    --app-sidebar-width: 248px;
+    --app-content-width: 1280px;
+    --app-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --app-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+html,
+body {
+    background: var(--zgl-bg);
+    color: var(--zgl-text);
+}
+
+body {
+    margin: 0;
+    font-family: var(--app-font);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--zgl-accent);
+}
+
+code {
+    font-family: var(--app-mono);
+    color: var(--zgl-accent);
+    font-size: 0.85em;
+}
+
+/* FocusOnNavigate переводит фокус на заголовок страницы; рамка тут не нужна. */
+h1:focus,
+h1:focus-visible {
+    outline: none;
+}
+
+/* --- Каркас --------------------------------------------------------------- */
+
+.app {
+    display: grid;
+    grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+/* Фон боковой панели тянется на всю высоту страницы, а содержимое прилипает к окну. */
+.app-sidebar {
+    background: var(--zgl-surface);
+    border-right: 1px solid var(--zgl-border);
+}
+
+.app-sidebar-inner {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    height: 100vh;
+    padding: 20px 14px;
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 6px;
+    color: var(--zgl-text);
+    text-decoration: none;
+}
+
+.app-brand-mark {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--zgl-accent-soft);
+    color: var(--zgl-accent);
+}
+
+.app-brand-name {
+    display: block;
+    font-weight: 650;
+    font-size: 0.95rem;
+    line-height: 1.2;
+}
+
+.app-brand-sub {
+    display: block;
+    color: var(--zgl-subtle);
+    font-size: 0.75rem;
+}
+
+.app-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.app-nav-section {
+    padding: 14px 10px 6px;
+    color: var(--zgl-subtle);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.app-nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-muted);
+    font-size: 0.92rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.app-nav a:hover {
+    background: var(--zgl-surface-muted);
+    color: var(--zgl-text);
+}
+
+.app-nav a.active {
+    background: var(--zgl-accent-soft);
+    color: var(--zgl-text);
+    box-shadow: inset 2px 0 0 var(--zgl-accent);
+}
+
+.app-nav svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+}
+
+.app-sidebar-footer {
+    display: grid;
+    gap: 4px;
+    margin-top: auto;
+    padding: 12px 10px 0;
+    border-top: 1px solid var(--zgl-border);
+    color: var(--zgl-subtle);
+    font-size: 0.78rem;
+}
+
+.app-sidebar-footer strong {
+    color: var(--zgl-muted);
+    font-weight: 600;
+}
+
+.app-main {
+    min-width: 0;
+    padding: 32px clamp(16px, 3vw, 40px) 56px;
+}
+
+.app-content {
+    max-width: var(--app-content-width);
+    margin: 0 auto;
+}
+
+/* --- Заголовок страницы --------------------------------------------------- */
+
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px 24px;
+    margin-bottom: 24px;
+}
+
+.page-eyebrow {
+    margin-bottom: 6px;
+    color: var(--zgl-accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.page-title {
+    margin: 0;
+    font-size: clamp(1.55rem, 2.4vw, 2rem);
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.page-description {
+    max-width: 700px;
+    margin: 8px 0 0;
+    color: var(--zgl-muted);
+}
+
+.page-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--zgl-border);
+    border-radius: 999px;
+    background: var(--zgl-surface-muted);
+    color: var(--zgl-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* --- Панели и кнопки ------------------------------------------------------ */
+
+.panel {
+    padding: 20px;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    background: var(--zgl-surface);
+}
+
+.panel-flush {
+    padding: 0;
+    overflow: hidden;
+}
+
+.panel-title {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.section {
+    margin-top: 32px;
+}
+
+.section-title {
+    margin: 0 0 14px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1px solid var(--zgl-border-strong);
+    border-radius: var(--zgl-radius-sm);
+    background: var(--zgl-surface-muted);
+    color: var(--zgl-text);
+    font-size: 0.92rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.button:hover {
+    border-color: var(--zgl-accent);
+    color: var(--zgl-text);
+}
+
+.button svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+}
+
+.button-primary {
+    border-color: var(--zgl-accent);
+    background: var(--zgl-accent);
+    color: #061214;
+}
+
+.button-primary:hover {
+    background: var(--zgl-accent-strong);
+    color: #061214;
+}
+
+/* Переключатель из нескольких кнопок */
+.segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius);
+    background: var(--zgl-bg);
+}
+
+.segmented button {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: var(--zgl-radius-sm);
+    background: transparent;
+    color: var(--zgl-muted);
+    font: inherit;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.segmented button:hover {
+    color: var(--zgl-text);
+}
+
+.segmented button.active {
+    background: var(--zgl-elevated);
+    color: var(--zgl-text);
+    box-shadow: 0 0 0 1px var(--zgl-border-strong);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px 28px;
+    margin-bottom: 16px;
+}
+
+.field {
+    display: grid;
+    gap: 6px;
+}
+
+.field-label {
+    color: var(--zgl-subtle);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* --- Обзор ---------------------------------------------------------------- */
+
+.hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: center;
+    gap: 32px;
+    padding: 36px;
+    background:
+        radial-gradient(120% 140% at 100% 0%, rgba(36, 220, 231, 0.10), transparent 55%),
+        var(--zgl-surface);
+}
+
+.hero .page-title {
+    font-size: clamp(1.6rem, 2.3vw, 2.1rem);
+    overflow-wrap: anywhere;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 22px;
+}
+
+.hero-art {
+    width: 100%;
+    height: auto;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.feature-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.feature-card:hover {
+    border-color: var(--zgl-accent);
+    color: inherit;
+    transform: translateY(-2px);
+}
+
+.feature-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--zgl-accent-soft);
+    color: var(--zgl-accent);
+}
+
+.feature-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.feature-card h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.feature-card p {
+    margin: 0;
+    color: var(--zgl-muted);
+    font-size: 0.9rem;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 6px;
+}
+
+.tag {
+    padding: 2px 8px;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    background: var(--zgl-bg);
+    color: var(--zgl-muted);
+    font-family: var(--app-mono);
+    font-size: 0.75rem;
+}
+
+.two-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.data-table th {
+    padding: 0 12px 10px 0;
+    color: var(--zgl-subtle);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.data-table td {
+    padding: 10px 12px 10px 0;
+    border-top: 1px solid var(--zgl-border);
+    color: var(--zgl-muted);
+    vertical-align: top;
+}
+
+.data-table td:first-child {
+    color: var(--zgl-text);
+}
+
+.data-table .number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.code-block {
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    background: var(--zgl-bg);
+    color: var(--zgl-text);
+    font-family: var(--app-mono);
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.muted {
+    color: var(--zgl-muted);
+}
+
+.small {
+    font-size: 0.85rem;
+}
+
+/* --- Глобус --------------------------------------------------------------- */
+
+.split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+    gap: 16px;
+}
+
+.split .globe-canvas-container {
+    margin: 0 auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Витрина библиотеки — отдельная панель на фоне страницы. */
+.app-content .zgl-showcase {
+    border: 1px solid var(--zgl-border);
+    background: var(--zgl-surface);
+    box-shadow: none;
+}
+
+.option-list {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.option {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    background: var(--zgl-bg);
+    color: var(--zgl-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.option:hover {
+    border-color: var(--zgl-border-strong);
+}
+
+.option.active {
+    border-color: var(--zgl-accent);
+    background: var(--zgl-accent-soft);
+}
+
+.option-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.option-description {
+    color: var(--zgl-muted);
+    font-size: 0.8rem;
+}
+
+.point-list {
+    display: grid;
+    gap: 2px;
+    max-height: 360px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.point-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    border-top: 1px solid var(--zgl-border);
+    font-size: 0.88rem;
+}
+
+.point-list span:last-child {
+    color: var(--zgl-subtle);
+    font-family: var(--app-mono);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+/* --- Ошибки и 404 --------------------------------------------------------- */
+
+.not-found {
+    max-width: 520px;
+    margin: 12vh auto 0;
+    text-align: center;
+}
+
+.not-found .page-description {
+    margin: 8px auto 20px;
+}
+
+#blazor-error-ui {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    z-index: 1000;
+    display: none;
+    padding: 12px 48px 12px 16px;
+    border: 1px solid rgba(251, 113, 133, 0.5);
+    border-radius: var(--zgl-radius);
+    background: #2a1219;
+    color: var(--zgl-text);
+    box-shadow: var(--zgl-shadow);
+}
+
+#blazor-error-ui .reload {
+    margin-left: 8px;
+    color: var(--zgl-danger);
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    color: var(--zgl-muted);
+    cursor: pointer;
+}
+
+/* --- Узкие экраны --------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+    .hero,
+    .two-columns,
+    .split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .app {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .app-sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-right: 0;
+        border-bottom: 1px solid var(--zgl-border);
+    }
+
+    .app-sidebar-inner {
+        position: static;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        height: auto;
+        padding: 10px 16px;
+        overflow-x: auto;
+    }
+
+    .app-nav {
+        flex-direction: row;
+    }
+
+    .app-nav-section,
+    .app-brand-sub,
+    .app-sidebar-footer {
+        display: none;
+    }
+
+    .app-nav a.active {
+        box-shadow: inset 0 -2px 0 var(--zgl-accent);
+    }
+
+    .app-main {
+        padding-top: 24px;
+    }
+
+    .hero {
+        padding: 24px;
+    }
+}

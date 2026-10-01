@@ -3,10 +3,7 @@
 @using ZealousMindedPeopleGeo.Services
 @inject IPwaService PwaService
 @inject ILogger<PwaManagerComponent> Logger
-
-<HeadContent>
-    <link href="/_content/ZealousMindedPeopleGeo/css/pwa-manager.css" rel="stylesheet" />
-</HeadContent>
+@implements IDisposable
 
 <div class="pwa-manager">
     @if (_isLoading)
@@ -147,10 +144,21 @@
 
     private System.Timers.Timer? _updateTimer;
 
+    // PwaService ходит в JS, поэтому данные загружаются только после интерактивного рендера, не при пререндеринге.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            // Без регистрации воркера кнопки «Проверить обновления» и «Очистить кэш» ни на что не влияют.
+            try
+            {
+                await PwaService.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error initializing PWA");
+            }
+
             await LoadPwaInfoAsync();
 
             if (AutoCheckUpdates)
