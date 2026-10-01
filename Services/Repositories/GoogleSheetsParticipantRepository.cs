@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services.GeoDataContainer;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Services.Repositories
 {
@@ -12,15 +14,18 @@ namespace ZealousMindedPeopleGeo.Services.Repositories
         private readonly ZealousMindedPeopleGeoOptions _options;
         private readonly ILogger<GoogleSheetsParticipantRepository> _logger;
         private readonly IGoogleSheetsService _googleSheetsService;
+        private readonly IGeoDataChangeNotifier? _changeNotifier;
 
         public GoogleSheetsParticipantRepository(
             IOptions<ZealousMindedPeopleGeoOptions> options,
             ILogger<GoogleSheetsParticipantRepository> logger,
-            IGoogleSheetsService googleSheetsService)
+            IGoogleSheetsService googleSheetsService,
+            IGeoDataChangeNotifier? changeNotifier = null)
         {
             _options = options.Value;
             _logger = logger;
             _googleSheetsService = googleSheetsService;
+            _changeNotifier = changeNotifier;
         }
 
         public async ValueTask<RepositoryResult> AddParticipantAsync(Participant participant, CancellationToken ct = default)
@@ -31,6 +36,10 @@ namespace ZealousMindedPeopleGeo.Services.Repositories
 
                 if (sheetResult.Success)
                 {
+                    _changeNotifier?.Publish(GeoDataChangeNotification.ForParticipantRepository(
+                        GeoDataChangeType.Added,
+                        participant.Id));
+
                     return new RepositoryResult
                     {
                         Success = true,

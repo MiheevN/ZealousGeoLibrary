@@ -17,6 +17,15 @@ public interface IThreeJsGlobeService
     ValueTask<Models.GlobeInitializationResult> InitializeGlobeAsync(string containerId, Models.GlobeOptions options, CancellationToken ct = default);
 
     /// <summary>
+    /// Добавляет одного участника на глобус
+    /// </summary>
+    /// <param name="containerId">ID контейнера глобуса</param>
+    /// <param name="participant">Данные участника</param>
+    /// <param name="ct">Токен отмены операции</param>
+    /// <returns>Результат добавления</returns>
+    ValueTask<Models.GlobeOperationResult> AddParticipantAsync(string containerId, Models.Participant participant, CancellationToken ct = default);
+
+    /// <summary>
     /// Добавляет участников на глобус
     /// </summary>
     /// <param name="containerId">ID контейнера глобуса</param>

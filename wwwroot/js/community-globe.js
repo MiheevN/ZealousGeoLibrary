@@ -2505,6 +2505,27 @@ export function addParticipants(containerId, participants) {
     }
 }
 
+/**
+ * Добавляет одного участника на глобус, сохраняя существующие точки.
+ * @param {string} containerId - ID контейнера глобуса
+ * @param {Object} participant - Объект участника
+ * @returns {boolean} true если участник успешно добавлен
+ */
+export function addParticipant(containerId, participant) {
+    try {
+        console.log('🔄 Добавление одного участника на глобус', containerId, ':', participant?.name);
+        const globe = globeInstances.get(containerId);
+        if (globe && globe.state && globe.state.isInitialized) {
+            return globe.addTestParticipant(participant);
+        }
+        console.log('❌ Глобус', containerId, 'не инициализирован');
+        return false;
+    } catch (error) {
+        console.error('Error adding participant to globe', containerId, ':', error);
+        return false;
+    }
+}
+
 export function updateParticipantPosition(containerId, participantId, latitude, longitude) {
     try {
         const globe = globeInstances.get(containerId);

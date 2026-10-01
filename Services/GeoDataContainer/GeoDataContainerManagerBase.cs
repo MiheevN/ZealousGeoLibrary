@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
@@ -16,6 +17,8 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     /// Логгер менеджера контейнеров
     /// </summary>
     protected ILogger Logger { get; }
+
+    private readonly IGeoDataChangeNotifier? _changeNotifier;
 
     /// <summary>
     /// Опции сериализации для экспорта данных в JSON
@@ -41,9 +44,13 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     /// Создает новый базовый менеджер контейнеров
     /// </summary>
     /// <param name="logger">Логгер</param>
-    protected GeoDataContainerManagerBase(ILogger logger)
+    /// <param name="changeNotifier">Общий уведомитель изменений гео-данных</param>
+    protected GeoDataContainerManagerBase(
+        ILogger logger,
+        IGeoDataChangeNotifier? changeNotifier = null)
     {
         Logger = logger;
+        _changeNotifier = changeNotifier;
     }
 
     /// <inheritdoc />
@@ -193,14 +200,21 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     /// <param name="changeType">Тип изменения</param>
     protected void HandleDataChanged(string containerId, GeoDataChangeType changeType)
     {
-        try
+        Logger.LogDebug("Data changed in container '{ContainerId}': {ChangeType}", containerId, changeType);
+
+        foreach (var subscriber in OnDataChanged?.GetInvocationList().Cast<Action<string, GeoDataChangeType>>() ??
+            Enumerable.Empty<Action<string, GeoDataChangeType>>())
         {
-            Logger.LogDebug("Data changed in container '{ContainerId}': {ChangeType}", containerId, changeType);
-            OnDataChanged?.Invoke(containerId, changeType);
+            try
+            {
+                subscriber(containerId, changeType);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Geo-data container subscriber failed for container '{ContainerId}'", containerId);
+            }
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error handling data change event for container '{ContainerId}'", containerId);
-        }
+
+        _changeNotifier?.Publish(GeoDataChangeNotification.ForContainer(containerId, changeType));
     }
 }

@@ -46,6 +46,7 @@ namespace ZealousMindedPeopleGeo
             services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
             services.AddScoped<IMapService, GoogleMapsServiceAdapter>();
             services.AddScoped<ICachingService, CachingService>();
+            services.AddGeoDataContainers();
 
             return services;
         }
@@ -72,7 +73,7 @@ namespace ZealousMindedPeopleGeo
             services.AddScoped<IPwaService, PwaService>();
 
             // Регистрация сервисов с зависимостями
-            services.AddScoped<IParticipantRepository, InMemoryParticipantRepository>();
+            services.AddSingleton<IParticipantRepository, InMemoryParticipantRepository>();
             services.AddScoped<IThreeJsGlobeService, ThreeJsGlobeService>();
             services.AddScoped<IGlobeMediator, GlobeMediatorService>();
             services.AddScoped<GlobeStateService>();
@@ -114,6 +115,7 @@ namespace ZealousMindedPeopleGeo
             services.AddScoped<IGoogleMapsService, GoogleMapsService>();
             services.AddScoped<IParticipantService, ParticipantService>();
             services.AddScoped<ICachingService, CachingService>();
+            services.AddGeoDataContainers();
 
             return services;
         }

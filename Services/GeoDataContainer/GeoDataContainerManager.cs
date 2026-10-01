@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
@@ -17,10 +18,12 @@ public class GeoDataContainerManager : GeoDataContainerManagerBase
     /// </summary>
     /// <param name="logger">Логгер</param>
     /// <param name="loggerFactory">Фабрика логгеров для создания логгеров контейнеров</param>
+    /// <param name="changeNotifier">Общий уведомитель изменений гео-данных</param>
     public GeoDataContainerManager(
         ILogger<GeoDataContainerManager> logger,
-        ILoggerFactory loggerFactory)
-        : base(logger)
+        ILoggerFactory loggerFactory,
+        IGeoDataChangeNotifier? changeNotifier = null)
+        : base(logger, changeNotifier)
     {
         _loggerFactory = loggerFactory;
     }

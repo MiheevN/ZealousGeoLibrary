@@ -17,6 +17,14 @@
     - `GeoJson.cs`
 
 ### Добавлено
+- **Синхронизация изменений между пользователями без постоянного опроса (Issue #57)**
+  - Добавлен общий уведомитель `IGeoDataChangeNotifier` для публикации изменений гео-данных внутри Blazor-приложения
+  - `GeoDataContainerManager` и `DatabaseGeoDataContainerManager` публикуют изменения контейнеров через общий уведомитель
+  - Встроенные репозитории участников публикуют добавление, обновление и удаление участников
+  - `CommunityGlobeViewer` автоматически перезагружает точки при изменении своего контейнера или общего репозитория
+  - `CommunityMapComponent` автоматически обновляет маркеры при изменениях общего репозитория
+  - Тестовая регистрация `InMemoryParticipantRepository` переведена на singleton, чтобы данные были общими для активных пользователей
+
 - **Хранение гео-данных в базе данных через EF Core (Issue #55)**
   - Провайдеро-независимое хранилище на базе Entity Framework Core (SQLite, PostgreSQL, SQL Server и др.)
   - `DatabaseGeoDataContainerManager` и `DatabaseGeoDataContainer` реализуют существующие интерфейсы `IGeoDataContainerManager` / `IGeoDataContainer` — API не меняется
@@ -49,6 +57,10 @@
   - Экспорт функции для вызова из Blazor
 
 ### Исправлено
+- **Одиночное добавление участника на 3D-глобус**
+  - `GlobeMediatorService.AddParticipantAsync` теперь добавляет одну точку без замены уже отображенных маркеров
+  - Форма и helper-сервис контейнеров обновляют глобус полным актуальным набором данных после сохранения
+
 - **Ошибка "Cannot read properties of null (reading 'removeChild')"**
   - Добавлена проверка `contains()` перед вызовом `removeChild()` в `setupScene()`
   - Добавлен флаг `_isRendering` для предотвращения конфликтов рендеринга

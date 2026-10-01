@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using System.Text.Json;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Components;
 
@@ -25,7 +26,14 @@ public partial class CommunityMapComponent : IAsyncDisposable
     private Participant? SelectedParticipant;
     private IEnumerable<Participant> ParticipantsView = new List<Participant>();
     private bool _isLoading = true;
+    private bool _isMapInitialized;
+    private bool _isDisposed;
     private DotNetObjectReference<CommunityMapComponent>? _dotNetRef;
+
+    protected override void OnInitialized()
+    {
+        ChangeNotifier.DataChanged += HandleGeoDataChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -59,6 +67,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
                 centerLng,
                 zoom,
                 MapId);
+            _isMapInitialized = true;
 
             var participantsJson = JsonSerializer.Serialize(ParticipantsView);
             await JSRuntime.InvokeVoidAsync("loadParticipantsOnMap", participantsJson, MapId);
@@ -71,6 +80,38 @@ public partial class CommunityMapComponent : IAsyncDisposable
             Logger.LogError(ex, "Ошибка инициализации карты");
             _isLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private void HandleGeoDataChanged(GeoDataChangeNotification notification)
+    {
+        if (_isDisposed ||
+            Participants != null ||
+            notification.Source != GeoDataChangeSource.ParticipantRepository)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(ReloadRepositoryParticipantsAsync);
+    }
+
+    private async Task ReloadRepositoryParticipantsAsync()
+    {
+        if (_isDisposed || !_isMapInitialized)
+        {
+            return;
+        }
+
+        try
+        {
+            ParticipantsView = await ParticipantRepository.GetAllParticipantsAsync();
+            var participantsJson = JsonSerializer.Serialize(ParticipantsView);
+            await JSRuntime.InvokeVoidAsync("loadParticipantsOnMap", participantsJson, MapId);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка обновления участников карты после изменения данных");
         }
     }
 
@@ -104,6 +145,9 @@ public partial class CommunityMapComponent : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _isDisposed = true;
+        ChangeNotifier.DataChanged -= HandleGeoDataChanged;
+
         try
         {
             await JSRuntime.InvokeVoidAsync("disposeCommunityMap", MapId);

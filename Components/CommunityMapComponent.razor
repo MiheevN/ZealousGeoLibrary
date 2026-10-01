@@ -5,11 +5,13 @@
 @using System.Text.Json
 @using ZealousMindedPeopleGeo.Services
 @using ZealousMindedPeopleGeo.Services.Repositories
+@using ZealousMindedPeopleGeo.Services.Synchronization
 @using ZealousMindedPeopleGeo.Models
 @inject IJSRuntime JSRuntime
 @inject ILogger<CommunityMapComponent> Logger
 @inject IOptions<ZealousMindedPeopleGeoOptions> Options
 @inject IParticipantRepository ParticipantRepository
+@inject IGeoDataChangeNotifier ChangeNotifier
 @implements IAsyncDisposable
 
 <HeadContent>

@@ -2,11 +2,13 @@
 @using ZealousMindedPeopleGeo.Services.Mapping
 @using ZealousMindedPeopleGeo.Services.Repositories
 @using ZealousMindedPeopleGeo.Services.GeoDataContainer
+@using ZealousMindedPeopleGeo.Services.Synchronization
 @inject IJSRuntime JSRuntime
 @inject GlobeStateService GlobeStateService
 @inject IGlobeMediator GlobeMediator
 @inject IParticipantRepository ParticipantRepository
 @inject IGeoDataContainerManager ContainerManager
+@inject IGeoDataChangeNotifier ChangeNotifier
 @implements IDisposable
 
 <HeadContent>
@@ -57,18 +59,52 @@
     private bool _isInitializing;
     private string? _errorMessage;
     private bool _isRendering;
+    private bool _isDisposed;
 
     protected override void OnInitialized()
     {
         GlobeStateService.OnStateChanged += HandleStateChanged;
+        ChangeNotifier.DataChanged += HandleGeoDataChanged;
     }
 
     private void HandleStateChanged(string globeId)
     {
         if (globeId == GlobeId)
         {
-            StateHasChanged();
+            _ = InvokeAsync(StateHasChanged);
         }
+    }
+
+    private void HandleGeoDataChanged(GeoDataChangeNotification notification)
+    {
+        if (_isDisposed || !IsRelevantDataChange(notification))
+        {
+            return;
+        }
+
+        _ = InvokeAsync(RefreshParticipantsAfterDataChangeAsync);
+    }
+
+    private bool IsRelevantDataChange(GeoDataChangeNotification notification)
+    {
+        if (!string.IsNullOrEmpty(DataContainerId))
+        {
+            return notification.Source == GeoDataChangeSource.Container &&
+                string.Equals(notification.ContainerId, DataContainerId, StringComparison.Ordinal);
+        }
+
+        return notification.Source == GeoDataChangeSource.ParticipantRepository;
+    }
+
+    private async Task RefreshParticipantsAfterDataChangeAsync()
+    {
+        if (_isDisposed || !State.IsInitialized)
+        {
+            return;
+        }
+
+        await LoadParticipantsAsync();
+        StateHasChanged();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -230,6 +266,8 @@
 
     public void Dispose()
     {
+        _isDisposed = true;
         GlobeStateService.OnStateChanged -= HandleStateChanged;
+        ChangeNotifier.DataChanged -= HandleGeoDataChanged;
     }
 }

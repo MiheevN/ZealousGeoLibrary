@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Services.GeoDataContainer;
+using ZealousMindedPeopleGeo.Services.Synchronization;
 
 namespace ZealousMindedPeopleGeo.Services;
 
@@ -13,17 +15,20 @@ public class ParticipantService : IParticipantService
     private readonly IGoogleMapsService _mapsService;
     private readonly ZealousMindedPeopleGeoOptions _options;
     private readonly ILogger<ParticipantService> _logger;
+    private readonly IGeoDataChangeNotifier? _changeNotifier;
 
     public ParticipantService(
         IGoogleSheetsService sheetsService,
         IGoogleMapsService mapsService,
         IOptions<ZealousMindedPeopleGeoOptions> options,
-        ILogger<ParticipantService> logger)
+        ILogger<ParticipantService> logger,
+        IGeoDataChangeNotifier? changeNotifier = null)
     {
         _sheetsService = sheetsService;
         _mapsService = mapsService;
         _options = options.Value;
         _logger = logger;
+        _changeNotifier = changeNotifier;
     }
 
     public async Task<RegistrationResult> RegisterParticipantAsync(ParticipantRegistrationModel model)
@@ -94,6 +99,9 @@ public class ParticipantService : IParticipantService
             }
 
             _logger.LogInformation("Участник {Name} успешно зарегистрирован", participant.Name);
+            _changeNotifier?.Publish(GeoDataChangeNotification.ForParticipantRepository(
+                GeoDataChangeType.Added,
+                participant.Id));
 
             return new RegistrationResult
             {
