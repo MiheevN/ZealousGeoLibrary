@@ -309,6 +309,17 @@ test('Razor component supports multiple instances via MapId parameter', async ()
     assert.match(razor, /id="@MapId"/, 'container uses MapId in markup');
 });
 
+test('Razor component loads the map script once as a module', async () => {
+    const codeBehind = await readText('Components/CommunityMapComponent.razor.cs');
+    const razor = await readText('Components/CommunityMapComponent.razor');
+
+    // <script> в <HeadContent> исполнялся дважды при пререндере и терялся,
+    // если на странице был ещё один компонент со своим HeadContent.
+    assert.doesNotMatch(razor, /<script[^>]*community-map\.js/, 'no script tag in HeadContent');
+    assert.match(codeBehind, /InvokeAsync<IJSObjectReference>\("import", MapScriptPath\)/, 'script is imported as a module');
+    assert.match(codeBehind, /MapScriptPath = "\/_content\/ZealousMindedPeopleGeo\/js\/community-map\.js"/, 'module path points to the static asset');
+});
+
 test('Razor component passes projection and central meridian to JS', async () => {
     const codeBehind = await readText('Components/CommunityMapComponent.razor.cs');
     const configuration = await readText('Models/Configuration.cs');

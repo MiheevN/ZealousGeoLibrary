@@ -1,0 +1,31 @@
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    @switch (Name)
+    {
+        case "home":
+            <path d="M3 11.5 12 4l9 7.5" />
+            <path d="M5.5 10v10h13V10" />
+            break;
+        case "map":
+            <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+            <path d="M9 4v14M15 6v14" />
+            break;
+        case "globe":
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3c-2.8 2.6-4 5.6-4 9s1.2 6.4 4 9M12 3c2.8 2.6 4 5.6 4 9s-1.2 6.4-4 9" />
+            break;
+        case "grid":
+            <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+            <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+            break;
+    }
+</svg>
+
+@code {
+    /// <summary>
+    /// Имя иконки: home, map, globe или grid.
+    /// </summary>
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+}

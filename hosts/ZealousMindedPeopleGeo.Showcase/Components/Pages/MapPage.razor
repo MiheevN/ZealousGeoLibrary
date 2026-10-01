@@ -1,19 +1,93 @@
 @page "/map"
 
-<PageTitle>Карта</PageTitle>
+<PageTitle>2D карта · ZealousGeo</PageTitle>
 
-<h1>Карта технологических хабов</h1>
+<PageHeader Eyebrow="CommunityMapComponent" Title="2D карта">
+    <Description>
+        Карта рисуется на Canvas без внешних картографических API. По умолчанию —
+        равновеликая проекция Equal Earth, прежняя прямоугольная доступна опцией.
+        При смене настроек компонент создаётся заново, как при загрузке страницы.
+    </Description>
+    <Meta>
+        <span class="chip">Точек: @_participants.Count</span>
+        <span class="chip">MapId <code>@MapId</code></span>
+    </Meta>
+</PageHeader>
 
-<CommunityMapComponent MapId="preview-tech-map"
-                       Participants="_hubs"
-                       Height="640px"
+<section class="panel toolbar" aria-label="Параметры карты">
+    <div class="field">
+        <span class="field-label">Проекция</span>
+        <div class="segmented" role="group" aria-label="Проекция">
+            @foreach (var (value, title) in Projections)
+            {
+                <button type="button" class="@Active(value == _projection)" aria-pressed="@(value == _projection)"
+                        @onclick="() => _projection = value">@title</button>
+            }
+        </div>
+    </div>
+
+    <div class="field">
+        <span class="field-label">Центральный меридиан</span>
+        <div class="segmented" role="group" aria-label="Центральный меридиан">
+            @foreach (var (value, title) in Meridians)
+            {
+                <button type="button" class="@Active(value == _centralMeridian)" aria-pressed="@(value == _centralMeridian)"
+                        @onclick="() => _centralMeridian = value">@title</button>
+            }
+        </div>
+    </div>
+
+    <div class="field">
+        <span class="field-label">Набор данных</span>
+        <div class="segmented" role="group" aria-label="Набор данных">
+            @foreach (var set in DemoDataSets.All)
+            {
+                <button type="button" class="@Active(set.Key == _dataSet.Key)" aria-pressed="@(set.Key == _dataSet.Key)"
+                        @onclick="() => SelectDataSet(set)">@set.Title</button>
+            }
+        </div>
+    </div>
+</section>
+
+<CommunityMapComponent @key="MapId"
+                       MapId="@MapId"
+                       Participants="_participants"
+                       Projection="_projection"
+                       CentralMeridian="_centralMeridian"
+                       Zoom="1"
+                       Height="620px"
                        ShowParticipantsList="true" />
 
 @code {
-    private List<Participant> _hubs = new();
-
-    protected override void OnInitialized()
+    private static readonly (MapProjection Value, string Title)[] Projections =
     {
-        _hubs = DemoDataSets.TechHubs();
+        (MapProjection.EqualEarth, "Equal Earth"),
+        (MapProjection.Equirectangular, "Прямоугольная"),
+    };
+
+    private static readonly (int Value, string Title)[] Meridians =
+    {
+        (-90, "−90° Америка"),
+        (0, "0° Гринвич"),
+        (60, "60° Азия"),
+        (150, "150° Тихий океан"),
+    };
+
+    private MapProjection _projection = MapProjection.EqualEarth;
+    private int _centralMeridian;
+    private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.FindByKey("tech-hubs")!;
+    private List<Participant> _participants = DemoDataSets.TechHubs();
+
+    // Своя карта на каждую комбинацию настроек: старая освобождается по своему
+    // MapId асинхронно и не должна задеть новую.
+    private string MapId =>
+        $"showcase-map-{_projection.ToString().ToLowerInvariant()}-{(_centralMeridian < 0 ? "w" : "e")}{Math.Abs(_centralMeridian)}-{_dataSet.Key}";
+
+    private static string? Active(bool active) => active ? "active" : null;
+
+    private void SelectDataSet(DemoDataSets.DataSetInfo set)
+    {
+        _dataSet = set;
+        _participants = set.Create();
     }
 }

@@ -1,0 +1,33 @@
+<header class="page-header">
+    <div>
+        @if (!string.IsNullOrEmpty(Eyebrow))
+        {
+            <div class="page-eyebrow">@Eyebrow</div>
+        }
+        <h1 class="page-title">@Title</h1>
+        @if (Description is not null)
+        {
+            <p class="page-description">@Description</p>
+        }
+    </div>
+    @if (Meta is not null)
+    {
+        <div class="page-meta">@Meta</div>
+    }
+</header>
+
+@code {
+    /// <summary>
+    /// Надзаголовок, обычно имя показываемого компонента.
+    /// </summary>
+    [Parameter] public string? Eyebrow { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    [Parameter] public RenderFragment? Description { get; set; }
+
+    /// <summary>
+    /// Короткие сведения справа от заголовка: идентификаторы, счётчики.
+    /// </summary>
+    [Parameter] public RenderFragment? Meta { get; set; }
+}

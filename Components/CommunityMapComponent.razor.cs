@@ -34,10 +34,32 @@ public partial class CommunityMapComponent : IAsyncDisposable
     /// </summary>
     [Parameter] public double? CentralMeridian { get; set; }
 
+    /// <summary>
+    /// Начальное приближение: 1 — мир целиком. Если не задано, берётся из
+    /// <see cref="MapConfiguration.DefaultZoom"/> (без настроек — 2).
+    /// </summary>
+    [Parameter] public double? Zoom { get; set; }
+
+    /// <summary>
+    /// Широта начального центра карты. Если не задана, берётся из
+    /// <see cref="MapConfiguration.DefaultLatitude"/> (без настроек — 20).
+    /// </summary>
+    [Parameter] public double? CenterLatitude { get; set; }
+
+    /// <summary>
+    /// Долгота начального центра карты. Если не задана, берётся из
+    /// <see cref="MapConfiguration.DefaultLongitude"/>, а без настроек совпадает
+    /// с центральным меридианом.
+    /// </summary>
+    [Parameter] public double? CenterLongitude { get; set; }
+
     private Participant? SelectedParticipant;
     private IEnumerable<Participant> ParticipantsView = new List<Participant>();
     private bool _isLoading = true;
     private DotNetObjectReference<CommunityMapComponent>? _dotNetRef;
+    private IJSObjectReference? _mapModule;
+
+    private const string MapScriptPath = "/_content/ZealousMindedPeopleGeo/js/community-map.js";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -58,11 +80,17 @@ public partial class CommunityMapComponent : IAsyncDisposable
             Logger.LogInformation("Загружено {Count} участников для карты", ParticipantsView.Count());
 
             var apiKey = Options.Value.GoogleMapsApiKey ?? "";
-            var centerLat = Options.Value.Map?.DefaultLatitude ?? 20.0;
-            var centerLng = Options.Value.Map?.DefaultLongitude ?? 0.0;
-            var zoom = Options.Value.Map?.DefaultZoom ?? 2;
             var projection = Projection ?? Options.Value.Map?.Projection ?? MapProjection.EqualEarth;
             var centralMeridian = CentralMeridian ?? Options.Value.Map?.CentralMeridian ?? 0.0;
+            var centerLat = CenterLatitude ?? Options.Value.Map?.DefaultLatitude ?? 20.0;
+            var centerLng = CenterLongitude ?? Options.Value.Map?.DefaultLongitude ?? centralMeridian;
+            var zoom = Zoom ?? Options.Value.Map?.DefaultZoom ?? 2;
+
+            // Скрипт карты подключается модулем: браузер исполняет его один раз на адрес,
+            // сколько бы карт ни было на странице. <HeadContent> для этого не годится:
+            // в <head> попадает только последний из них, а при пререндере скрипт
+            // исполнялся дважды.
+            _mapModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", MapScriptPath);
 
             _dotNetRef = DotNetObjectReference.Create(this);
             await JSRuntime.InvokeVoidAsync("setDotNetHelper", _dotNetRef);
@@ -120,17 +148,22 @@ public partial class CommunityMapComponent : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        try
+        // Без загруженного модуля карта в браузере не создавалась (например, при пререндере).
+        if (_mapModule is not null)
         {
-            await JSRuntime.InvokeVoidAsync("disposeCommunityMap", MapId);
-        }
-        catch (JSDisconnectedException)
-        {
-            // Соединение JS уже закрыто (например, на странице переключили компонент).
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Не удалось освободить ресурсы карты {MapId}", MapId);
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("disposeCommunityMap", MapId);
+                await _mapModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Соединение JS уже закрыто (например, на странице переключили компонент).
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Не удалось освободить ресурсы карты {MapId}", MapId);
+            }
         }
 
         _dotNetRef?.Dispose();

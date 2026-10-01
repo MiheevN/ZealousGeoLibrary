@@ -27,6 +27,32 @@
 dotnet add package ZealousMindedPeopleGeo
 ```
 
+### Тестовая среда
+
+В репозитории есть хост `hosts/ZealousMindedPeopleGeo.Showcase`, чтобы посмотреть
+компоненты без боевого сайта. Библиотека подключена к нему ссылкой на проект,
+поэтому правки компонентов, CSS и JS видны после пересборки.
+
+```bash
+dotnet watch --project hosts/ZealousMindedPeopleGeo.Showcase
+```
+
+http://localhost:5290 — обзор, `/map` — 2D карта с переключением проекции,
+центрального меридиана и набора данных, `/globe` — 3D глобус, `/showcase` — все
+компоненты на одной странице.
+
+Стили компонентов подключаются через `<HeadContent>`, а Blazor выводит в `<head>`
+только последний из них. Если на странице несколько компонентов библиотеки,
+подключите стили в `App.razor` сами, как это сделано в хосте витрины:
+
+```html
+<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/community-globe.css" />
+<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/community-map.css" />
+<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/library-showcase.css" />
+<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/participant-registration.css" />
+<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/pwa-manager.css" />
+```
+
 ## 📦 Встраивание в проект
 
 ### Пошаговая интеграция:
@@ -138,7 +164,13 @@ var app = builder.Build();
 
 <!-- Прежняя прямоугольная проекция -->
 <CommunityMapComponent MapId="map-flat" Projection="MapProjection.Equirectangular" />
+
+<!-- Начальный вид: весь мир -->
+<CommunityMapComponent MapId="map-world" Zoom="1" />
 ```
+
+Начальный вид задают параметры `Zoom`, `CenterLatitude` и `CenterLongitude`; без них
+центр по долготе совпадает с центральным меридианом.
 
 Значения по умолчанию для всех карт задаются в `ZealousMindedPeopleGeoOptions.Map`.
 Центр и зум стоит указать явно: у `MapConfiguration` они по умолчанию равны

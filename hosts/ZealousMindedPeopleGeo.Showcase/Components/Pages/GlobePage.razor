@@ -1,40 +1,81 @@
 @page "/globe"
+@using System.Globalization
 @using ZealousMindedPeopleGeo.Services.GeoDataContainer
 @inject IGeoDataContainerManager ContainerManager
-@implements IDisposable
+@inject NavigationManager Navigation
 
-<PageTitle>Глобус</PageTitle>
+<PageTitle>3D глобус · ZealousGeo</PageTitle>
 
-<h1>Один глобус, города России</h1>
-<p>Контейнер <code>@ContainerId</code>, точек: @Count.</p>
+<PageHeader Eyebrow="CommunityGlobeViewer" Title="3D глобус">
+    <Description>
+        Глобус читает участников из именованного контейнера <code>@ContainerId</code>.
+        Набор данных переключается перезагрузкой страницы, чтобы WebGL-контекст
+        создавался заново.
+    </Description>
+    <Meta>
+        <span class="chip">@_dataSet.Title</span>
+        <span class="chip">Точек: @_participants.Count</span>
+    </Meta>
+</PageHeader>
 
-<CommunityGlobeViewer GlobeId="@GlobeId"
-                      DataContainerId="@ContainerId"
-                      Width="900"
-                      Height="640" />
+<div class="split">
+    <section class="panel panel-flush">
+        <CommunityGlobeViewer GlobeId="@GlobeId"
+                              DataContainerId="@ContainerId"
+                              Width="900"
+                              Height="640" />
+    </section>
+
+    <aside class="panel">
+        <h2 class="panel-title">Набор данных</h2>
+        <div class="option-list">
+            @foreach (var set in DemoDataSets.All)
+            {
+                <button type="button" class="option @(set.Key == _dataSet.Key ? "active" : null)"
+                        aria-pressed="@(set.Key == _dataSet.Key)" @onclick="() => SelectDataSet(set.Key)">
+                    <span class="option-title">@set.Title</span>
+                    <span class="option-description">@set.Description</span>
+                </button>
+            }
+        </div>
+
+        <h2 class="panel-title">Точки</h2>
+        <ul class="point-list">
+            @foreach (var participant in _participants)
+            {
+                <li><span>@participant.Name</span><span>@FormatCoordinates(participant)</span></li>
+            }
+        </ul>
+    </aside>
+</div>
 
 @code {
-    private const string GlobeId = "preview-russia";
-    private const string ContainerId = "preview-russia-data";
+    [SupplyParameterFromQuery(Name = "set")] public string? DataSetKey { get; set; }
 
-    private int Count => ContainerManager.GetContainer(ContainerId)?.Count ?? 0;
+    private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.All[0];
+    private List<Participant> _participants = new();
+
+    private string GlobeId => $"showcase-globe-{_dataSet.Key}";
+    private string ContainerId => $"showcase-globe-{_dataSet.Key}-data";
 
     protected override async Task OnInitializedAsync()
     {
-        await ContainerManager.LoadDataAsync(ContainerId, DemoDataSets.RussianCities());
-        ContainerManager.OnDataChanged += OnDataChanged;
+        _dataSet = DemoDataSets.FindByKey(DataSetKey ?? "") ?? DemoDataSets.All[0];
+        _participants = _dataSet.Create();
+        await ContainerManager.LoadDataAsync(ContainerId, _participants);
     }
 
-    private void OnDataChanged(string containerId, GeoDataChangeType changeType)
+    private void SelectDataSet(string key)
     {
-        if (containerId == ContainerId)
+        if (key != _dataSet.Key)
         {
-            InvokeAsync(StateHasChanged);
+            // Полная перезагрузка: при пересоздании глобус не освобождает WebGL-контекст.
+            Navigation.NavigateTo($"globe?set={Uri.EscapeDataString(key)}", forceLoad: true);
         }
     }
 
-    public void Dispose()
-    {
-        ContainerManager.OnDataChanged -= OnDataChanged;
-    }
+    private static string FormatCoordinates(Participant participant) =>
+        participant.Latitude is { } lat && participant.Longitude is { } lng
+            ? string.Create(CultureInfo.InvariantCulture, $"{lat:F2}, {lng:F2}")
+            : "—";
 }
