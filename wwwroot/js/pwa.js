@@ -38,7 +38,13 @@ export async function registerServiceWorker(scriptUrl) {
     }
 
     try {
-        const registration = await navigator.serviceWorker.register(scriptUrl);
+        // scope '/' — воркер обслуживает страницы приложения, а не только /_content/...
+        // Хост должен отдавать sw.js с заголовком Service-Worker-Allowed: / (см. README, раздел PWA).
+        // updateViaCache: 'none' — проверка новой версии sw.js всегда идёт мимо HTTP-кэша.
+        const registration = await navigator.serviceWorker.register(scriptUrl, {
+            scope: '/',
+            updateViaCache: 'none'
+        });
         console.log('Service Worker registered successfully:', registration.scope);
 
         // Проверяем обновления
@@ -67,6 +73,12 @@ export async function registerServiceWorker(scriptUrl) {
                 }
             });
         }
+
+        // register() для того же sw.js новую версию не ищет, а Chromium откладывает
+        // проверку после навигации, пока воркер занят. Проверяем явно при каждом запуске.
+        registration.update().catch((error) => {
+            console.warn('Service Worker update check failed:', error);
+        });
 
         return true;
     } catch (error) {

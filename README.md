@@ -331,6 +331,43 @@ initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralM
 }
 ```
 
+## 📱 PWA и сервис-воркер
+
+`PwaManagerComponent` регистрирует сервис-воркер библиотеки `/_content/ZealousMindedPeopleGeo/sw.js` со scope `/`, иначе он не обслуживал бы страницы приложения. Чтобы браузер разрешил такой scope, хост отдаёт `sw.js` с заголовком `Service-Worker-Allowed` (в `Program.cs`, до `UseStaticFiles`/`MapStaticAssets`):
+
+```csharp
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.Equals("/_content/ZealousMindedPeopleGeo/sw.js", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers["Service-Worker-Allowed"] = "/";
+        context.Response.Headers.CacheControl = "no-cache";
+    }
+
+    await next();
+});
+```
+
+Без заголовка регистрация завершится ошибкой `SecurityError` в консоли браузера.
+
+### Как воркер кэширует
+
+| Запросы | Стратегия |
+|---|---|
+| JS, CSS и данные библиотеки, скрипты и стили сайта | Network First: изменённый файл приходит при следующей загрузке страницы, кэш нужен только без сети |
+| Картинки и шрифты библиотеки (текстуры Земли, иконки) | Cache First, обновляются со сменой версии кэша |
+| Страницы, `/api/...` и прочие GET-запросы | Network First, без сети — из кэша |
+
+Не-GET запросы, соединение Blazor Server (`/_blazor`) и SSE воркер не перехватывает.
+
+При каждом запуске `PwaService` проверяет, не изменился ли `sw.js`. Новый воркер активируется сразу (`skipWaiting`), удаляет кэши прошлой версии и предлагает перезагрузить страницу.
+
+### Версия кэшей
+
+Кэши называются `zealous-geo-static-v<версия>` и `zealous-geo-dynamic-v<версия>`, где версия — константа `SW_VERSION` в `wwwroot/sw.js`.
+
+**Правило: `SW_VERSION` равна `<Version>` в `ZealousMindedPeopleGeo.csproj` — поднимая версию пакета, поднимайте и её.** Изменённый `sw.js` браузер ставит как новый воркер, а тот при активации удаляет все кэши `zealous-geo-*` других версий, в том числе закэшированные текстуры и иконки. Совпадение версий проверяет `node --test experiments/service-worker-cache.test.mjs`.
+
 ## 🏗️ Архитектура
 
 ### Модели данных

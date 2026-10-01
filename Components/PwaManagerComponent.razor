@@ -149,6 +149,16 @@
     {
         if (firstRender)
         {
+            // Без регистрации воркера кнопки «Проверить обновления» и «Очистить кэш» ни на что не влияют.
+            try
+            {
+                await PwaService.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error initializing PWA");
+            }
+
             await LoadPwaInfoAsync();
 
             if (AutoCheckUpdates)
