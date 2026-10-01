@@ -31,9 +31,15 @@ public class PwaService : IPwaService, IAsyncDisposable
         {
             await _jsRuntime.InvokeVoidAsync("eval",
                 @"if ('serviceWorker' in navigator) {
-                    window.addEventListener('load', async () => {
+                    const registerServiceWorker = async () => {
                         try {
-                            const registration = await navigator.serviceWorker.register('/_content/ZealousMindedPeopleGeo/sw.js');
+                            // scope '/' — воркер обслуживает страницы приложения, а не только /_content/...
+                            // Хост должен отдавать sw.js с заголовком Service-Worker-Allowed: / (см. README, раздел PWA).
+                            // updateViaCache: 'none' — проверка новой версии sw.js всегда идёт мимо HTTP-кэша.
+                            const registration = await navigator.serviceWorker.register('/_content/ZealousMindedPeopleGeo/sw.js', {
+                                scope: '/',
+                                updateViaCache: 'none'
+                            });
                             console.log('Service Worker registered successfully:', registration.scope);
 
                             // Проверяем обновления
@@ -60,10 +66,23 @@ public class PwaService : IPwaService, IAsyncDisposable
                                 }
                             });
 
+                            // register() для того же sw.js новую версию не ищет, а Chromium откладывает
+                            // проверку после навигации, пока воркер занят. Проверяем явно при каждом запуске.
+                            registration.update().catch((error) => {
+                                console.warn('Service Worker update check failed:', error);
+                            });
+
                         } catch (error) {
                             console.error('Service Worker registration failed:', error);
                         }
-                    });
+                    };
+
+                    // Blazor вызывает InitializeAsync уже после события load, поэтому ждать его нельзя.
+                    if (document.readyState === 'complete') {
+                        registerServiceWorker();
+                    } else {
+                        window.addEventListener('load', registerServiceWorker, { once: true });
+                    }
                 }");
 
             _isInitialized = true;
