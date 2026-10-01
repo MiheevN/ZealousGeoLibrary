@@ -239,13 +239,11 @@ self.addEventListener('push', (event) => {
         actions: [
             {
                 action: 'explore',
-                title: 'Посмотреть',
-                icon: '/_content/ZealousMindedPeopleGeo/icons/checkmark.png'
+                title: 'Посмотреть'
             },
             {
                 action: 'close',
-                title: 'Закрыть',
-                icon: '/_content/ZealousMindedPeopleGeo/icons/xmark.png'
+                title: 'Закрыть'
             }
         ],
         requireInteraction: false,

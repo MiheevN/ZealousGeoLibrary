@@ -105,8 +105,13 @@
             <h3>PWA — установка и оффлайн</h3>
             <p class="zgl-panel-note">
                 Компонент управления Progressive Web App: установка, обновление кэша и уведомления.
+                Предложение установить появляется само, когда браузер готов установить сайт;
+                панель состояния открывается вызовом <code>ShowPwaInfoAsync()</code>.
             </p>
-            <PwaManagerComponent ShowInstallPrompt="true" AutoCheckUpdates="true" />
+            <div class="zgl-export-controls">
+                <button class="btn btn-secondary" @onclick="() => _pwaManager!.ShowPwaInfoAsync()">Показать состояние PWA</button>
+            </div>
+            <PwaManagerComponent @ref="_pwaManager" ShowInstallPrompt="true" AutoCheckUpdates="true" />
         </div>
 
         @* --- Контейнеры данных и JSON-экспорт --- *@
@@ -178,6 +183,7 @@
     };
 
     private string _activeTab = "globe-russia";
+    private PwaManagerComponent? _pwaManager;
     private List<Participant> _techHubs = new();
     private string _exportContainerId = RussianGlobeContainer;
     private string? _jsonExport;

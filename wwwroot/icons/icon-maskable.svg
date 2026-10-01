@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Maskable: фон на весь квадрат, глобус внутри безопасной зоны (круг 80% размера). -->
+  <rect width="512" height="512" fill="#0e1013"/>
+  <circle cx="256" cy="256" r="136" stroke="#24dce7" stroke-width="22"/>
+  <path d="M120 256h272M256 120c-43 40-62 84-62 136s19 96 62 136M256 120c43 40 62 84 62 136s-19 96-62 136"
+        stroke="#24dce7" stroke-width="19" stroke-linecap="round"/>
+</svg>

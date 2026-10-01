@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Знак библиотеки: глобус на тёмной плашке, как favicon витрины. Из этого файла отрисованы icon-*.png. -->
+  <rect width="512" height="512" rx="112" fill="#0e1013"/>
+  <circle cx="256" cy="256" r="172" stroke="#24dce7" stroke-width="28"/>
+  <path d="M84 256h344M256 84c-55 50-78 106-78 172s23 122 78 172M256 84c55 50 78 106 78 172s-23 122-78 172"
+        stroke="#24dce7" stroke-width="24" stroke-linecap="round"/>
+</svg>

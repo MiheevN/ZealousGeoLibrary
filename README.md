@@ -378,6 +378,25 @@ app.Use(async (context, next) =>
 
 Без заголовка регистрация завершится ошибкой `SecurityError` в консоли браузера.
 
+### Установка приложения
+
+Чтобы браузер предложил установить сайт как приложение, подключите манифест библиотеки
+в `<head>` (`Components/App.razor`), как это сделано в хосте витрины:
+
+```html
+<meta name="theme-color" content="#0e1013" />
+<link rel="manifest" href="_content/ZealousMindedPeopleGeo/manifest.json" />
+<link rel="apple-touch-icon" href="_content/ZealousMindedPeopleGeo/icons/icon-192x192.png" />
+```
+
+Манифест ссылается на иконки из `wwwroot/icons/`: `icon-192x192.png` и `icon-512x512.png`
+(обычные), `icon-maskable-512x512.png` (для круглых и других масок Android) и
+`badge-72x72.png` (значок уведомлений). PNG отрисованы из SVG-исходников в той же папке.
+`start_url` и `scope` манифеста равны `/`, как и scope воркера. Ярлыки ведут на `/map`
+и `/globe`; если в вашем приложении других маршрутов, подключите собственный манифест.
+Что все картинки из манифеста, `sw.js` и `PwaService` существуют и совпадают по размеру,
+проверяет `node --test experiments/pwa-assets.test.mjs`.
+
 ### Как воркер кэширует
 
 | Запросы | Стратегия |
