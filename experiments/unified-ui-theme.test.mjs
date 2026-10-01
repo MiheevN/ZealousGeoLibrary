@@ -17,11 +17,12 @@ test('map UI surfaces use the shared dark visual style', async () => {
 
 test('participant forms and globe settings do not depend on light Bootstrap surfaces', async () => {
     const form = await readText('Components/GeoDataParticipantForm.razor');
+    const bundle = await readText('wwwroot/css/zealous-geo.css');
     const registrationCss = await readText('wwwroot/css/participant-registration.css');
     const settings = await readText('Components/CommunityGlobeSettings.razor');
     const globeCss = await readText('wwwroot/css/community-globe.css');
 
-    assert.match(form, /participant-registration\.css/);
+    assert.match(bundle, /@import url\('\.\/participant-registration\.css'\);/);
     assert.doesNotMatch(form, /\bbg-light\b/);
     assert.match(registrationCss, /@import url\('\.\/zealous-ui\.css'\);/);
     assert.match(registrationCss, /\.geodata-participant-form\s*\{[\s\S]*background:\s*var\(--zgl-surface\)/);
@@ -37,9 +38,10 @@ test('participant forms and globe settings do not depend on light Bootstrap surf
 
 test('PWA manager uses the same dark component stylesheet', async () => {
     const component = await readText('Components/PwaManagerComponent.razor');
+    const bundle = await readText('wwwroot/css/zealous-geo.css');
     const css = await readText('wwwroot/css/pwa-manager.css');
 
-    assert.match(component, /pwa-manager\.css/);
+    assert.match(bundle, /@import url\('\.\/pwa-manager\.css'\);/);
     assert.doesNotMatch(component, /<style>/);
     assert.match(css, /@import url\('\.\/zealous-ui\.css'\);/);
     assert.match(css, /\.pwa-info-panel\s*\{[\s\S]*background:\s*var\(--zgl-surface\)/);

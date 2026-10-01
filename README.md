@@ -41,17 +41,8 @@ http://localhost:5290 — обзор, `/map` — 2D карта с переклю
 центрального меридиана и набора данных, `/globe` — 3D глобус, `/showcase` — все
 компоненты на одной странице.
 
-Стили компонентов подключаются через `<HeadContent>`, а Blazor выводит в `<head>`
-только последний из них. Если на странице несколько компонентов библиотеки,
-подключите стили в `App.razor` сами, как это сделано в хосте витрины:
-
-```html
-<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/community-globe.css" />
-<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/community-map.css" />
-<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/library-showcase.css" />
-<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/participant-registration.css" />
-<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/pwa-manager.css" />
-```
+Хост подключает стили библиотеки так же, как любое приложение, — одной строкой
+`zealous-geo.css` в `Components/App.razor` (см. «Встраивание в проект»).
 
 ## 📦 Встраивание в проект
 
@@ -68,17 +59,26 @@ http://localhost:5290 — обзор, `/map` — 2D карта с переклю
    builder.Services.AddSingleton<IParticipantRepository, InMemoryParticipantRepository>();
    ```
 
-3. **Добавьте using в Razor страницу**
+3. **Подключите стили библиотеки** — одна строка в `<head>`, после Bootstrap и до стилей приложения
+   ```html
+   <link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />
+   ```
+   В Blazor Web App это `Components/App.razor`, в Blazor WebAssembly — `wwwroot/index.html`.
+   `zealous-geo.css` подключает общие токены темы `zealous-ui.css` и стили всех компонентов.
+   Сами компоненты стили не подключают: `<HeadOutlet>` выводит в `<head>` только последний
+   отрисованный `<HeadContent>`, и на странице с несколькими компонентами стили остальных терялись.
+
+4. **Добавьте using в Razor страницу**
    ```razor
    @using ZealousMindedPeopleGeo.Components
    ```
 
-4. **Используйте компонент**
+5. **Используйте компонент**
    ```razor
    <CommunityGlobeComponent Width="800" Height="600" ShowControls="true" />
    ```
 
-5. **Настройте appsettings.json** (опционально)
+6. **Настройте appsettings.json** (опционально)
    ```json
    {
      "GoogleMaps": {
@@ -444,7 +444,12 @@ public interface IThreeJsGlobeService
    builder.Services.AddSingleton<IParticipantRepository, InMemoryParticipantRepository>();
    ```
 
-2. **Используйте компонент в Razor странице:**
+2. **Подключите стили в `<head>`** (`Components/App.razor` или `wwwroot/index.html`):
+   ```html
+   <link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />
+   ```
+
+3. **Используйте компонент в Razor странице:**
    ```razor
    @page "/globe"
    @using ZealousMindedPeopleGeo.Components
@@ -817,7 +822,9 @@ ZealousMindedPeopleGeo/
     ├── js/              # JavaScript модули
     │   └── community-globe.js            # Основной модуль глобуса
     ├── css/             # Стили
-    │   └── community-globe.css           # Стили компонентов
+    │   ├── zealous-geo.css               # Все стили одним файлом, подключается в <head>
+    │   ├── zealous-ui.css                # Общие токены темной темы
+    │   └── community-globe.css и др.     # Стили отдельных компонентов
     └── assets/          # Ресурсы
         └── earth/       # 8K текстуры Земли
 ```

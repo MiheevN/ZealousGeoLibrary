@@ -1,0 +1,19 @@
+/*
+ * Все стили компонентов ZealousMindedPeopleGeo одним файлом.
+ * Подключается один раз в <head> приложения, после Bootstrap и до своих стилей:
+ *
+ *   <link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />
+ *
+ * Компоненты не подключают стили сами: <HeadOutlet> выводит в <head> только
+ * последний отрисованный <HeadContent>, и на странице с несколькими компонентами
+ * стили остальных терялись.
+ *
+ * Порядок важен: токены zealous-ui.css идут первыми, а при равной специфичности
+ * правило из файла ниже побеждает правило из файла выше.
+ */
+@import url('./zealous-ui.css');
+@import url('./community-globe.css');
+@import url('./community-map.css');
+@import url('./library-showcase.css');
+@import url('./participant-registration.css');
+@import url('./pwa-manager.css');
