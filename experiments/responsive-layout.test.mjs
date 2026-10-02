@@ -38,6 +38,19 @@ test('map canvas height is constrained for mobile viewports', async () => {
 
     assert.doesNotMatch(component, /style="height:\s*@Height;\s*width:\s*100%;"/);
     assert.match(component, /--zgl-map-height:\s*@Height/);
-    assert.match(css, /\.map-canvas\s*\{[\s\S]*height:\s*min\(var\(--zgl-map-height,\s*500px\),\s*72svh\)/);
-    assert.match(css, /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.map-canvas\s*\{[\s\S]*height:\s*min\(var\(--zgl-map-height,\s*500px\),\s*58svh\)/);
+    // Высоту задаёт .map-body: в нём рядом стоят холст и список участников.
+    assert.match(component, /class="map-body" style="--zgl-map-height:\s*@Height;"/);
+    assert.match(css, /\.map-body\s*\{[^}]*height:\s*min\(var\(--zgl-map-height,\s*500px\),\s*72svh\)/);
+    assert.match(css, /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.map-body\s*\{[^}]*height:\s*min\(var\(--zgl-map-height,\s*500px\),\s*58svh\)/);
+});
+
+test('participants list sits beside the map instead of covering it', async () => {
+    const css = await readText('wwwroot/css/community-map.css');
+    const panel = css.match(/\n\.participants-panel\s*\{([^}]*)\}/);
+
+    assert.ok(panel, '.participants-panel rule exists');
+    assert.doesNotMatch(panel[1], /position:\s*(absolute|fixed)/, 'the list must not be an overlay');
+    assert.match(css, /\.participants-panel\[hidden\]\s*\{\s*display:\s*none;/, 'hidden attribute collapses the list');
+    assert.match(css, /container:\s*community-map \/ inline-size/);
+    assert.match(css, /@container community-map \(max-width:\s*640px\)\s*\{[\s\S]*\.map-body\s*\{[^}]*flex-direction:\s*column/);
 });

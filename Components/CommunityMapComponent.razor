@@ -15,58 +15,80 @@
 <div class="community-map-container">
     <div class="map-header">
         <h3>Community Map</h3>
-        <div class="participants-count">
-            Total Participants: @ParticipantsView.Count()
-        </div>
+        @if (ShowParticipantsList)
+        {
+            <button type="button" class="participants-toggle"
+                    aria-controls="@ParticipantsPanelId"
+                    aria-expanded="@(_participantsListOpen ? "true" : "false")"
+                    title="@(_participantsListOpen ? "Hide members list" : "Show members list")"
+                    @onclick="ToggleParticipantsList">
+                Members
+                <span class="participants-toggle-count">@ParticipantsView.Count()</span>
+                <span class="participants-toggle-icon" aria-hidden="true"></span>
+            </button>
+        }
+        else
+        {
+            <div class="participants-count">
+                Total Participants: @ParticipantsView.Count()
+            </div>
+        }
     </div>
 
-    <div id="@MapId" class="map-canvas" style="--zgl-map-height: @Height;"></div>
+    @* Список стоит рядом с картой, а не поверх неё: в узком контейнере он уходит под карту. *@
+    <div class="map-body" style="--zgl-map-height: @Height;">
+        <div id="@MapId" class="map-canvas"></div>
+
+        @if (ShowParticipantsList)
+        {
+            <aside id="@ParticipantsPanelId" class="participants-panel" aria-label="Community members"
+                   hidden="@(!_participantsListOpen)">
+                <div class="participants-list">
+                    @foreach (var participant in MappedParticipants)
+                    {
+                        <div class="participant-card" @onclick="() => ShowParticipantInfo(participant)">
+                            <div class="participant-avatar">
+                                @(string.IsNullOrEmpty(participant.Name) ? "?" : participant.Name[..1].ToUpperInvariant())
+                            </div>
+                            <div class="participant-info">
+                                <div class="participant-name">@participant.Name</div>
+                                @if (!string.IsNullOrEmpty(participant.Email))
+                                {
+                                    <div class="participant-email">@participant.Email</div>
+                                }
+                                @if (!string.IsNullOrEmpty(participant.City) || !string.IsNullOrEmpty(participant.Country))
+                                {
+                                    <div class="participant-location-details">
+                                        @(participant.City ?? "")@(!string.IsNullOrEmpty(participant.City) && !string.IsNullOrEmpty(participant.Country) ? ", " : "")@(participant.Country ?? "")
+                                    </div>
+                                }
+                                else if (!string.IsNullOrEmpty(participant.Address))
+                                {
+                                    <div class="participant-location">@participant.Address</div>
+                                }
+                                @if (!string.IsNullOrEmpty(participant.Skills))
+                                {
+                                    <div class="participant-skills-preview">
+                                        🛠 @(participant.Skills.Length > 30 ? participant.Skills.Substring(0, 30) + "..." : participant.Skills)
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (!_isLoading && !MappedParticipants.Any())
+                    {
+                        <p class="participants-empty">No members on the map yet</p>
+                    }
+                </div>
+            </aside>
+        }
+    </div>
 
     @if (_isLoading)
     {
         <div class="map-loading-overlay">
             <div class="loading-spinner"></div>
             <div>Загрузка карты...</div>
-        </div>
-    }
-
-    @if (ShowParticipantsList)
-    {
-        <div class="participants-panel">
-            <h4>Community Members (@ParticipantsView.Count())</h4>
-            <div class="participants-list">
-                @foreach (var participant in ParticipantsView.Where(p => p.Latitude != 0 && p.Longitude != 0))
-                {
-                    <div class="participant-card" @onclick="() => ShowParticipantInfo(participant)">
-                        <div class="participant-avatar">
-                            @(string.IsNullOrEmpty(participant.Name) ? "?" : participant.Name[..1].ToUpperInvariant())
-                        </div>
-                        <div class="participant-info">
-                            <div class="participant-name">@participant.Name</div>
-                            @if (!string.IsNullOrEmpty(participant.Email))
-                            {
-                                <div class="participant-email">@participant.Email</div>
-                            }
-                            @if (!string.IsNullOrEmpty(participant.City) || !string.IsNullOrEmpty(participant.Country))
-                            {
-                                <div class="participant-location-details">
-                                    @(participant.City ?? "")@(!string.IsNullOrEmpty(participant.City) && !string.IsNullOrEmpty(participant.Country) ? ", " : "")@(participant.Country ?? "")
-                                </div>
-                            }
-                            else if (!string.IsNullOrEmpty(participant.Address))
-                            {
-                                <div class="participant-location">@participant.Address</div>
-                            }
-                            @if (!string.IsNullOrEmpty(participant.Skills))
-                            {
-                                <div class="participant-skills-preview">
-                                    🛠 @(participant.Skills.Length > 30 ? participant.Skills.Substring(0, 30) + "..." : participant.Skills)
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
         </div>
     }
 

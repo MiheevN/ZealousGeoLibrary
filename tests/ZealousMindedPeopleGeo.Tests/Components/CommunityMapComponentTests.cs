@@ -120,7 +120,58 @@ public class CommunityMapComponentTests : BunitContext
         // Аватар — первая буква имени, для пустого имени «?»; точки с координатами 0,0 в список не попадают.
         var avatars = cut.FindAll(".participant-avatar").Select(a => a.TextContent.Trim());
         Assert.Equal(new[] { "S", "?" }, avatars);
-        Assert.Contains("Total Participants: 3", cut.Markup);
+        Assert.Equal("3", cut.Find(".participants-toggle-count").TextContent.Trim());
+    }
+
+    [Fact]
+    public void ParticipantsList_SitsBesideMap_AndToggleHidesIt()
+    {
+        var cut = RenderMap(
+            p => p.Add(c => c.MapId, "map-t"),
+            new List<Participant> { CreateParticipant("Berlin", latitude: 52.52, longitude: 13.405) });
+        WaitForInitialization(cut);
+
+        var toggle = cut.Find("button.participants-toggle");
+        var panel = cut.Find(".participants-panel");
+        Assert.Equal("map-t-participants", panel.Id);
+        Assert.Equal(panel.Id, toggle.GetAttribute("aria-controls"));
+        Assert.Equal("true", toggle.GetAttribute("aria-expanded"));
+        Assert.False(panel.HasAttribute("hidden"));
+        // Список — сосед холста в .map-body, а не слой поверх карты.
+        Assert.Equal("map-body", panel.ParentElement!.ClassName);
+        Assert.Equal("map-t", panel.ParentElement.QuerySelector(".map-canvas")!.Id);
+
+        toggle.Click();
+
+        Assert.Equal("false", cut.Find("button.participants-toggle").GetAttribute("aria-expanded"));
+        Assert.True(cut.Find(".participants-panel").HasAttribute("hidden"));
+
+        cut.Find("button.participants-toggle").Click();
+
+        Assert.Equal("true", cut.Find("button.participants-toggle").GetAttribute("aria-expanded"));
+        Assert.False(cut.Find(".participants-panel").HasAttribute("hidden"));
+    }
+
+    [Fact]
+    public void ParticipantsListOpen_False_StartsCollapsed()
+    {
+        var cut = RenderMap(p => p.Add(c => c.ParticipantsListOpen, false));
+        WaitForInitialization(cut);
+
+        Assert.Equal("false", cut.Find("button.participants-toggle").GetAttribute("aria-expanded"));
+        Assert.True(cut.Find(".participants-panel").HasAttribute("hidden"));
+        Assert.NotNull(cut.Find(".participants-empty"));
+    }
+
+    [Fact]
+    public void ShowParticipantsList_False_LeavesOnlyCount()
+    {
+        var cut = RenderMap(p => p.Add(c => c.ShowParticipantsList, false));
+        WaitForInitialization(cut);
+
+        Assert.Empty(cut.FindAll(".participants-toggle"));
+        Assert.Empty(cut.FindAll(".participants-panel"));
+        Assert.Contains("Total Participants: 0", cut.Find(".participants-count").TextContent);
     }
 
     [Fact]
