@@ -12,6 +12,12 @@ public partial class CommunityMapComponent : IAsyncDisposable
     [Parameter] public string MapId { get; set; } = "map";
     [Parameter] public string Height { get; set; } = "500px";
     [Parameter] public bool ShowParticipantsList { get; set; } = true;
+
+    /// <summary>
+    /// Открыт ли список участников при первой отрисовке. Дальше его открывает и
+    /// закрывает кнопка в шапке карты.
+    /// </summary>
+    [Parameter] public bool ParticipantsListOpen { get; set; } = true;
     [Parameter] public EventCallback<Participant> OnMarkerClick { get; set; }
 
     /// <summary>
@@ -60,6 +66,21 @@ public partial class CommunityMapComponent : IAsyncDisposable
     private IJSObjectReference? _mapModule;
 
     private const string MapScriptPath = "/_content/ZealousMindedPeopleGeo/js/community-map.js";
+
+    private bool _participantsListOpen;
+
+    private string ParticipantsPanelId => $"{MapId}-participants";
+
+    // Точки с координатами 0,0 считаются ненайденными и на карту не попадают.
+    private IEnumerable<Participant> MappedParticipants =>
+        ParticipantsView.Where(p => p.Latitude != 0 && p.Longitude != 0);
+
+    protected override void OnInitialized()
+    {
+        _participantsListOpen = ParticipantsListOpen;
+    }
+
+    private void ToggleParticipantsList() => _participantsListOpen = !_participantsListOpen;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
