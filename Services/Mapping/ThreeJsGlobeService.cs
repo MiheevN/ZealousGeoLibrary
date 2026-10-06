@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using ZealousMindedPeopleGeo.Models;
@@ -86,38 +87,57 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
         }
     }
 
-    public async ValueTask<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
+    public ValueTask<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
     {
         if (participants == null)
-            return new GlobeOperationResult { Success = false, ErrorMessage = "Participants cannot be null" };
+            return ValueTask.FromResult(new GlobeOperationResult { Success = false, ErrorMessage = "Participants cannot be null" });
+
+        // Участник без координат на глобус не попадает: JS всё равно пропускал его.
+        var points = participants
+            .Where(p => p is not null && p.Latitude is not null && p.Longitude is not null)
+            .Select(p => p.ToGeoPoint());
+        return AddPointsAsync(containerId, points, categoryColors: null, ct);
+    }
+
+    public async ValueTask<GlobeOperationResult> AddPointsAsync(string containerId, IEnumerable<GeoPoint> points, IReadOnlyDictionary<string, string>? categoryColors = null, CancellationToken ct = default)
+    {
+        if (points == null)
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Points cannot be null" };
 
         try
         {
             if (_module == null)
                 return new GlobeOperationResult { Success = false, ErrorMessage = "Globe module not initialized" };
 
-            var participantsArray = participants.Select(p => new
+            var list = points.Where(p => p is not null && p.Validate() is null).ToList();
+            var palette = GeoPointPalette.For(list, categoryColors);
+
+            // Без категорий и своих цветов маркеры красит глобус по своим настройкам
+            // (participantPointColor), как и раньше.
+            var pointsArray = list.Select(p => new
             {
-                id = p.Id.ToString(),
-                p.Name,
-                p.Latitude,
-                p.Longitude,
-                location = $"{p.Name} ({p.Latitude:F4}, {p.Longitude:F4})"
+                id = p.Id,
+                name = p.Title,
+                latitude = p.Latitude,
+                longitude = p.Longitude,
+                category = p.Category,
+                markerColor = palette.HasCategories || GeoPointPalette.IsCssColor(p.Color) ? palette.ColorFor(p) : null,
+                location = string.Create(CultureInfo.InvariantCulture, $"{p.Title} ({p.Latitude:F4}, {p.Longitude:F4})")
             }).ToArray();
 
-            var success = await _module.InvokeAsync<bool>("addParticipants", containerId, (object)participantsArray);
-            
+            var success = await _module.InvokeAsync<bool>("addParticipants", containerId, (object)pointsArray);
+
             if (success)
             {
-                _logger.LogInformation("✅ Добавлено {Count} участников в глобус {ContainerId}", participantsArray.Length, containerId);
-                return new GlobeOperationResult { Success = true, ProcessedCount = participantsArray.Length };
+                _logger.LogInformation("✅ Добавлено {Count} точек в глобус {ContainerId}", pointsArray.Length, containerId);
+                return new GlobeOperationResult { Success = true, ProcessedCount = pointsArray.Length };
             }
 
             return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Ошибка при добавлении участников в контейнер {ContainerId}", containerId);
+            _logger.LogError(ex, "❌ Ошибка при добавлении точек в контейнер {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
         }
     }

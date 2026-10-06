@@ -34,8 +34,8 @@ Console.WriteLine("== DemoDataSets: свежие независимые копи
 var russianA = DemoDataSets.RussianCities();
 var russianB = DemoDataSets.RussianCities();
 Check("RussianCities не пуст", russianA.Count > 0);
-Check("Два вызова дают разные экземпляры участников",
-    !russianA.Select(p => p.Id).Intersect(russianB.Select(p => p.Id)).Any());
+russianA[0].Title = "Изменено";
+Check("Два вызова дают независимые экземпляры точек", russianB[0].Title != "Изменено");
 Check("Все наборы имеют уникальные ключи",
     DemoDataSets.All.Select(d => d.Key).Distinct().Count() == DemoDataSets.All.Count);
 Check("FindByKey находит набор по ключу",
@@ -50,8 +50,8 @@ var manager = new GeoDataContainerManager(
 const string russianContainer = "showcase-russia-data";
 const string capitalsContainer = "showcase-capitals-data";
 
-await manager.LoadDataAsync(russianContainer, DemoDataSets.RussianCities());
-await manager.LoadDataAsync(capitalsContainer, DemoDataSets.WorldCapitals());
+await manager.LoadPointsAsync(russianContainer, DemoDataSets.RussianCities());
+await manager.LoadPointsAsync(capitalsContainer, DemoDataSets.WorldCapitals());
 
 var russianCount = manager.GetContainer(russianContainer)!.Count;
 var capitalsCount = manager.GetContainer(capitalsContainer)!.Count;

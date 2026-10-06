@@ -194,10 +194,56 @@ Blazor Web App).
 Начальный вид задают параметры `Zoom`, `CenterLatitude` и `CenterLongitude`; без них
 центр по долготе совпадает с центральным меридианом.
 
-Список участников стоит справа от карты, а в узком контейнере (до 640 px) — под ней, и
-карту не перекрывает. Кнопка «Members» в шапке скрывает и показывает его, карта при этом
-занимает освободившееся место. `ParticipantsListOpen="false"` открывает карту со
-свёрнутым списком, `ShowParticipantsList="false"` убирает список и кнопку совсем.
+Список точек стоит справа от карты, а в узком контейнере (до 640 px) — под ней, и
+карту не перекрывает. Кнопка в шапке («Members», подпись задаёт `ListTitle`) скрывает и
+показывает его, карта при этом занимает освободившееся место. `ParticipantsListOpen="false"`
+открывает карту со свёрнутым списком, `ShowParticipantsList="false"` убирает список и
+кнопку совсем.
+
+#### Любые точки: категории, легенда, карточка
+
+Карта показывает не только участников, а любые точки (`GeoPoint`, см. «Именованные
+контейнеры гео-данных»). Источник — первый заданный из `Points`, `Participants`,
+`DataContainerId`, иначе общий репозиторий участников.
+
+```razor
+<CommunityMapComponent MapId="offices-map"
+                       Points="_offices"
+                       Title="Офисы"
+                       ListTitle="Офисы"
+                       OnPointClick="OpenOffice" />
+
+<!-- Точки из контейнера: карта сама обновится, когда в нём что-то изменится -->
+<CommunityMapComponent MapId="events-map" DataContainerId="events" />
+```
+
+Новые `Points` или `Participants` карта принимает без пересоздания.
+
+- **Цвета.** Маркер красится собственным `Color` точки, иначе цветом её категории.
+  Цвета категорий можно задать словарём `CategoryColors`, иначе первые три категории
+  в порядке появления получают синий, оранжевый и бирюзовый. Только три цвета
+  одновременно на тёмной карте остаются различимыми попарно для людей с любым
+  цветовосприятием. Остальные категории и точки без категории — серые. Если категорий
+  нет совсем, все маркеры фирменного бирюзового цвета. Те же цвета у глобуса
+  (`GeoPointPalette` — одна логика на оба).
+- **Легенда.** Над картой, если у точек есть категории, с числом точек в каждой.
+  Щелчок по категории скрывает и показывает её точки на карте и в списке, цвета
+  остальных при этом не меняются. `ShowLegend="false"` убирает легенду.
+- **Маркер.** Внутри — короткая `Icon` (символ, эмодзи) или первая буква `Title`.
+- **Карточка.** Открывается по клику на маркер или строку списка. Встроенная показывает
+  категорию, описание, свойства, координаты и ссылку `Url` (только `http`, `https` и
+  `mailto`). Свою разметку задаёт `PointTemplate`:
+
+```razor
+<CommunityMapComponent Points="_offices">
+    <PointTemplate Context="point">
+        <h5>@point.Title</h5>
+        <p>Сотрудников: @point.Properties.GetValueOrDefault("staff")</p>
+    </PointTemplate>
+</CommunityMapComponent>
+```
+
+`OnPointClick` получает копию точки, `OnMarkerClick` — её же в виде участника.
 
 Значения по умолчанию для всех карт задаются в `ZealousMindedPeopleGeoOptions.Map`.
 Центр и зум стоит указать явно: у `MapConfiguration` они по умолчанию равны
@@ -221,7 +267,10 @@ builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
 
 ```js
 initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralMeridian: 150 });
+loadPointsOnMap([{ id: 'berlin', latitude: 52.52, longitude: 13.405, title: 'Berlin', color: '#3987e5' }], 'map');
 ```
+
+`loadParticipantsOnMap` по-прежнему принимает участников в прежнем формате.
 
 #### Одиночный 3D глобус
 
@@ -242,6 +291,17 @@ initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralM
     private double? CurrentLatitude = 55.7558;
     private double? CurrentLongitude = 37.6176;
 }
+```
+
+#### Глобус с точками из контейнера
+
+Глобус читает точки контейнера и красит маркеры по категориям теми же цветами, что и
+2D-карта. Если у точек нет ни категорий, ни своих цветов, маркеры остаются цвета из
+настроек глобуса.
+
+```razor
+<CommunityGlobeViewer GlobeId="offices" DataContainerId="offices"
+                      CategoryColors="@(new Dictionary<string, string> { ["hq"] = "#ffcf5a" })" />
 ```
 
 #### Множественные 3D глобусы
@@ -625,8 +685,8 @@ var isValid = await ValidationService.IsAddressValidForGeocodingAsync(address);
 | `Color`, `Icon`, `Url` | Цвет маркера (CSS), иконка, ссылка |
 | `Properties` | Любые свои поля, `Dictionary<string, string>` |
 
-Карта и глобус пока показывают точки как участников: подпись и координаты.
-Категории, цвета и иконки маркеров появятся в них на следующем этапе.
+Карта и глобус красят маркеры по категориям, карта показывает легенду и карточку
+точки (см. «Любые точки: категории, легенда, карточка»).
 
 ### Регистрация сервисов
 

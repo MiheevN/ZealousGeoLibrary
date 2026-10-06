@@ -24,7 +24,7 @@ async function loadMapModule() {
 
     const exportFooter = [
         '',
-        'export { clampZoom, clampLat, wrapLng, viewScale, getView, setCenter, projectToCanvas, canvasToLatLng, zoomAt, commitView, isFinitePair, escapeHtml, buildWorldLandPaths, buildProjectedLand, densifyRing, resolveProjection, equalEarthForward, equalEarthInverse, PROJECTIONS };',
+        'export { clampZoom, clampLat, wrapLng, viewScale, getView, setCenter, projectToCanvas, canvasToLatLng, zoomAt, commitView, isFinitePair, escapeHtml, buildWorldLandPaths, buildProjectedLand, densifyRing, resolveProjection, equalEarthForward, equalEarthInverse, PROJECTIONS, normalizePoint, participantToPoint, markerLabel, renderPointTooltip, DEFAULT_MARKER_COLOR };',
         ''
     ].join('\n');
 
@@ -54,6 +54,7 @@ test('2D map JS exposes statically-renderable public API', async () => {
     const source = await readText('wwwroot/js/community-map.js');
 
     assert.match(source, /window\.initializeCommunityMap\s*=/, 'still exposes initializeCommunityMap');
+    assert.match(source, /window\.loadPointsOnMap\s*=/, 'exposes loadPointsOnMap');
     assert.match(source, /window\.loadParticipantsOnMap\s*=/, 'still exposes loadParticipantsOnMap');
     assert.match(source, /window\.centerMapOnUserLocation\s*=/, 'still exposes centerMapOnUserLocation');
     assert.match(source, /window\.focusOnParticipant\s*=/, 'still exposes focusOnParticipant');
@@ -304,7 +305,7 @@ test('Razor component supports multiple instances via MapId parameter', async ()
 
     assert.match(codeBehind, /\[Parameter\] public string MapId/, 'MapId parameter declared');
     assert.match(codeBehind, /JSRuntime\.InvokeVoidAsync\(\s*"initializeCommunityMap"[\s\S]*MapId,/, 'initializeCommunityMap receives MapId');
-    assert.match(codeBehind, /JSRuntime\.InvokeVoidAsync\("loadParticipantsOnMap", participantsJson, MapId\)/, 'loadParticipantsOnMap receives MapId');
+    assert.match(codeBehind, /JSRuntime\.InvokeVoidAsync\("loadPointsOnMap", JsonSerializer\.Serialize\(payload, PointJsonOptions\), MapId\)/, 'loadPointsOnMap receives MapId');
     assert.match(codeBehind, /JSRuntime\.InvokeVoidAsync\("disposeCommunityMap", MapId\)/, 'DisposeAsync releases the JS map');
     assert.match(razor, /id="@MapId"/, 'container uses MapId in markup');
 });
@@ -326,7 +327,7 @@ test('Razor component passes projection and central meridian to JS', async () =>
 
     assert.match(codeBehind, /\[Parameter\] public MapProjection\? Projection/, 'Projection parameter declared');
     assert.match(codeBehind, /\[Parameter\] public double\? CentralMeridian/, 'CentralMeridian parameter declared');
-    assert.match(codeBehind, /new \{ projection = projection\.ToString\(\), centralMeridian \}/, 'options object is passed to JS');
+    assert.match(codeBehind, /new \{ projection = projection\.ToString\(\), centralMeridian, dotNetHelper = _dotNetRef \}/, 'options object is passed to JS');
     assert.match(configuration, /public MapProjection Projection \{ get; set; \} = MapProjection\.EqualEarth;/, 'Equal Earth is the configured default');
     assert.match(configuration, /enum MapProjection\s*\{[\s\S]*EqualEarth,[\s\S]*Equirectangular/, 'both projections are available');
 });
@@ -338,4 +339,59 @@ test('CSS supports the new canvas-based map UI', async () => {
     assert.match(css, /\.community-map-controls\s*\{/, 'zoom controls are styled');
     assert.match(css, /\.community-map-control-btn\s*\{/, 'zoom control buttons are styled');
     assert.match(css, /\.community-map-tooltip\s*\{/, 'tooltip is styled');
+});
+
+test('points are normalized and points without coordinates are dropped', async () => {
+    const map = await loadMapModule();
+
+    const point = map.normalizePoint({ id: 7, latitude: '52.5', longitude: 13.4, title: 'Berlin', properties: { staff: '40' } });
+    assert.equal(point.id, '7');
+    assert.equal(point.latitude, 52.5);
+    assert.deepEqual(point.properties, { staff: '40' });
+    assert.equal(point.color, null);
+    assert.equal(map.normalizePoint({ id: 'x', title: 'Nowhere' }), null);
+    assert.equal(map.normalizePoint(null), null);
+});
+
+test('participants in the old format become the same points as on the server', async () => {
+    const map = await loadMapModule();
+
+    const point = map.participantToPoint({
+        Id: 'a1', Name: 'Anna', Message: 'Hi', Latitude: 55.7, Longitude: 37.6,
+        Email: 'anna@example.com', Address: '', City: 'Moscow',
+        SocialContacts: { Telegram: '@anna' }, RegisteredAt: '2025-01-01T00:00:00Z'
+    });
+    assert.equal(point.id, 'a1');
+    assert.equal(point.title, 'Anna');
+    assert.equal(point.description, 'Hi');
+    assert.deepEqual(point.properties, {
+        email: 'anna@example.com', city: 'Moscow', telegram: '@anna', registeredAt: '2025-01-01T00:00:00Z'
+    });
+    // camelCase из JSON-сериализатора Blazor тоже читается
+    assert.equal(map.participantToPoint({ id: 'b', name: 'Bob', latitude: 1, longitude: 2 }).title, 'Bob');
+    assert.equal(map.participantToPoint({ Id: 'c', Name: 'No coordinates' }), null);
+});
+
+test('marker label is a short icon or the first letter of the title', async () => {
+    const map = await loadMapModule();
+
+    assert.equal(map.markerLabel({ title: 'berlin' }), 'B');
+    assert.equal(map.markerLabel({ title: '', icon: null }), '?');
+    assert.equal(map.markerLabel({ title: 'Event', icon: '🎤' }), '🎤');
+    assert.equal(map.markerLabel({ title: 'Event', icon: 'https://example.com/icon.png' }), 'E');
+    assert.equal(map.markerLabel({ title: 'ёлка' }), 'Ё');
+});
+
+test('tooltip escapes everything that comes from data, including property names', async () => {
+    const map = await loadMapModule();
+
+    const html = map.renderPointTooltip({
+        id: '1', latitude: 1, longitude: 2, title: '<img src=x onerror=alert(1)>', category: 'office',
+        properties: { '<b>key</b>': '<script>x</script>', email: 'a@example.com', city: 'Berlin', country: 'Germany' }
+    });
+    assert.doesNotMatch(html, /<img|<script|<b>/);
+    assert.match(html, /&lt;img/);
+    assert.match(html, /🏷 Категория:/);
+    assert.match(html, /📧 Email:/);
+    assert.match(html, /Berlin, Germany/);
 });

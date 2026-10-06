@@ -8,13 +8,13 @@
 
 <PageHeader Eyebrow="CommunityGlobeViewer" Title="3D глобус">
     <Description>
-        Глобус читает участников из именованного контейнера <code>@ContainerId</code>.
-        Набор данных переключается перезагрузкой страницы, чтобы WebGL-контекст
-        создавался заново.
+        Глобус читает точки из именованного контейнера <code>@ContainerId</code> и
+        окрашивает маркеры по категориям теми же цветами, что и 2D-карта. Набор данных
+        переключается перезагрузкой страницы, чтобы WebGL-контекст создавался заново.
     </Description>
     <Meta>
         <span class="chip">@_dataSet.Title</span>
-        <span class="chip">Точек: @_participants.Count</span>
+        <span class="chip">Точек: @_points.Count</span>
     </Meta>
 </PageHeader>
 
@@ -39,11 +39,25 @@
             }
         </div>
 
+        <h2 class="panel-title">Категории</h2>
+        <ul class="point-list">
+            @foreach (var category in _palette.Categories)
+            {
+                <li>
+                    <span><span class="swatch" style="background: @category.Color"></span>@(category.Name.Length == 0 ? "Без категории" : category.Name)</span>
+                    <span>@category.Count</span>
+                </li>
+            }
+        </ul>
+
         <h2 class="panel-title">Точки</h2>
         <ul class="point-list">
-            @foreach (var participant in _participants)
+            @foreach (var point in _points)
             {
-                <li><span>@participant.Name</span><span>@FormatCoordinates(participant)</span></li>
+                <li>
+                    <span><span class="swatch" style="background: @_palette.ColorFor(point)"></span>@point.Title</span>
+                    <span>@FormatCoordinates(point)</span>
+                </li>
             }
         </ul>
     </aside>
@@ -53,7 +67,8 @@
     [SupplyParameterFromQuery(Name = "set")] public string? DataSetKey { get; set; }
 
     private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.All[0];
-    private List<Participant> _participants = new();
+    private List<GeoPoint> _points = new();
+    private GeoPointPalette _palette = GeoPointPalette.For(Array.Empty<GeoPoint>());
 
     private string GlobeId => $"showcase-globe-{_dataSet.Key}";
     private string ContainerId => $"showcase-globe-{_dataSet.Key}-data";
@@ -61,8 +76,9 @@
     protected override async Task OnInitializedAsync()
     {
         _dataSet = DemoDataSets.FindByKey(DataSetKey ?? "") ?? DemoDataSets.All[0];
-        _participants = _dataSet.Create();
-        await ContainerManager.LoadDataAsync(ContainerId, _participants);
+        _points = _dataSet.Create();
+        _palette = GeoPointPalette.For(_points);
+        await ContainerManager.LoadPointsAsync(ContainerId, _points);
     }
 
     private void SelectDataSet(string key)
@@ -74,8 +90,6 @@
         }
     }
 
-    private static string FormatCoordinates(Participant participant) =>
-        participant.Latitude is { } lat && participant.Longitude is { } lng
-            ? string.Create(CultureInfo.InvariantCulture, $"{lat:F2}, {lng:F2}")
-            : "—";
+    private static string FormatCoordinates(GeoPoint point) =>
+        string.Create(CultureInfo.InvariantCulture, $"{point.Latitude:F2}, {point.Longitude:F2}");
 }

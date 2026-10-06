@@ -24,6 +24,12 @@ public interface IGlobeMediator
     Task<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants);
 
     /// <summary>
+    /// Показывает точки на глобусе вместо прежних; маркеры раскрашиваются по категориям
+    /// (см. <see cref="IThreeJsGlobeService.AddPointsAsync"/>)
+    /// </summary>
+    Task<GlobeOperationResult> AddPointsAsync(string containerId, IEnumerable<GeoPoint> points, IReadOnlyDictionary<string, string>? categoryColors = null);
+
+    /// <summary>
     /// Удаляет участника с глобуса
     /// </summary>
     Task<GlobeOperationResult> RemoveParticipantAsync(string containerId, Guid participantId);

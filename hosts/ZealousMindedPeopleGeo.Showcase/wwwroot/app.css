@@ -586,6 +586,16 @@ h1:focus-visible {
     white-space: nowrap;
 }
 
+/* Цвет категории: тот же, что у маркеров на глобусе и карте. */
+.swatch {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    margin-right: 8px;
+    border-radius: 50%;
+    vertical-align: baseline;
+}
+
 /* --- Ошибки и 404 --------------------------------------------------------- */
 
 .not-found {

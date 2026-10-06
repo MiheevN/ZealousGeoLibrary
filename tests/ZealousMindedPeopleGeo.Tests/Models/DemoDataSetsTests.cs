@@ -1,7 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using ZealousMindedPeopleGeo.Models;
-using ZealousMindedPeopleGeo.Services;
-using ZealousMindedPeopleGeo.Validation;
 
 namespace ZealousMindedPeopleGeo.Tests.Models;
 
@@ -26,34 +23,50 @@ public class DemoDataSetsTests
 
     [Theory]
     [MemberData(nameof(DataSetKeys))]
-    public void DataSet_ParticipantsPassValidation(string key)
+    public void DataSet_PointsAreValidAndCategorized(string key)
     {
-        using var localization = new LocalizationService(NullLogger<LocalizationService>.Instance);
-        var validator = new ParticipantValidator(localization);
+        var points = DemoDataSets.FindByKey(key)!.Create();
 
-        var participants = DemoDataSets.FindByKey(key)!.Create();
-
-        Assert.NotEmpty(participants);
-        Assert.Equal(participants.Count, participants.Select(p => p.Id).Distinct().Count());
-        Assert.All(participants, participant =>
+        Assert.NotEmpty(points);
+        Assert.Equal(points.Count, points.Select(p => p.Id).Distinct().Count());
+        Assert.All(points, point =>
         {
-            var result = validator.Validate(participant);
-            Assert.True(result.IsValid, $"{participant.Name}: {string.Join("; ", result.Errors)}");
+            Assert.Null(point.Validate());
+            Assert.False(string.IsNullOrWhiteSpace(point.Title));
+            Assert.False(string.IsNullOrWhiteSpace(point.Category));
+            Assert.True(point.Properties.ContainsKey(ParticipantPointProperties.Country), point.Title);
+            // Демо-данные — места, а не люди: никаких выдуманных адресов почты.
+            Assert.False(point.Properties.ContainsKey(ParticipantPointProperties.Email), point.Title);
         });
     }
 
+    [Theory]
+    [InlineData("russian-cities")]
+    [InlineData("tech-hubs")]
+    public void DataSet_FitsAutomaticCategoryColors(string key)
+    {
+        // В этих наборах не больше трёх категорий: каждая получает свой цвет, серых нет.
+        var palette = GeoPointPalette.For(DemoDataSets.FindByKey(key)!.Create());
+
+        Assert.InRange(palette.Categories.Count, 2, GeoPointPalette.CategoryColors.Count);
+        Assert.DoesNotContain(palette.Categories, category => category.IsOther);
+    }
+
     [Fact]
-    public void Create_ReturnsIndependentCopies()
+    public void Create_ReturnsIndependentCopiesWithStableIds()
     {
         var set = DemoDataSets.All[0];
 
         var first = set.Create();
-        first[0].Name = "Changed";
+        first[0].Title = "Changed";
+        first[0].Properties.Clear();
         first.Clear();
         var second = set.Create();
 
         Assert.NotEmpty(second);
-        Assert.NotEqual("Changed", second[0].Name);
+        Assert.NotEqual("Changed", second[0].Title);
+        Assert.NotEmpty(second[0].Properties);
+        Assert.Equal(second.Select(p => p.Id), set.Create().Select(p => p.Id));
     }
 
     [Theory]

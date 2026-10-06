@@ -43,6 +43,12 @@
     /// </summary>
     [Parameter] public string? DataContainerId { get; set; }
 
+    /// <summary>
+    /// Цвета категорий точек (название → цвет CSS). Без них категориям достаются
+    /// автоматические цвета <see cref="GeoPointPalette"/>, те же, что на 2D-карте.
+    /// </summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? CategoryColors { get; set; }
+
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
     private int SafeWidth => Math.Max(Width, 1);
@@ -171,27 +177,23 @@
         {
             Console.WriteLine($"🔄 Загрузка участников для глобуса {GlobeId}...");
 
-            IEnumerable<Participant> participants;
+            // Контейнер хранит любые точки: их категории раскрашивают маркеры, как на карте.
+            List<Participant> participantsList;
+            GlobeOperationResult result;
             if (!string.IsNullOrEmpty(DataContainerId))
             {
-                var container = ContainerManager.GetOrCreateContainer(DataContainerId);
-                participants = await container.GetAllParticipantsAsync();
-                Console.WriteLine($"📦 Источник данных глобуса {GlobeId}: контейнер '{DataContainerId}'");
+                var points = await ContainerManager.GetOrCreateContainer(DataContainerId).GetPointsAsync();
+                participantsList = points.Select(p => p.ToParticipant()).ToList();
+                Console.WriteLine($"📦 Источник данных глобуса {GlobeId}: контейнер '{DataContainerId}', {points.Count} точек");
+                result = await GlobeMediator.AddPointsAsync(ContainerId, points, CategoryColors);
             }
             else
             {
-                participants = await ParticipantRepository.GetAllParticipantsAsync();
-            }
-            var participantsList = participants.ToList();
-
-            Console.WriteLine($"📊 Загружено {participantsList.Count} участников для глобуса {GlobeId}");
-
-            foreach (var p in participantsList.Take(3))
-            {
-                Console.WriteLine($"👤 Участник: {p.Name}, Lat: {p.Latitude:F4}, Lng: {p.Longitude:F4}");
+                participantsList = (await ParticipantRepository.GetAllParticipantsAsync()).ToList();
+                Console.WriteLine($"📊 Загружено {participantsList.Count} участников для глобуса {GlobeId}");
+                result = await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
             }
 
-            var result = await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
             if (result.Success)
             {
                 Console.WriteLine($"✅ Успешно добавлено {participantsList.Count} участников на глобус {GlobeId}");

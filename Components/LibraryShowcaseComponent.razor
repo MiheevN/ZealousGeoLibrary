@@ -54,11 +54,11 @@
         <div class="zgl-tab-panel @(_activeTab == "map" ? "active" : "")">
             <h3>2D карта — Технологические хабы</h3>
             <p class="zgl-panel-note">
-                Карта получает явный список участников (@(_techHubs.Count) точек),
+                Карта получает явный список точек (@(_techHubs.Count)) с категориями,
                 не затрагивая общий репозиторий и глобусы.
             </p>
             <CommunityMapComponent MapId="showcase-tech-map"
-                                   Participants="_techHubs"
+                                   Points="_techHubs"
                                    Height="480px"
                                    ShowParticipantsList="true" />
         </div>
@@ -184,7 +184,7 @@
 
     private string _activeTab = "globe-russia";
     private PwaManagerComponent? _pwaManager;
-    private List<Participant> _techHubs = new();
+    private List<GeoPoint> _techHubs = new();
     private string _exportContainerId = RussianGlobeContainer;
     private string? _jsonExport;
     private string? _formMessage;
@@ -192,8 +192,8 @@
     protected override async Task OnInitializedAsync()
     {
         // Каждое представление наполняется собственным независимым набором данных.
-        await ContainerManager.LoadDataAsync(RussianGlobeContainer, DemoDataSets.RussianCities());
-        await ContainerManager.LoadDataAsync(CapitalsGlobeContainer, DemoDataSets.WorldCapitals());
+        await ContainerManager.LoadPointsAsync(RussianGlobeContainer, DemoDataSets.RussianCities());
+        await ContainerManager.LoadPointsAsync(CapitalsGlobeContainer, DemoDataSets.WorldCapitals());
 
         // Форма стартует с пустым контейнером, чтобы пользователь добавлял точки сам.
         ContainerManager.GetOrCreateContainer(FormGlobeContainer);
