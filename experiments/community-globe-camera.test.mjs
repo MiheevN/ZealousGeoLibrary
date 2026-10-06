@@ -5,7 +5,13 @@ import * as THREE from '../wwwroot/js/libs/three.module.js';
 
 async function loadCommunityGlobeClass() {
     const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const layoutSource = await readFile(new URL('../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
     const testSource = source
+        // Раскладка подписей встраивается своим кодом: модуль из data: URL не видит соседних файлов.
+        .replace(
+            /import \{ layoutLabels, labelTextRect \} from '\.\/label-layout\.js';\n/,
+            () => `${layoutSource.replace(/^export /gm, '')}\n`
+        )
         .replace(
             /import \{ DEFAULT_LABEL_PIXEL_HEIGHT, calculateLabelScaleForCamera \} from '\.\/label-scale\.js';\n/,
             [

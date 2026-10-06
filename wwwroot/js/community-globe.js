@@ -2,6 +2,7 @@
 //import * as THREE from './libs/three.module.js';
 //import { OrbitControls } from './libs/OrbitControls.js';
 import { DEFAULT_LABEL_PIXEL_HEIGHT, calculateLabelScaleForCamera } from './label-scale.js';
+import { layoutLabels, labelTextRect } from './label-layout.js';
 
 // Глобальные переменные для библиотек
 let THREE, OrbitControls;
@@ -55,6 +56,10 @@ initializeDependencies().then(success => {
 // Глобальный реестр экземпляров глобуса
 const globeInstances = new Map();
 
+// Сколько длится появление и исчезновение подписи при раскладке без наложений.
+const PARTICIPANT_LABEL_FADE_IN_SECONDS = 0.2;
+const PARTICIPANT_LABEL_FADE_OUT_SECONDS = 0.12;
+
 /**
  * Класс для создания и управления интерактивным 3D глобусом сообщества
  * Поддерживает добавление/удаление участников, настройку освещения,
@@ -107,6 +112,10 @@ class CommunityGlobe {
             participantLabelLoweringDistance: 1.1,
             participantLabelHiddenOpacity: 0.12,
             participantLabelHorizonFade: 0.25,
+            // Подписи не налезают друг на друга: подпись встаёт над маркером, под ним или
+            // сбоку, а если места нет, гаснет (видна при наведении на маркер).
+            participantLabelCollisionAvoidance: true,
+            participantLabelCollisionPadding: 4,
             participantOverlayIndicatorPixelSize: 14,
             participantOverlayIndicatorEdgePixelSize: 9,
             participantOverlayIndicatorEdgePaddingPixels: 18,
@@ -1080,6 +1089,9 @@ class CommunityGlobe {
             label.renderOrder = 10;
             label.userData.labelAspectRatio = canvas.width / canvas.height;
             label.userData.targetPixelHeight = this.labelTargetPixelHeight;
+            // Прозрачные поля холста не считаются занятым местом при раскладке подписей.
+            label.userData.textInsetX = (paddingX * scale) / canvas.width;
+            label.userData.textInsetY = (paddingY * scale) / canvas.height;
             this.updateParticipantLabelScale(label);
 
             return label;
@@ -1375,6 +1387,28 @@ class CommunityGlobe {
         };
     }
 
+    // Места для подписи в координатах маркера, по порядку предпочтения: над маркером
+    // (как всегда), под ним, сбоку к центру экрана и сбоку от центра. Сбоку подпись
+    // отодвигается на половину своей ширины, чтобы не закрыть сам маркер.
+    calculateParticipantLabelPlacements(label, labelOffset, labelDirections, dimensions, markerScale) {
+        const side = labelDirections.side;
+        const lift = labelDirections.lift;
+        const place = (sideAmount, liftAmount) => new THREE.Vector3(
+            side.x * sideAmount + lift.x * liftAmount,
+            labelOffset.depth,
+            side.z * sideAmount + lift.z * liftAmount
+        );
+        const halfWidth = this.getNonNegativeNumber(label?.scale?.x, 0) / 2;
+        const beside = halfWidth + this.calculateParticipantLabelSideClearance(dimensions, markerScale, label?.scale);
+
+        return [
+            place(labelOffset.side, labelOffset.lift),
+            place(labelOffset.side, -labelOffset.lift),
+            place(beside, 0),
+            place(-beside, 0)
+        ];
+    }
+
     calculateParticipantLabelAnchorHeight(cameraDistance, dimensions, markerScale) {
         return this.calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale).depth;
     }
@@ -1544,7 +1578,9 @@ class CommunityGlobe {
         if (!this.camera || !label?.parent) return;
 
         const markerWorldPosition = label.parent.getWorldPosition(new THREE.Vector3());
-        const opacity = this.calculateParticipantLabelVisibilityOpacity(markerWorldPosition, this.camera.position);
+        const opacity = this.calculateParticipantLabelVisibilityOpacity(markerWorldPosition, this.camera.position)
+            * this.updateParticipantLabelLayoutAlpha(label);
+        label.visible = opacity > 0.001;
         const materials = Array.isArray(label.material) ? label.material : [label.material];
 
         materials.forEach(material => {
@@ -1554,6 +1590,90 @@ class CommunityGlobe {
             material.opacity = opacity;
         });
         this.updateParticipantLabelConnectorOpacity(label.parent, opacity);
+    }
+
+    // Подпись, которой не нашлось места, гаснет и проявляется плавно, а не мигает. Время
+    // перехода не зависит от частоты кадров: гаснет быстрее, чем появляется, чтобы уходящая
+    // подпись почти не перекрывала пришедшую на её место.
+    updateParticipantLabelLayoutAlpha(label) {
+        const target = label?.parent?.userData?.labelLayoutVisible === false ? 0 : 1;
+        const current = Number.isFinite(label.userData.layoutAlpha) ? label.userData.layoutAlpha : target;
+        const seconds = this.getPositiveNumber(this.lastFrameDeltaSeconds, 1 / 60);
+        const duration = target > current ? PARTICIPANT_LABEL_FADE_IN_SECONDS : PARTICIPANT_LABEL_FADE_OUT_SECONDS;
+        const step = Math.min(1, seconds / duration);
+        label.userData.layoutAlpha = target > current
+            ? Math.min(target, current + step)
+            : Math.max(target, current - step);
+        return label.userData.layoutAlpha;
+    }
+
+    // Расставляет подписи без наложений (см. label-layout.js). Важнее подпись маркера под
+    // курсором, затем подписи на видимой стороне Земли, затем у горизонта, затем за ним;
+    // при равной важности — уже видимая подпись, затем порядок точек.
+    updateParticipantLabelLayout() {
+        const markers = this.participantMarkers.filter(marker => marker.userData.label);
+        if (markers.length === 0) return;
+
+        if (this.options.participantLabelCollisionAvoidance === false || !this.camera || !this.renderer) {
+            markers.forEach(marker => {
+                marker.userData.labelLayoutVisible = true;
+            });
+            return;
+        }
+
+        const viewport = this.renderer.getSize(new THREE.Vector2());
+        const hiddenOpacity = this.getClampedNumber(this.options.participantLabelHiddenOpacity, 0.12, 0, 1);
+        const candidates = markers.map((marker, index) => {
+            marker.updateWorldMatrix(true, false);
+            const label = marker.userData.label;
+            const placements = (marker.userData.labelPlacements ?? [label.position])
+                .map(position => this.getParticipantLabelScreenRect(marker, label, position, viewport));
+            const markerWorldPosition = marker.getWorldPosition(new THREE.Vector3());
+            const facingOpacity = this.calculateParticipantLabelVisibilityOpacity(markerWorldPosition, this.camera.position);
+            const facingPriority = facingOpacity >= 0.99 ? 2 : facingOpacity > hiddenOpacity + 0.01 ? 1 : 0;
+            const hoverPriority = marker === this.hoveredParticipantMarker ? 3 : 0;
+
+            // Прошлое решение делает раскладку устойчивой (см. label-layout.js).
+            const previous = marker.userData.labelLayoutVisible === undefined
+                ? undefined
+                : marker.userData.labelLayoutVisible ? (marker.userData.labelPlacementIndex ?? 0) : -1;
+
+            return { id: index, priority: hoverPriority + facingPriority, placements, previous };
+        });
+
+        const padding = this.getNonNegativeNumber(this.options.participantLabelCollisionPadding, 4);
+        const layout = layoutLabels(candidates, padding);
+
+        markers.forEach((marker, index) => {
+            const choice = layout.get(index) ?? -1;
+            marker.userData.labelLayoutVisible = choice >= 0;
+            // Скрытая подпись гаснет там, где стояла.
+            if (choice >= 0 && marker.userData.labelPlacements?.[choice]) {
+                marker.userData.labelPlacementIndex = choice;
+                marker.userData.label.position.copy(marker.userData.labelPlacements[choice]);
+                this.updateParticipantLabelConnector(marker);
+            }
+        });
+    }
+
+    // Прямоугольник текста подписи на экране, если подпись стоит в localPosition маркера;
+    // null — подпись за камерой.
+    getParticipantLabelScreenRect(marker, label, localPosition, viewport) {
+        const projected = marker.localToWorld(localPosition.clone()).project(this.camera);
+        if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z > 1) {
+            return null;
+        }
+
+        const centerX = (projected.x + 1) / 2 * viewport.x;
+        const centerY = (1 - projected.y) / 2 * viewport.y;
+        return labelTextRect(
+            centerX,
+            centerY,
+            this.getPositiveNumber(label.userData.targetPixelHeight, DEFAULT_LABEL_PIXEL_HEIGHT),
+            this.getPositiveNumber(label.userData.labelAspectRatio, 1),
+            label.userData.textInsetX,
+            label.userData.textInsetY
+        );
     }
 
     updateParticipantLabelConnectorOpacity(marker, labelOpacity) {
@@ -1648,13 +1768,10 @@ class CommunityGlobe {
                 const dimensions = marker.userData.dimensions;
                 const labelOffset = this.calculateParticipantLabelOffset(cameraDistance, dimensions, markerScale, marker.userData.label.scale);
                 const labelDirections = this.getParticipantLabelTangentDirections(marker);
-                const sidePosition = labelDirections.side.clone().multiplyScalar(labelOffset.side);
-                const liftPosition = labelDirections.lift.clone().multiplyScalar(labelOffset.lift);
-                marker.userData.label.position.set(
-                    sidePosition.x + liftPosition.x,
-                    labelOffset.depth,
-                    sidePosition.z + liftPosition.z
-                );
+                marker.userData.labelPlacements = this.calculateParticipantLabelPlacements(
+                    marker.userData.label, labelOffset, labelDirections, dimensions, markerScale);
+                const placementIndex = marker.userData.labelPlacementIndex ?? 0;
+                marker.userData.label.position.copy(marker.userData.labelPlacements[placementIndex] ?? marker.userData.labelPlacements[0]);
                 this.updateParticipantLabelConnector(marker);
             }
 
@@ -1844,6 +1961,7 @@ class CommunityGlobe {
 
         this.animationId = requestAnimationFrame(() => this.animate());
         const deltaTime = this.clock.getDelta();
+        this.lastFrameDeltaSeconds = deltaTime;
 
         if (this.earthGroup && this.state.isAutoRotating) {
             const rotationSpeed = Number.isFinite(Number(this.options.autoRotateSpeed))
@@ -1866,6 +1984,7 @@ class CommunityGlobe {
         this.applyCameraDistanceSafety();
         this.syncSunLightWithCamera();
         this.updateParticipantMarkerTransforms();
+        this.updateParticipantLabelLayout();
         this.updateParticipantLabelBillboards();
         this.updateParticipantMarkerOverlayIndicators();
         this.updateParticipantMarkerRipples(this.getAnimationTimeMs());
@@ -2207,6 +2326,8 @@ class CommunityGlobe {
                 'participantLabelLoweringDistance',
                 'participantLabelHiddenOpacity',
                 'participantLabelHorizonFade',
+                'participantLabelCollisionAvoidance',
+                'participantLabelCollisionPadding',
                 'highlightedPointColor',
                 'autoRotateSpeed',
                 'cloudsOpacity',
