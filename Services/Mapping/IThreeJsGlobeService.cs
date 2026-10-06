@@ -26,6 +26,18 @@ public interface IThreeJsGlobeService
     ValueTask<Models.GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Models.Participant> participants, CancellationToken ct = default);
 
     /// <summary>
+    /// Показывает точки на глобусе вместо прежних. Если у точек есть категории или
+    /// собственный цвет, маркеры раскрашиваются как на карте (<see cref="Models.GeoPointPalette"/>),
+    /// иначе получают цвет из настроек глобуса.
+    /// </summary>
+    /// <param name="containerId">ID контейнера глобуса</param>
+    /// <param name="points">Точки; точки с неверными данными пропускаются</param>
+    /// <param name="categoryColors">Цвета категорий (необязательно)</param>
+    /// <param name="ct">Токен отмены операции</param>
+    /// <returns>Результат добавления</returns>
+    ValueTask<Models.GlobeOperationResult> AddPointsAsync(string containerId, IEnumerable<Models.GeoPoint> points, IReadOnlyDictionary<string, string>? categoryColors = null, CancellationToken ct = default);
+
+    /// <summary>
     /// Обновляет позицию участника на глобусе
     /// </summary>
     /// <param name="containerId">ID контейнера глобуса</param>

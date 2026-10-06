@@ -2,38 +2,60 @@
 @using Microsoft.Extensions.Logging
 @using Microsoft.Extensions.Options
 @using Microsoft.JSInterop
+@using System.Globalization
 @using System.Text.Json
 @using ZealousMindedPeopleGeo.Services
 @using ZealousMindedPeopleGeo.Services.Repositories
 @using ZealousMindedPeopleGeo.Models
+@using ZealousMindedPeopleGeo.Services.GeoDataContainer
 @inject IJSRuntime JSRuntime
 @inject ILogger<CommunityMapComponent> Logger
 @inject IOptions<ZealousMindedPeopleGeoOptions> Options
 @inject IParticipantRepository ParticipantRepository
+@inject IGeoDataContainerManager ContainerManager
 @implements IAsyncDisposable
 
 <div class="community-map-container">
     <div class="map-header">
-        <h3>Community Map</h3>
+        <h3>@Title</h3>
         @if (ShowParticipantsList)
         {
             <button type="button" class="participants-toggle"
                     aria-controls="@ParticipantsPanelId"
                     aria-expanded="@(_participantsListOpen ? "true" : "false")"
-                    title="@(_participantsListOpen ? "Hide members list" : "Show members list")"
+                    title="@(_participantsListOpen ? "Hide list" : "Show list")"
                     @onclick="ToggleParticipantsList">
-                Members
-                <span class="participants-toggle-count">@ParticipantsView.Count()</span>
+                @ListTitle
+                <span class="participants-toggle-count">@VisiblePoints.Count()</span>
                 <span class="participants-toggle-icon" aria-hidden="true"></span>
             </button>
         }
         else
         {
             <div class="participants-count">
-                Total Participants: @ParticipantsView.Count()
+                Total Participants: @_points.Count
             </div>
         }
     </div>
+
+    @if (ShowLegend && _palette.HasCategories)
+    {
+        @* Легенда — и фильтр: цвет подписан, поэтому категория не различается одним цветом. *@
+        <div class="map-legend" role="group" aria-label="Categories">
+            @foreach (var category in _palette.Categories)
+            {
+                var name = category.Name;
+                <button type="button" class="map-legend-item"
+                        aria-pressed="@(IsCategoryVisible(name) ? "true" : "false")"
+                        title="@(IsCategoryVisible(name) ? "Hide" : "Show") @CategoryTitle(name)"
+                        @onclick="() => ToggleCategoryAsync(name)">
+                    <span class="map-legend-swatch" style="background: @category.Color"></span>
+                    <span class="map-legend-name">@CategoryTitle(name)</span>
+                    <span class="map-legend-count">@category.Count</span>
+                </button>
+            }
+        </div>
+    }
 
     @* Список стоит рядом с картой, а не поверх неё: в узком контейнере он уходит под карту. *@
     <div class="map-body" style="--zgl-map-height: @Height;">
@@ -41,43 +63,38 @@
 
         @if (ShowParticipantsList)
         {
-            <aside id="@ParticipantsPanelId" class="participants-panel" aria-label="Community members"
+            <aside id="@ParticipantsPanelId" class="participants-panel" aria-label="@ListTitle"
                    hidden="@(!_participantsListOpen)">
                 <div class="participants-list">
-                    @foreach (var participant in MappedParticipants)
+                    @foreach (var point in VisiblePoints)
                     {
-                        <div class="participant-card" @onclick="() => ShowParticipantInfo(participant)">
-                            <div class="participant-avatar">
-                                @(string.IsNullOrEmpty(participant.Name) ? "?" : participant.Name[..1].ToUpperInvariant())
+                        var place = PlaceOf(point);
+                        <div class="participant-card" @onclick="() => ShowPointInfo(point)">
+                            <div class="participant-avatar" style="background: @_palette.ColorFor(point)">
+                                @MarkerLabel(point)
                             </div>
                             <div class="participant-info">
-                                <div class="participant-name">@participant.Name</div>
-                                @if (!string.IsNullOrEmpty(participant.Email))
+                                <div class="participant-name">@point.Title</div>
+                                @if (!string.IsNullOrEmpty(point.Category))
                                 {
-                                    <div class="participant-email">@participant.Email</div>
+                                    <div class="participant-location-details">@point.Category</div>
                                 }
-                                @if (!string.IsNullOrEmpty(participant.City) || !string.IsNullOrEmpty(participant.Country))
+                                @if (place is not null)
                                 {
-                                    <div class="participant-location-details">
-                                        @(participant.City ?? "")@(!string.IsNullOrEmpty(participant.City) && !string.IsNullOrEmpty(participant.Country) ? ", " : "")@(participant.Country ?? "")
-                                    </div>
+                                    <div class="participant-location-details">@place</div>
                                 }
-                                else if (!string.IsNullOrEmpty(participant.Address))
+                                @if (!string.IsNullOrEmpty(point.Description))
                                 {
-                                    <div class="participant-location">@participant.Address</div>
-                                }
-                                @if (!string.IsNullOrEmpty(participant.Skills))
-                                {
-                                    <div class="participant-skills-preview">
-                                        🛠 @(participant.Skills.Length > 30 ? participant.Skills.Substring(0, 30) + "..." : participant.Skills)
-                                    </div>
+                                    <div class="participant-skills-preview">@Truncate(point.Description, 80)</div>
                                 }
                             </div>
                         </div>
                     }
-                    @if (!_isLoading && !MappedParticipants.Any())
+                    @if (!_isLoading && !VisiblePoints.Any())
                     {
-                        <p class="participants-empty">No members on the map yet</p>
+                        <p class="participants-empty">
+                            @(_points.Count == 0 ? "Nothing on the map yet" : "All categories are hidden")
+                        </p>
                     }
                 </div>
             </aside>
@@ -92,78 +109,45 @@
         </div>
     }
 
-    @if (SelectedParticipant != null)
+    @if (_selectedPoint is not null)
     {
+        var url = SafeUrl(_selectedPoint.Url);
         <div class="participant-modal-overlay" @onclick="CloseParticipantModal">
-            <div class="participant-modal" @onclick:stopPropagation="true">
+            <div class="participant-modal" role="dialog" aria-label="@_selectedPoint.Title" @onclick:stopPropagation="true">
                 <div class="modal-header">
-                    <h4>@SelectedParticipant.Name</h4>
-                    <button class="close-btn" @onclick="CloseParticipantModal">&times;</button>
+                    <h4>@_selectedPoint.Title</h4>
+                    <button class="close-btn" aria-label="Close" @onclick="CloseParticipantModal">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="participant-details">
-                        <p><strong>Address:</strong> @SelectedParticipant.Address</p>
-
-                        @if (!string.IsNullOrEmpty(SelectedParticipant.Email))
-                        {
-                            <p><strong>Email:</strong> @SelectedParticipant.Email</p>
-                        }
-
-                        @if (!string.IsNullOrEmpty(SelectedParticipant.City) || !string.IsNullOrEmpty(SelectedParticipant.Country))
-                        {
-                            <p><strong>Location:</strong> @(SelectedParticipant.City ?? "")@(!string.IsNullOrEmpty(SelectedParticipant.City) && !string.IsNullOrEmpty(SelectedParticipant.Country) ? ", " : "")@(SelectedParticipant.Country ?? "")</p>
-                        }
-
-                        <p><strong>Coordinates:</strong> @(SelectedParticipant.Latitude?.ToString("F6") ?? "N/A"), @(SelectedParticipant.Longitude?.ToString("F6") ?? "N/A")</p>
-                        <p><strong>Registration Date:</strong> @SelectedParticipant.RegisteredAt.ToString("dd.MM.yyyy HH:mm")</p>
-
-                        @if (!string.IsNullOrEmpty(SelectedParticipant.Skills))
-                        {
-                            <p><strong>Skills:</strong> @SelectedParticipant.Skills</p>
-                        }
-
-                        @if (!string.IsNullOrEmpty(SelectedParticipant.LifeGoals))
-                        {
-                            <p><strong>Life Goals:</strong> @SelectedParticipant.LifeGoals</p>
-                        }
-
-                        @if (!string.IsNullOrEmpty(SelectedParticipant.Message))
-                        {
-                            <p><strong>Message:</strong> @SelectedParticipant.Message</p>
-                        }
-
-                        @if (!string.IsNullOrEmpty(SelectedParticipant.SocialMedia))
-                        {
-                            <p><strong>Social Media:</strong> @SelectedParticipant.SocialMedia</p>
-                        }
-
-                        @if (SelectedParticipant.SocialContacts != null &&
-                            (!string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Discord) ||
-                             !string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Telegram) ||
-                             !string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Vk) ||
-                             !string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Website)))
-                        {
-                            <p><strong>Social Contacts:</strong></p>
-                            <div class="participant-social-details">
-                                @if (!string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Discord))
-                                {
-                                    <p>Discord: @SelectedParticipant.SocialContacts.Discord</p>
-                                }
-                                @if (!string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Telegram))
-                                {
-                                    <p>Telegram: @SelectedParticipant.SocialContacts.Telegram</p>
-                                }
-                                @if (!string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Vk))
-                                {
-                                    <p>VK: @SelectedParticipant.SocialContacts.Vk</p>
-                                }
-                                @if (!string.IsNullOrEmpty(SelectedParticipant.SocialContacts.Website))
-                                {
-                                    <p>Website: @SelectedParticipant.SocialContacts.Website</p>
-                                }
-                            </div>
-                        }
-                    </div>
+                    @if (PointTemplate is not null)
+                    {
+                        @PointTemplate(_selectedPoint)
+                    }
+                    else
+                    {
+                        <div class="participant-details">
+                            @if (!string.IsNullOrEmpty(_selectedPoint.Category))
+                            {
+                                <p class="point-category">
+                                    <span class="map-legend-swatch" style="background: @_palette.ColorFor(_selectedPoint)"></span>
+                                    @_selectedPoint.Category
+                                </p>
+                            }
+                            @if (!string.IsNullOrEmpty(_selectedPoint.Description))
+                            {
+                                <p class="point-description">@_selectedPoint.Description</p>
+                            }
+                            @foreach (var (label, value) in CardProperties(_selectedPoint))
+                            {
+                                <p><strong>@label:</strong> @value</p>
+                            }
+                            <p><strong>Coordinates:</strong> @_selectedPoint.Latitude.ToString("F6", CultureInfo.InvariantCulture), @_selectedPoint.Longitude.ToString("F6", CultureInfo.InvariantCulture)</p>
+                            @if (url is not null)
+                            {
+                                <p><a href="@url" target="_blank" rel="noopener noreferrer">@url</a></p>
+                            }
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="CloseParticipantModal">

@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ZealousMindedPeopleGeo.Components;
 using ZealousMindedPeopleGeo.Models;
+using System.Text.Json;
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using ZealousMindedPeopleGeo.Services.GeoDataContainer;
 using ZealousMindedPeopleGeo.Services.Repositories;
 using static ZealousMindedPeopleGeo.Tests.TestData;
 
@@ -18,6 +22,8 @@ public class CommunityMapComponentTests : BunitContext
     private const string MapScript = "/_content/ZealousMindedPeopleGeo/js/community-map.js";
 
     private readonly ZealousMindedPeopleGeoOptions _options = new();
+    private readonly GeoDataContainerManager _containers =
+        new(NullLogger<GeoDataContainerManager>.Instance, NullLoggerFactory.Instance);
 
     public CommunityMapComponentTests()
     {
@@ -25,11 +31,12 @@ public class CommunityMapComponentTests : BunitContext
         Services.AddSingleton<IOptions<ZealousMindedPeopleGeoOptions>>(_ => Options.Create(_options));
         Services.AddSingleton<IParticipantRepository>(
             new InMemoryParticipantRepository(NullLogger<InMemoryParticipantRepository>.Instance));
+        Services.AddSingleton<IGeoDataContainerManager>(_containers);
 
         JSInterop.SetupModule(MapScript);
         JSInterop.SetupVoid("setDotNetHelper", _ => true).SetVoidResult();
         JSInterop.SetupVoid("initializeCommunityMap", _ => true).SetVoidResult();
-        JSInterop.SetupVoid("loadParticipantsOnMap", _ => true).SetVoidResult();
+        JSInterop.SetupVoid("loadPointsOnMap", _ => true).SetVoidResult();
         JSInterop.SetupVoid("disposeCommunityMap", _ => true).SetVoidResult();
     }
 
@@ -112,15 +119,19 @@ public class CommunityMapComponentTests : BunitContext
         };
 
         var cut = RenderMap(p => p.Add(c => c.MapId, "map-b"), participants);
-        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations["loadParticipantsOnMap"]));
+        WaitForInitialization(cut);
 
-        var load = JSInterop.Invocations["loadParticipantsOnMap"][0];
-        Assert.Contains("\"seattle\"", (string)load.Arguments[0]!);
+        var load = JSInterop.Invocations["loadPointsOnMap"][0];
         Assert.Equal("map-b", load.Arguments[1]);
-        // Аватар — первая буква имени, для пустого имени «?»; точки с координатами 0,0 в список не попадают.
+        var sent = SentPoints(load);
+        Assert.Equal(new[] { "seattle", "" }, sent.Select(p => p.GetProperty("title").GetString()));
+        Assert.Equal(participants[0].Id.ToString(), sent[0].GetProperty("id").GetString());
+        Assert.Equal("seattle@example.com", sent[0].GetProperty("properties").GetProperty("email").GetString());
+        // Аватар — первая буква имени, для пустого имени «?». Участник с координатами 0,0
+        // не найден геокодированием: его нет ни на карте, ни в списке, ни в счётчике.
         var avatars = cut.FindAll(".participant-avatar").Select(a => a.TextContent.Trim());
         Assert.Equal(new[] { "S", "?" }, avatars);
-        Assert.Equal("3", cut.Find(".participants-toggle-count").TextContent.Trim());
+        Assert.Equal("2", cut.Find(".participants-toggle-count").TextContent.Trim());
     }
 
     [Fact]
@@ -186,7 +197,9 @@ public class CommunityMapComponentTests : BunitContext
 
         await cut.InvokeAsync(() => cut.Instance.OnParticipantMarkerClick(berlin.Id.ToString()));
 
-        Assert.Same(berlin, clicked);
+        Assert.Equal(berlin.Id, clicked?.Id);
+        Assert.Equal("Berlin", clicked?.Name);
+        Assert.Equal(berlin.Email, clicked?.Email);
         Assert.Equal("Berlin", cut.Find(".participant-modal .modal-header h4").TextContent);
 
         cut.Find(".participant-modal .close-btn").Click();
@@ -215,6 +228,203 @@ public class CommunityMapComponentTests : BunitContext
         Assert.Null(error);
     }
 
+    // --- Точки ---------------------------------------------------------------
+
+    [Fact]
+    public void Points_AreSentWithCategoryColors_AndListed()
+    {
+        var points = new[]
+        {
+            Point("berlin", "office"), Point("tokyo", "event"), Point("rome", "office"), Point("oslo")
+        };
+        points[0].Properties["staff"] = "40";
+        points[1].Icon = "🎤";
+
+        var cut = Render<CommunityMapComponent>(p => p.Add(c => c.Points, points));
+        WaitForInitialization(cut);
+
+        var sent = SentPoints(JSInterop.Invocations["loadPointsOnMap"][0]);
+        Assert.Equal(new[] { "berlin", "tokyo", "rome", "oslo" }, sent.Select(p => p.GetProperty("id").GetString()));
+        Assert.Equal(
+            new[] { GeoPointPalette.CategoryColors[0], GeoPointPalette.CategoryColors[1], GeoPointPalette.CategoryColors[0], GeoPointPalette.OtherColor },
+            sent.Select(p => p.GetProperty("color").GetString()));
+        Assert.Equal("40", sent[0].GetProperty("properties").GetProperty("staff").GetString());
+        Assert.Equal(new[] { "B", "🎤", "R", "O" }, cut.FindAll(".participant-avatar").Select(a => a.TextContent.Trim()));
+        Assert.Equal("Members", cut.Find(".participants-toggle").FirstChild!.TextContent.Trim());
+    }
+
+    [Fact]
+    public void Legend_ListsCategories_AndFilterKeepsColors()
+    {
+        var points = new[] { Point("a", "office"), Point("b", "event"), Point("c", "event") };
+        var cut = Render<CommunityMapComponent>(p => p.Add(c => c.Points, points));
+        WaitForInitialization(cut);
+
+        var items = cut.FindAll(".map-legend-item");
+        Assert.Equal(new[] { "office", "event" }, items.Select(i => i.QuerySelector(".map-legend-name")!.TextContent));
+        Assert.Equal(new[] { "1", "2" }, items.Select(i => i.QuerySelector(".map-legend-count")!.TextContent));
+        Assert.All(items, i => Assert.Equal("true", i.GetAttribute("aria-pressed")));
+
+        cut.FindAll(".map-legend-item")[0].Click();
+
+        // Скрыли «office»: на карте и в списке только «event», и её цвет прежний.
+        cut.WaitForAssertion(() => Assert.Equal(2, JSInterop.Invocations["loadPointsOnMap"].Count));
+        var sent = SentPoints(JSInterop.Invocations["loadPointsOnMap"][1]);
+        Assert.Equal(new[] { "b", "c" }, sent.Select(p => p.GetProperty("id").GetString()));
+        Assert.All(sent, p => Assert.Equal(GeoPointPalette.CategoryColors[1], p.GetProperty("color").GetString()));
+        Assert.Equal("false", cut.FindAll(".map-legend-item")[0].GetAttribute("aria-pressed"));
+        Assert.Equal(2, cut.FindAll(".participant-card").Count);
+        Assert.Equal("2", cut.Find(".participants-toggle-count").TextContent.Trim());
+
+        cut.FindAll(".map-legend-item")[1].Click();
+        Assert.Equal("All categories are hidden", cut.Find(".participants-empty").TextContent.Trim());
+    }
+
+    [Fact]
+    public void Legend_IsHiddenWithoutCategories_OrWhenTurnedOff()
+    {
+        var plain = Render<CommunityMapComponent>(p => p.Add(c => c.Points, new[] { Point("a") }).Add(c => c.MapId, "m1"));
+        var off = Render<CommunityMapComponent>(p => p
+            .Add(c => c.Points, new[] { Point("a", "office") })
+            .Add(c => c.ShowLegend, false)
+            .Add(c => c.MapId, "m2"));
+
+        plain.WaitForAssertion(() => Assert.Empty(plain.FindAll(".map-legend")));
+        off.WaitForAssertion(() => Assert.Empty(off.FindAll(".map-legend")));
+        Assert.Contains(SentPoints(JSInterop.Invocations["loadPointsOnMap"][0]),
+            p => p.GetProperty("color").GetString() == GeoPointPalette.DefaultColor);
+    }
+
+    [Fact]
+    public void CategoryColors_AndPointColor_OverrideAutomaticColors_UnsafeValuesIgnored()
+    {
+        var own = Point("own", "office");
+        own.Color = "#ff00ff";
+        var unsafeColor = Point("unsafe", "office");
+        unsafeColor.Color = "red; background-image: url(https://evil.example)";
+        var colors = new Dictionary<string, string> { ["office"] = "#ffcf5a" };
+
+        var cut = Render<CommunityMapComponent>(p => p
+            .Add(c => c.Points, new[] { own, unsafeColor })
+            .Add(c => c.CategoryColors, colors));
+        WaitForInitialization(cut);
+
+        var sent = SentPoints(JSInterop.Invocations["loadPointsOnMap"][0]);
+        Assert.Equal("#ff00ff", sent[0].GetProperty("color").GetString());
+        Assert.Equal("#ffcf5a", sent[1].GetProperty("color").GetString());
+        Assert.DoesNotContain("evil", cut.Markup);
+    }
+
+    [Fact]
+    public void DataContainer_IsReadAndMapFollowsItsChanges()
+    {
+        var offices = _containers.GetOrCreateContainer("offices");
+        offices.AddPointAsync(Point("berlin", "office")).AsTask().Wait();
+
+        var cut = Render<CommunityMapComponent>(p => p.Add(c => c.DataContainerId, "offices"));
+        WaitForInitialization(cut);
+        Assert.Single(SentPoints(JSInterop.Invocations["loadPointsOnMap"][0]));
+
+        cut.InvokeAsync(() => offices.AddPointAsync(Point("paris", "office")).AsTask()).Wait();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, JSInterop.Invocations["loadPointsOnMap"].Count));
+        Assert.Equal(2, SentPoints(JSInterop.Invocations["loadPointsOnMap"][1]).Length);
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".participant-card").Count));
+
+        // Чужой контейнер карту не трогает.
+        cut.InvokeAsync(() => _containers.GetOrCreateContainer("events").AddPointAsync(Point("x")).AsTask()).Wait();
+        Assert.Equal(2, JSInterop.Invocations["loadPointsOnMap"].Count);
+    }
+
+    [Fact]
+    public void NewPointsParameter_RefreshesMapWithoutRecreatingIt()
+    {
+        var cut = Render<CommunityMapComponent>(p => p.Add(c => c.Points, new[] { Point("a") }));
+        WaitForInitialization(cut);
+
+        cut.Render(p => p.Add(c => c.Points, new[] { Point("b"), Point("c") }));
+
+        cut.WaitForAssertion(() => Assert.Equal(2, JSInterop.Invocations["loadPointsOnMap"].Count));
+        Assert.Equal(2, SentPoints(JSInterop.Invocations["loadPointsOnMap"][1]).Length);
+        Assert.Single(JSInterop.Invocations["initializeCommunityMap"]);
+    }
+
+    [Fact]
+    public async Task PointClick_OpensDefaultCard_WithPropertiesAndSafeLinkOnly()
+    {
+        var hq = Point("hq", "office");
+        hq.Title = "HQ";
+        hq.Description = "Main office";
+        hq.Url = "https://example.com/hq";
+        hq.Properties["staff"] = "120";
+        var bad = Point("bad");
+        bad.Url = "javascript:alert(1)";
+        GeoPoint? clicked = null;
+        var cut = Render<CommunityMapComponent>(p => p
+            .Add(c => c.Points, new[] { hq, bad })
+            .Add(c => c.OnPointClick, (GeoPoint point) => clicked = point));
+        WaitForInitialization(cut);
+
+        await cut.InvokeAsync(() => cut.Instance.OnPointMarkerClick("hq"));
+
+        Assert.Equal("hq", clicked?.Id);
+        var card = cut.Find(".participant-modal");
+        Assert.Equal("HQ", card.QuerySelector(".modal-header h4")!.TextContent);
+        Assert.Contains("Main office", card.TextContent);
+        Assert.Contains("staff:", card.TextContent);
+        Assert.Equal("https://example.com/hq", card.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Equal("noopener noreferrer", card.QuerySelector("a")!.GetAttribute("rel"));
+
+        await cut.InvokeAsync(() => cut.Instance.OnPointMarkerClick("bad"));
+        Assert.Null(cut.Find(".participant-modal").QuerySelector("a"));
+        Assert.DoesNotContain("javascript:", cut.Markup);
+    }
+
+    [Fact]
+    public async Task PointTemplate_ReplacesDefaultCard()
+    {
+        RenderFragment<GeoPoint> template = point => builder =>
+        {
+            builder.OpenElement(0, "p");
+            builder.AddAttribute(1, "class", "custom-card");
+            builder.AddContent(2, $"Custom {point.Title}");
+            builder.CloseElement();
+        };
+        var cut = Render<CommunityMapComponent>(p => p
+            .Add(c => c.Points, new[] { Point("hq") })
+            .Add(c => c.PointTemplate, template));
+        WaitForInitialization(cut);
+
+        cut.Find(".participant-card").Click();
+
+        Assert.Equal("Custom hq", cut.Find(".participant-modal .custom-card").TextContent);
+        Assert.Empty(cut.FindAll(".participant-modal .participant-details"));
+    }
+
+    [Fact]
+    public void EachMap_GetsItsOwnClickHandler()
+    {
+        var cut = Render<CommunityMapComponent>(p => p.Add(c => c.Points, new[] { Point("a") }));
+
+        var init = WaitForInitialization(cut);
+
+        Assert.IsType<DotNetObjectReference<CommunityMapComponent>>(Option(init, "dotNetHelper"));
+        Assert.Empty(JSInterop.Invocations["setDotNetHelper"]);
+    }
+
+    [Fact]
+    public void TitleAndListTitle_AreConfigurable()
+    {
+        var cut = Render<CommunityMapComponent>(p => p
+            .Add(c => c.Points, new[] { Point("a") })
+            .Add(c => c.Title, "Offices")
+            .Add(c => c.ListTitle, "Places"));
+        WaitForInitialization(cut);
+
+        Assert.Equal("Offices", cut.Find(".map-header h3").TextContent);
+        Assert.StartsWith("Places", cut.Find(".participants-toggle").TextContent.Trim());
+    }
+
     // Явный список участников, чтобы компонент не обращался к общему репозиторию.
     private IRenderedComponent<CommunityMapComponent> RenderMap(
         Action<ComponentParameterCollectionBuilder<CommunityMapComponent>> parameters,
@@ -229,9 +439,22 @@ public class CommunityMapComponentTests : BunitContext
 
     private JSRuntimeInvocation WaitForInitialization(IRenderedComponent<CommunityMapComponent> cut)
     {
-        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations["loadParticipantsOnMap"]));
+        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations["loadPointsOnMap"]));
         return Assert.Single(JSInterop.Invocations["initializeCommunityMap"]);
     }
+
+    // Точки уходят в JS одной JSON-строкой.
+    private static JsonElement[] SentPoints(JSRuntimeInvocation load) =>
+        JsonDocument.Parse((string)load.Arguments[0]!).RootElement.EnumerateArray().ToArray();
+
+    private static GeoPoint Point(string id, string? category = null, double latitude = 10, double longitude = 20) => new()
+    {
+        Id = id,
+        Latitude = latitude,
+        Longitude = longitude,
+        Title = id,
+        Category = category
+    };
 
     // Настройки проекции передаются в JS анонимным объектом { projection, centralMeridian }.
     private static object? Option(JSRuntimeInvocation init, string name)

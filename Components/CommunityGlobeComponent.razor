@@ -2,7 +2,8 @@
 @* Использует новые модульные компоненты внутри *@
 
 <div class="community-globe-shell d-flex flex-column align-items-center gap-3">
-    <CommunityGlobeViewer GlobeId="@GlobeId" Width="@Width" Height="@Height" />
+    <CommunityGlobeViewer GlobeId="@GlobeId" Width="@Width" Height="@Height"
+                          DataContainerId="@DataContainerId" CategoryColors="@CategoryColors" />
     
     @if (ShowControls)
     {
@@ -32,4 +33,10 @@
     [Parameter] public bool ShowParticipantManagement { get; set; } = true;
     [Parameter] public bool ShowParticipantInfo { get; set; } = true;
     [Parameter] public bool ShowSettings { get; set; } = false;
+
+    /// <summary>Контейнер гео-данных с точками глобуса (см. <see cref="CommunityGlobeViewer.DataContainerId"/>).</summary>
+    [Parameter] public string? DataContainerId { get; set; }
+
+    /// <summary>Цвета категорий точек (см. <see cref="CommunityGlobeViewer.CategoryColors"/>).</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? CategoryColors { get; set; }
 }

@@ -6,10 +6,12 @@
     <Description>
         Карта рисуется на Canvas без внешних картографических API. По умолчанию —
         равновеликая проекция Equal Earth, прежняя прямоугольная доступна опцией.
-        При смене настроек компонент создаётся заново, как при загрузке страницы.
+        Точки окрашены по категориям, легенда над картой скрывает и показывает их.
+        Набор данных меняется на лету, а при смене проекции или меридиана компонент
+        создаётся заново.
     </Description>
     <Meta>
-        <span class="chip">Точек: @_participants.Count</span>
+        <span class="chip">Точек: @_points.Count</span>
         <span class="chip">MapId <code>@MapId</code></span>
     </Meta>
 </PageHeader>
@@ -51,7 +53,9 @@
 
 <CommunityMapComponent @key="MapId"
                        MapId="@MapId"
-                       Participants="_participants"
+                       Points="_points"
+                       Title="@_dataSet.Title"
+                       ListTitle="Точки"
                        Projection="_projection"
                        CentralMeridian="_centralMeridian"
                        Zoom="1"
@@ -76,18 +80,19 @@
     private MapProjection _projection = MapProjection.EqualEarth;
     private int _centralMeridian;
     private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.FindByKey("tech-hubs")!;
-    private List<Participant> _participants = DemoDataSets.TechHubs();
+    private List<GeoPoint> _points = DemoDataSets.TechHubs();
 
-    // Своя карта на каждую комбинацию настроек: старая освобождается по своему
-    // MapId асинхронно и не должна задеть новую.
+    // Своя карта на каждую проекцию и меридиан: старая освобождается по своему MapId
+    // асинхронно и не должна задеть новую. Набор данных в MapId не входит: новые точки
+    // карта принимает без пересоздания.
     private string MapId =>
-        $"showcase-map-{_projection.ToString().ToLowerInvariant()}-{(_centralMeridian < 0 ? "w" : "e")}{Math.Abs(_centralMeridian)}-{_dataSet.Key}";
+        $"showcase-map-{_projection.ToString().ToLowerInvariant()}-{(_centralMeridian < 0 ? "w" : "e")}{Math.Abs(_centralMeridian)}";
 
     private static string? Active(bool active) => active ? "active" : null;
 
     private void SelectDataSet(DemoDataSets.DataSetInfo set)
     {
         _dataSet = set;
-        _participants = set.Create();
+        _points = set.Create();
     }
 }

@@ -34,6 +34,24 @@ const PROJECTIONS = {
 };
 
 const WORLD_LAND_PATHS = buildWorldLandPaths();
+// Цвет маркера, если у точки нет своего (совпадает с GeoPointPalette.DefaultColor).
+const DEFAULT_MARKER_COLOR = '#24dce7';
+// Подписи свойств участника в подсказке (ключи ParticipantPointProperties).
+const PROPERTY_LABELS = {
+    email: '📧 Email:',
+    address: '📍 Адрес:',
+    location: '🌍 Местоположение:',
+    socialMedia: '🔗 Соцсети:',
+    skills: '🛠 Навыки:',
+    lifeGoals: '🎯 Цели:',
+    discord: 'Discord:',
+    telegram: 'Telegram:',
+    vk: 'VK:',
+    website: 'Сайт:',
+    registeredAt: '📅 Регистрация:'
+};
+// Город и страна выводятся одной строкой «Местоположение».
+const LOCATION_KEYS = ['city', 'country'];
 
 window.setDotNetHelper = (helper) => {
     dotNetHelper = helper;
@@ -59,7 +77,10 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
         centerLng: numberOrDefault(centerLng, 0),
         zoom: numberOrDefault(zoom, 2),
         projection: options?.projection,
-        centralMeridian: numberOrDefault(options?.centralMeridian, 0)
+        centralMeridian: numberOrDefault(options?.centralMeridian, 0),
+        // Обработчик кликов этой карты. Общий setDotNetHelper остаётся для прежнего кода,
+        // но с ним клик по любой карте страницы уходил последней инициализированной.
+        dotNetHelper: options?.dotNetHelper ?? null
     });
 
     mapInstances.set(targetId, instance);
@@ -67,6 +88,23 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
     console.log(`Карта сообщества инициализирована (${targetId}, ${instance.projection})`);
 };
 
+// points: массив точек { id, latitude, longitude, title, description, category, color,
+// icon, url, properties } или JSON-строка с ним.
+window.loadPointsOnMap = (pointsJson, containerId) => {
+    const instance = resolveInstance(containerId);
+    if (!instance) {
+        return;
+    }
+
+    try {
+        const points = Array.isArray(pointsJson) ? pointsJson : JSON.parse(pointsJson);
+        instance.setPoints(points.map(normalizePoint).filter(Boolean));
+    } catch (error) {
+        console.error('Ошибка загрузки точек на карту:', error);
+    }
+};
+
+// Прежний формат: участники ({ Id, Name, Latitude, Longitude, Email, … }).
 window.loadParticipantsOnMap = (participantsJson, containerId) => {
     const instance = resolveInstance(containerId);
     if (!instance) {
@@ -77,8 +115,7 @@ window.loadParticipantsOnMap = (participantsJson, containerId) => {
         const participants = Array.isArray(participantsJson)
             ? participantsJson
             : JSON.parse(participantsJson);
-        instance.setParticipants(participants);
-        console.log(`Загружено ${participants.length} участников на карту`);
+        instance.setPoints(participants.map(participantToPoint).filter(Boolean));
     } catch (error) {
         console.error('Ошибка загрузки участников на карту:', error);
     }
@@ -161,7 +198,7 @@ function createMapInstance(container, initialState) {
     const canvas = document.createElement('canvas');
     canvas.className = 'community-map-canvas';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', 'Карта участников сообщества');
+    canvas.setAttribute('aria-label', 'Карта с точками');
     container.innerHTML = '';
     container.appendChild(canvas);
 
@@ -181,7 +218,8 @@ function createMapInstance(container, initialState) {
         container,
         tooltip,
         controls,
-        participants: [],
+        points: [],
+        dotNetHelper: initialState.dotNetHelper,
         userLocation: null,
         focused: null,
         // Проекция и полигоны суши в её координатах
@@ -200,7 +238,7 @@ function createMapInstance(container, initialState) {
         dragging: false,
         dragStart: null,
         // Кеш hover-маркера
-        hoveredParticipantIndex: -1,
+        hoveredPointIndex: -1,
         // Подписки на события
         listeners: []
     };
@@ -283,15 +321,9 @@ function createMapInstance(container, initialState) {
             x: event.clientX - rect.left,
             y: event.clientY - rect.top
         };
-        const index = findParticipantAt(state, pointer);
+        const index = findPointAt(state, pointer);
         if (index >= 0) {
-            const participant = state.participants[index];
-            if (dotNetHelper && dotNetHelper.invokeMethodAsync) {
-                dotNetHelper.invokeMethodAsync(
-                    'OnParticipantMarkerClick',
-                    String(participant.Id ?? index)
-                );
-            }
+            notifyPointClick(state, state.points[index]);
         }
     };
 
@@ -328,9 +360,14 @@ function createMapInstance(container, initialState) {
     return {
         draw,
         projection: projection.name,
-        setParticipants(list) {
-            state.participants = Array.isArray(list) ? list.slice() : [];
+        setPoints(list) {
+            state.points = Array.isArray(list) ? list.slice() : [];
+            state.hoveredPointIndex = -1;
+            hideTooltip(state);
             draw();
+        },
+        setParticipants(list) {
+            this.setPoints((Array.isArray(list) ? list : []).map(participantToPoint).filter(Boolean));
         },
         setUserLocation(location) {
             state.userLocation = location;
@@ -703,7 +740,7 @@ function drawScene(state) {
         ctx.restore();
     }
 
-    drawParticipants(state, view);
+    drawPoints(state, view);
     drawUserLocation(state, view);
     drawFocusedParticipant(state, view);
 }
@@ -809,22 +846,19 @@ function isOnScreen(state, point, margin) {
         && point.y >= -margin && point.y <= state.height + margin;
 }
 
-function drawParticipants(state, view) {
+function drawPoints(state, view) {
     const { ctx } = state;
-    state.participants.forEach((participant, index) => {
-        if (!isFinitePair(participant.Latitude, participant.Longitude)) {
-            return;
-        }
-        const radius = state.hoveredParticipantIndex === index ? 11 : 9;
-        const initial = String(participant.Name || '?').charAt(0).toUpperCase();
-        const positions = projectToCanvasCopies(state, view, participant.Latitude, participant.Longitude);
-        positions.filter((point) => isOnScreen(state, point, 40)).forEach(({ x, y }) => {
+    state.points.forEach((point, index) => {
+        const radius = state.hoveredPointIndex === index ? 11 : 9;
+        const label = markerLabel(point);
+        const positions = projectToCanvasCopies(state, view, point.latitude, point.longitude);
+        positions.filter((position) => isOnScreen(state, position, 40)).forEach(({ x, y }) => {
             ctx.save();
             ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
             ctx.shadowBlur = 4;
             ctx.beginPath();
             ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#24dce7';
+            ctx.fillStyle = point.color || DEFAULT_MARKER_COLOR;
             ctx.fill();
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#0e1013';
@@ -836,7 +870,7 @@ function drawParticipants(state, view) {
             ctx.font = 'bold 11px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(initial, x, y + 0.5);
+            ctx.fillText(label, x, y + 0.5);
             ctx.restore();
         });
     });
@@ -888,13 +922,13 @@ function updateHover(state, event) {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top
     };
-    const index = findParticipantAt(state, pointer);
-    if (index !== state.hoveredParticipantIndex) {
-        state.hoveredParticipantIndex = index;
+    const index = findPointAt(state, pointer);
+    if (index !== state.hoveredPointIndex) {
+        state.hoveredPointIndex = index;
         drawScene(state);
     }
     if (index >= 0) {
-        showTooltip(state, state.participants[index], pointer);
+        showTooltip(state, state.points[index], pointer);
         state.canvas.style.cursor = 'pointer';
     } else {
         hideTooltip(state);
@@ -902,14 +936,11 @@ function updateHover(state, event) {
     }
 }
 
-function findParticipantAt(state, pointer) {
+function findPointAt(state, pointer) {
     const view = getView(state);
-    for (let i = state.participants.length - 1; i >= 0; i -= 1) {
-        const participant = state.participants[i];
-        if (!isFinitePair(participant.Latitude, participant.Longitude)) {
-            continue;
-        }
-        const positions = projectToCanvasCopies(state, view, participant.Latitude, participant.Longitude);
+    for (let i = state.points.length - 1; i >= 0; i -= 1) {
+        const point = state.points[i];
+        const positions = projectToCanvasCopies(state, view, point.latitude, point.longitude);
         const hit = positions.some(({ x, y }) => {
             const dx = pointer.x - x;
             const dy = pointer.y - y;
@@ -922,9 +953,19 @@ function findParticipantAt(state, pointer) {
     return -1;
 }
 
-function showTooltip(state, participant, pointer) {
+// Своя карта знает свой компонент (OnPointMarkerClick). Без него — прежний общий
+// обработчик из setDotNetHelper с прежним именем метода.
+function notifyPointClick(state, point) {
+    if (state.dotNetHelper?.invokeMethodAsync) {
+        state.dotNetHelper.invokeMethodAsync('OnPointMarkerClick', String(point.id));
+    } else if (dotNetHelper?.invokeMethodAsync) {
+        dotNetHelper.invokeMethodAsync('OnParticipantMarkerClick', String(point.id));
+    }
+}
+
+function showTooltip(state, point, pointer) {
     const { tooltip, container } = state;
-    tooltip.innerHTML = renderTooltipContent(participant);
+    tooltip.innerHTML = renderPointTooltip(point);
     tooltip.style.display = 'block';
     const containerRect = container.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
@@ -944,57 +985,130 @@ function hideTooltip(state) {
     state.tooltip.style.display = 'none';
 }
 
-function renderTooltipContent(participant) {
+function renderPointTooltip(point) {
     const rows = [];
     const addRow = (label, value) => {
         if (value !== null && value !== undefined && value !== '') {
             rows.push(`
                 <p style="display: grid; grid-template-columns: 122px 1fr; gap: 10px; margin: 7px 0; color: #b8c2d0; line-height: 1.45;">
-                    <strong style="color: #f4f7fb;">${label}</strong>
+                    <strong style="color: #f4f7fb;">${escapeHtml(label)}</strong>
                     <span>${escapeHtml(value)}</span>
                 </p>
             `);
         }
     };
 
-    if (participant.Email) {
-        addRow('📧 Email:', participant.Email);
+    const properties = point.properties || {};
+    if (point.category) {
+        addRow('🏷 Категория:', point.category);
     }
-    if (participant.Address) {
-        addRow('📍 Адрес:', participant.Address);
+    if (point.description) {
+        addRow('💬 Описание:', point.description);
     }
-    const locationParts = [];
-    if (participant.City) {
-        locationParts.push(participant.City);
+
+    const location = LOCATION_KEYS.map((key) => properties[key]).filter(Boolean).join(', ');
+    Object.keys(properties).forEach((key) => {
+        if (LOCATION_KEYS.includes(key)) {
+            return;
+        }
+        const value = key === 'registeredAt' ? formatMapDate(properties[key]) : properties[key];
+        if (key === 'location' && location) {
+            return; // вместо «location» — город и страна
+        }
+        addRow(PROPERTY_LABELS[key] || `${key}:`, value);
+    });
+    if (location) {
+        addRow(PROPERTY_LABELS.location, location);
     }
-    if (participant.Country) {
-        locationParts.push(participant.Country);
-    }
-    if (locationParts.length > 0) {
-        addRow('🌍 Местоположение:', locationParts.join(', '));
-    } else if (participant.Location) {
-        addRow('🌍 Местоположение:', participant.Location);
-    }
-    if (isFinitePair(participant.Latitude, participant.Longitude)) {
-        addRow('🗺️ Координаты:', `${participant.Latitude.toFixed(4)}, ${participant.Longitude.toFixed(4)}`);
-    }
-    addRow('📅 Регистрация:', formatMapDate(participant.Timestamp || participant.RegisteredAt));
-    if (participant.Skills) {
-        addRow('🛠 Навыки:', participant.Skills);
-    }
-    if (participant.LifeGoals) {
-        addRow('🎯 Цели:', participant.LifeGoals);
-    }
-    if (participant.Message) {
-        addRow('💬 Сообщение:', participant.Message);
-    }
+    addRow('🗺️ Координаты:', `${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`);
 
     return `
         <div class="zgl-info-window" style="background: #171a1f; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38); color: #f4f7fb; font-family: Arial, sans-serif; max-width: 320px; padding: 12px;">
-            <h4 style="margin: 0 0 10px 0; color: #24dce7; font-size: 16px;">${escapeHtml(participant.Name || 'Участник')}</h4>
+            <h4 style="margin: 0 0 10px 0; color: #24dce7; font-size: 16px;">${escapeHtml(point.title || 'Точка')}</h4>
             ${rows.join('')}
         </div>
     `;
+}
+
+// Точка в едином виде; null — если координат нет.
+function normalizePoint(raw) {
+    if (!raw) {
+        return null;
+    }
+    const latitude = Number(raw.latitude ?? raw.Latitude);
+    const longitude = Number(raw.longitude ?? raw.Longitude);
+    if (!isFinitePair(latitude, longitude)) {
+        return null;
+    }
+    const properties = raw.properties ?? raw.Properties;
+    return {
+        id: String(raw.id ?? raw.Id ?? `${latitude},${longitude}`),
+        latitude,
+        longitude,
+        title: String(raw.title ?? raw.Title ?? ''),
+        description: raw.description ?? raw.Description ?? null,
+        category: raw.category ?? raw.Category ?? null,
+        color: raw.color ?? raw.Color ?? null,
+        icon: raw.icon ?? raw.Icon ?? null,
+        url: raw.url ?? raw.Url ?? null,
+        properties: properties && typeof properties === 'object' ? { ...properties } : {}
+    };
+}
+
+// Участник в прежнем формате (поля в PascalCase или camelCase) → точка, как
+// ParticipantGeoPointExtensions.ToGeoPoint на сервере. Без координат — null.
+function participantToPoint(participant) {
+    if (!participant) {
+        return null;
+    }
+    const get = (name) => participant[name] ?? participant[name.charAt(0).toLowerCase() + name.slice(1)];
+    const contacts = get('SocialContacts') || {};
+    const contact = (name) => contacts[name] ?? contacts[name.charAt(0).toLowerCase() + name.slice(1)];
+    const properties = {};
+    const set = (key, value) => {
+        if (value !== null && value !== undefined && value !== '') {
+            properties[key] = String(value);
+        }
+    };
+    set('address', get('Address'));
+    set('email', get('Email'));
+    set('location', get('Location'));
+    set('city', get('City'));
+    set('country', get('Country'));
+    set('socialMedia', get('SocialMedia'));
+    set('lifeGoals', get('LifeGoals'));
+    set('skills', get('Skills'));
+    set('discord', contact('Discord'));
+    set('telegram', contact('Telegram'));
+    set('vk', contact('Vk'));
+    set('website', contact('Website'));
+    set('registeredAt', get('Timestamp') ?? get('RegisteredAt'));
+
+    return normalizePoint({
+        id: get('Id'),
+        latitude: get('Latitude'),
+        longitude: get('Longitude'),
+        title: get('Name') ?? '',
+        description: get('Message') ?? null,
+        properties
+    });
+}
+
+// Подпись внутри маркера: короткая иконка (символ, эмодзи) или первая буква заголовка.
+function markerLabel(point) {
+    const icon = typeof point.icon === 'string' ? point.icon.trim() : '';
+    if (icon && graphemeCount(icon) <= 2) {
+        return icon;
+    }
+    const first = Array.from(String(point.title || '').trim())[0];
+    return first ? first.toUpperCase() : '?';
+}
+
+function graphemeCount(text) {
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+        return Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)).length;
+    }
+    return Array.from(text).length;
 }
 
 function isFinitePair(a, b) {

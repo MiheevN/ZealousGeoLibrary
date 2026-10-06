@@ -1,11 +1,13 @@
 namespace ZealousMindedPeopleGeo.Models;
 
 /// <summary>
-/// Готовые тематические наборы демонстрационных данных для витрины возможностей библиотеки.
+/// Готовые тематические наборы демонстрационных точек для витрины возможностей библиотеки.
 ///
-/// Каждый набор формируется заново при каждом обращении (новые экземпляры <see cref="Participant"/>
-/// с уникальными идентификаторами), поэтому загрузка одного и того же набора в разные контейнеры
-/// или глобусы не приводит к совместному использованию объектов и не влияет на другие инстансы.
+/// Это обычные точки (<see cref="GeoPoint"/>), а не люди: у каждой есть категория для
+/// цвета и легенды, город и страна в свойствах. Каждый вызов возвращает новые экземпляры,
+/// поэтому изменение точек одного глобуса или карты не затрагивает другие.
+/// Идентификаторы постоянные (<c>moscow</c>, <c>london</c>): один и тот же набор можно
+/// загрузить в разные контейнеры, Id внутри контейнера уникальны.
 /// </summary>
 public static class DemoDataSets
 {
@@ -15,13 +17,13 @@ public static class DemoDataSets
     /// <param name="Key">Уникальный ключ набора (используется для имён контейнеров и глобусов).</param>
     /// <param name="Title">Человекочитаемое название набора.</param>
     /// <param name="Description">Краткое описание набора.</param>
-    /// <param name="Factory">Фабрика, создающая свежую копию участников набора.</param>
-    public sealed record DataSetInfo(string Key, string Title, string Description, Func<List<Participant>> Factory)
+    /// <param name="Factory">Фабрика, создающая свежую копию точек набора.</param>
+    public sealed record DataSetInfo(string Key, string Title, string Description, Func<List<GeoPoint>> Factory)
     {
         /// <summary>
-        /// Создаёт новую независимую копию участников набора.
+        /// Создаёт новую независимую копию точек набора.
         /// </summary>
-        public List<Participant> Create() => Factory();
+        public List<GeoPoint> Create() => Factory();
     }
 
     /// <summary>
@@ -29,9 +31,9 @@ public static class DemoDataSets
     /// </summary>
     public static IReadOnlyList<DataSetInfo> All { get; } = new List<DataSetInfo>
     {
-        new("russian-cities", "Города России", "Крупные города России для одного глобуса", RussianCities),
-        new("world-capitals", "Столицы мира", "Столицы разных континентов для второго глобуса", WorldCapitals),
-        new("tech-hubs", "Технологические хабы", "Известные центры технологий для 2D-карты", TechHubs),
+        new("russian-cities", "Города России", "Крупные города России по частям страны", RussianCities),
+        new("world-capitals", "Столицы мира", "Столицы пяти континентов", WorldCapitals),
+        new("tech-hubs", "Технологические хабы", "Центры технологий по регионам мира", TechHubs),
     };
 
     /// <summary>
@@ -41,78 +43,66 @@ public static class DemoDataSets
         All.FirstOrDefault(d => string.Equals(d.Key, key, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Крупные города России.
+    /// Крупные города России; категория — часть страны.
     /// </summary>
-    public static List<Participant> RussianCities() => new()
+    public static List<GeoPoint> RussianCities() => new()
     {
-        Create("Москва", "Москва, Россия", "Россия", "Москва", 55.7558, 37.6173, "Сообщество, события", "Сделать город добрее"),
-        Create("Санкт-Петербург", "Санкт-Петербург, Россия", "Россия", "Санкт-Петербург", 59.9343, 30.3351, "Культура, искусство", "Объединять людей"),
-        Create("Новосибирск", "Новосибирск, Россия", "Россия", "Новосибирск", 55.0084, 82.9357, "Наука, образование", "Развивать науку"),
-        Create("Екатеринбург", "Екатеринбург, Россия", "Россия", "Екатеринбург", 56.8389, 60.6057, "Промышленность", "Строить будущее"),
-        Create("Казань", "Казань, Россия", "Россия", "Казань", 55.7961, 49.1064, "IT, спорт", "Соединять культуры"),
-        Create("Краснодар", "Краснодар, Россия", "Россия", "Краснодар", 45.0355, 38.9753, "Сельское хозяйство", "Растить сообщество"),
-        Create("Владивосток", "Владивосток, Россия", "Россия", "Владивосток", 43.1198, 131.8869, "Логистика, море", "Открывать горизонты"),
+        Create("moscow", "Москва", "Европейская часть", "Россия", 55.7558, 37.6173, "Сообщество, события"),
+        Create("saint-petersburg", "Санкт-Петербург", "Европейская часть", "Россия", 59.9343, 30.3351, "Культура, искусство"),
+        Create("novosibirsk", "Новосибирск", "Урал и Сибирь", "Россия", 55.0084, 82.9357, "Наука, образование"),
+        Create("yekaterinburg", "Екатеринбург", "Урал и Сибирь", "Россия", 56.8389, 60.6057, "Промышленность"),
+        Create("kazan", "Казань", "Европейская часть", "Россия", 55.7961, 49.1064, "IT, спорт"),
+        Create("krasnodar", "Краснодар", "Европейская часть", "Россия", 45.0355, 38.9753, "Сельское хозяйство"),
+        Create("vladivostok", "Владивосток", "Дальний Восток", "Россия", 43.1198, 131.8869, "Логистика, море"),
     };
 
     /// <summary>
-    /// Столицы мира с разных континентов.
+    /// Столицы мира; категория — континент. Континентов пять, автоматических цветов
+    /// три: Африка и Океания получают серый цвет «прочих» (см. <see cref="GeoPointPalette"/>).
     /// </summary>
-    public static List<Participant> WorldCapitals() => new()
+    public static List<GeoPoint> WorldCapitals() => new()
     {
-        Create("London", "London, United Kingdom", "United Kingdom", "London", 51.5074, -0.1278, "Finance, culture", "Connect communities"),
-        Create("Paris", "Paris, France", "France", "Paris", 48.8566, 2.3522, "Art, design", "Inspire kindness"),
-        Create("Tokyo", "Tokyo, Japan", "Japan", "Tokyo", 35.6762, 139.6503, "Robotics, design", "Build harmony"),
-        Create("Washington", "Washington, USA", "USA", "Washington", 38.9072, -77.0369, "Policy, research", "Bring people together"),
-        Create("Canberra", "Canberra, Australia", "Australia", "Canberra", -35.2809, 149.1300, "Education", "Grow community"),
-        Create("Cairo", "Cairo, Egypt", "Egypt", "Cairo", 30.0444, 31.2357, "History, trade", "Share knowledge"),
-        Create("Brasília", "Brasília, Brazil", "Brazil", "Brasília", -15.7939, -47.8828, "Architecture", "Unite continents"),
+        Create("london", "London", "Europe", "United Kingdom", 51.5074, -0.1278, "Finance, culture"),
+        Create("paris", "Paris", "Europe", "France", 48.8566, 2.3522, "Art, design"),
+        Create("tokyo", "Tokyo", "Asia", "Japan", 35.6762, 139.6503, "Robotics, design"),
+        Create("washington", "Washington", "Americas", "USA", 38.9072, -77.0369, "Policy, research"),
+        Create("brasilia", "Brasília", "Americas", "Brazil", -15.7939, -47.8828, "Architecture"),
+        Create("cairo", "Cairo", "Africa", "Egypt", 30.0444, 31.2357, "History, trade"),
+        Create("canberra", "Canberra", "Oceania", "Australia", -35.2809, 149.1300, "Education"),
     };
 
     /// <summary>
-    /// Известные мировые технологические центры.
+    /// Известные мировые технологические центры; категория — регион.
     /// </summary>
-    public static List<Participant> TechHubs() => new()
+    public static List<GeoPoint> TechHubs() => new()
     {
-        Create("San Francisco", "San Francisco, USA", "USA", "San Francisco", 37.7749, -122.4194, "Startups, AI", "Build for good"),
-        Create("Seattle", "Seattle, USA", "USA", "Seattle", 47.6062, -122.3321, "Cloud, software", "Empower makers"),
-        Create("Bangalore", "Bangalore, India", "India", "Bangalore", 12.9716, 77.5946, "Software, services", "Educate engineers"),
-        Create("Berlin", "Berlin, Germany", "Germany", "Berlin", 52.5200, 13.4050, "Startups, open source", "Foster collaboration"),
-        Create("Tel Aviv", "Tel Aviv, Israel", "Israel", "Tel Aviv", 32.0853, 34.7818, "Cybersecurity", "Solve hard problems"),
-        Create("Singapore", "Singapore", "Singapore", "Singapore", 1.3521, 103.8198, "Fintech, logistics", "Connect Asia"),
+        Create("san-francisco", "San Francisco", "North America", "USA", 37.7749, -122.4194, "Startups, AI"),
+        Create("seattle", "Seattle", "North America", "USA", 47.6062, -122.3321, "Cloud, software"),
+        Create("berlin", "Berlin", "Europe & Middle East", "Germany", 52.5200, 13.4050, "Startups, open source"),
+        Create("tel-aviv", "Tel Aviv", "Europe & Middle East", "Israel", 32.0853, 34.7818, "Cybersecurity"),
+        Create("bangalore", "Bangalore", "Asia", "India", 12.9716, 77.5946, "Software, services"),
+        Create("singapore", "Singapore", "Asia", "Singapore", 1.3521, 103.8198, "Fintech, logistics"),
     };
 
-    private static Participant Create(
-        string name,
-        string address,
-        string country,
+    private static GeoPoint Create(
+        string id,
         string city,
+        string category,
+        string country,
         double latitude,
         double longitude,
-        string skills,
-        string lifeGoals) => new()
+        string focus) => new()
     {
-        Name = name,
-        Address = address,
-        Email = $"{Slug(name)}@example.com",
-        Location = address,
-        City = city,
-        Country = country,
+        Id = id,
+        Title = city,
+        Category = category,
         Latitude = latitude,
         Longitude = longitude,
-        Skills = skills,
-        LifeGoals = lifeGoals,
-        Message = $"Привет из {city}!",
-        RegisteredAt = DateTime.UtcNow,
+        Description = focus,
+        Properties =
+        {
+            [ParticipantPointProperties.City] = city,
+            [ParticipantPointProperties.Country] = country
+        }
     };
-
-    private static string Slug(string value)
-    {
-        var chars = value
-            .ToLowerInvariant()
-            .Where(c => char.IsLetterOrDigit(c) && c < 128)
-            .ToArray();
-
-        var slug = new string(chars);
-        return string.IsNullOrEmpty(slug) ? "demo" : slug;
-    }
 }

@@ -107,6 +107,36 @@ public class GlobeMediatorService : IGlobeMediator
     }
 
     /// <inheritdoc />
+    public async Task<GlobeOperationResult> AddPointsAsync(string containerId, IEnumerable<GeoPoint> points, IReadOnlyDictionary<string, string>? categoryColors = null)
+    {
+        try
+        {
+            var pointList = points.ToList();
+            _logger.LogInformation("Adding {Count} points to globe {ContainerId}", pointList.Count, containerId);
+
+            if (!await _globeService.IsGlobeAvailableAsync(containerId))
+            {
+                // Как и для участников: глобуса ещё нет, данные уже лежат в своём хранилище.
+                _logger.LogInformation("3D globe {ContainerId} not available, points are kept in their storage only", containerId);
+                return new GlobeOperationResult { Success = true, ProcessedCount = pointList.Count };
+            }
+
+            var result = await _globeService.AddPointsAsync(containerId, pointList, categoryColors);
+            if (!result.Success)
+            {
+                _logger.LogWarning("Failed to add points to 3D globe {ContainerId}: {Error}", containerId, result.ErrorMessage);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding points to globe {ContainerId}", containerId);
+            return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants)
     {
         try
