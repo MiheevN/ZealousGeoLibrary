@@ -6,7 +6,7 @@ namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
 /// <summary>
 /// Базовый класс для менеджеров именованных контейнеров гео-данных.
-/// Содержит общую логику загрузки/сохранения (JSON, массивы участников),
+/// Содержит общую логику загрузки/сохранения (JSON, наборы точек),
 /// не зависящую от конкретного хранилища (память, база данных и т.д.).
 /// Конкретные реализации определяют только способ создания и поиска контейнеров.
 /// </summary>
@@ -23,7 +23,8 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     protected static readonly JsonSerializerOptions ExportJsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
 
     /// <summary>
@@ -62,19 +63,19 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     public abstract IEnumerable<string> GetContainerIds();
 
     /// <inheritdoc />
-    public virtual async ValueTask<GeoDataOperationResult> LoadDataAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
+    public virtual async ValueTask<GeoDataOperationResult> LoadPointsAsync(string containerId, IEnumerable<GeoPoint> points, CancellationToken ct = default)
     {
         try
         {
+            ArgumentNullException.ThrowIfNull(points);
             var container = GetOrCreateContainer(containerId);
 
             // Очищаем контейнер перед загрузкой новых данных
             await container.ClearAsync(ct);
 
-            // Добавляем участников
-            var result = await container.AddParticipantsAsync(participants, ct);
+            var result = await container.AddPointsAsync(points, ct);
 
-            Logger.LogInformation("Loaded {Count} participants into container '{ContainerId}'", result.ProcessedCount, containerId);
+            Logger.LogInformation("Loaded {Count} points into container '{ContainerId}'", result.ProcessedCount, containerId);
 
             return result;
         }
@@ -115,14 +116,30 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
                 return GeoDataOperationResult.Fail("JSON content is empty");
             }
 
-            var participants = JsonSerializer.Deserialize<List<Participant>>(jsonContent, ImportJsonOptions);
-
-            if (participants == null)
+            using var document = JsonDocument.Parse(jsonContent);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
-                return GeoDataOperationResult.Fail("Failed to deserialize JSON content");
+                return GeoDataOperationResult.Fail("JSON content must be an array of points");
             }
 
-            return await LoadDataAsync(containerId, participants, ct);
+            var points = new List<GeoPoint>();
+            var unreadable = 0;
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                var point = ReadPoint(element);
+                if (point is null)
+                {
+                    unreadable++;
+                }
+                else
+                {
+                    points.Add(point);
+                }
+            }
+
+            var result = await LoadPointsAsync(containerId, points, ct);
+            result.SkippedCount += unreadable;
+            return result;
         }
         catch (JsonException ex)
         {
@@ -175,15 +192,63 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
                 return "[]";
             }
 
-            var participants = await container.GetAllParticipantsAsync(ct);
+            var points = await container.GetPointsAsync(ct);
 
-            return JsonSerializer.Serialize(participants, ExportJsonOptions);
+            return JsonSerializer.Serialize(points, ExportJsonOptions);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error exporting container '{ContainerId}' to JSON", containerId);
             return "[]";
         }
+    }
+
+    // Элемент массива — точка, если у него есть title или properties, иначе участник в
+    // прежнем формате. Без координат элемент не читается: иначе точка молча оказалась
+    // бы в (0, 0).
+    private static GeoPoint? ReadPoint(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !HasProperty(element, "latitude")
+            || !HasProperty(element, "longitude"))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (HasProperty(element, "title") || HasProperty(element, "properties"))
+            {
+                var point = element.Deserialize<GeoPoint>(ImportJsonOptions);
+                if (point is not null)
+                {
+                    point.Properties ??= new Dictionary<string, string>();
+                }
+
+                return point;
+            }
+
+            var participant = element.Deserialize<Participant>(ImportJsonOptions);
+            return participant?.Latitude is null || participant.Longitude is null ? null : participant.ToGeoPoint();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static bool HasProperty(JsonElement element, string name)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)
+                && property.Value.ValueKind != JsonValueKind.Null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

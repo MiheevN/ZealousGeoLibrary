@@ -3,9 +3,9 @@ using ZealousMindedPeopleGeo.Models;
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
 /// <summary>
-/// Интерфейс именованного контейнера гео-данных.
-/// Позволяет организовать хранение данных участников в отдельных именованных контейнерах,
-/// что упрощает работу с несколькими глобусами и разными наборами данных.
+/// Именованный набор точек (<see cref="GeoPoint"/>): данные одного глобуса, одной карты
+/// или одного контекста. Участников сообщества контейнер хранит как точки, методы для
+/// них — в <see cref="ParticipantGeoDataExtensions"/>.
 /// </summary>
 public interface IGeoDataContainer
 {
@@ -15,63 +15,68 @@ public interface IGeoDataContainer
     string ContainerId { get; }
 
     /// <summary>
-    /// Добавляет участника в контейнер
+    /// Количество точек в контейнере
     /// </summary>
-    /// <param name="participant">Данные участника</param>
+    int Count { get; }
+
+    /// <summary>
+    /// Добавляет точку. Точку с уже занятым <see cref="GeoPoint.Id"/> или с неверными
+    /// координатами контейнер не добавляет и возвращает ошибку.
+    /// </summary>
+    /// <param name="point">Точка</param>
     /// <param name="ct">Токен отмены</param>
     /// <returns>Результат операции</returns>
-    ValueTask<GeoDataOperationResult> AddParticipantAsync(Participant participant, CancellationToken ct = default);
+    ValueTask<GeoDataOperationResult> AddPointAsync(GeoPoint point, CancellationToken ct = default);
 
     /// <summary>
-    /// Добавляет нескольких участников в контейнер
+    /// Добавляет несколько точек. Пропускает <c>null</c>, точки с неверными данными и
+    /// точки, чей идентификатор уже есть в контейнере или повторяется в наборе.
     /// </summary>
-    /// <param name="participants">Коллекция участников</param>
+    /// <param name="points">Точки</param>
+    /// <param name="ct">Токен отмены</param>
+    /// <returns>
+    /// Результат: <see cref="GeoDataOperationResult.ProcessedCount"/> — сколько добавлено,
+    /// <see cref="GeoDataOperationResult.SkippedCount"/> — сколько пропущено.
+    /// </returns>
+    ValueTask<GeoDataOperationResult> AddPointsAsync(IEnumerable<GeoPoint> points, CancellationToken ct = default);
+
+    /// <summary>
+    /// Все точки контейнера. Возвращаются копии: их изменение не меняет данные контейнера.
+    /// </summary>
+    /// <param name="ct">Токен отмены</param>
+    /// <returns>Точки контейнера</returns>
+    ValueTask<IReadOnlyList<GeoPoint>> GetPointsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Точка по идентификатору или <c>null</c>
+    /// </summary>
+    /// <param name="id">Идентификатор точки</param>
+    /// <param name="ct">Токен отмены</param>
+    /// <returns>Копия точки или <c>null</c></returns>
+    ValueTask<GeoPoint?> GetPointAsync(string id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Заменяет точку с тем же <see cref="GeoPoint.Id"/>
+    /// </summary>
+    /// <param name="point">Новые данные точки</param>
     /// <param name="ct">Токен отмены</param>
     /// <returns>Результат операции</returns>
-    ValueTask<GeoDataOperationResult> AddParticipantsAsync(IEnumerable<Participant> participants, CancellationToken ct = default);
+    ValueTask<GeoDataOperationResult> UpdatePointAsync(GeoPoint point, CancellationToken ct = default);
 
     /// <summary>
-    /// Получает всех участников из контейнера
+    /// Удаляет точку
     /// </summary>
-    /// <param name="ct">Токен отмены</param>
-    /// <returns>Коллекция участников</returns>
-    ValueTask<IEnumerable<Participant>> GetAllParticipantsAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Получает участника по ID
-    /// </summary>
-    /// <param name="id">ID участника</param>
-    /// <param name="ct">Токен отмены</param>
-    /// <returns>Участник или null</returns>
-    ValueTask<Participant?> GetParticipantByIdAsync(Guid id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Обновляет данные участника
-    /// </summary>
-    /// <param name="participant">Обновленные данные</param>
+    /// <param name="id">Идентификатор точки</param>
     /// <param name="ct">Токен отмены</param>
     /// <returns>Результат операции</returns>
-    ValueTask<GeoDataOperationResult> UpdateParticipantAsync(Participant participant, CancellationToken ct = default);
+    ValueTask<GeoDataOperationResult> RemovePointAsync(string id, CancellationToken ct = default);
 
     /// <summary>
-    /// Удаляет участника из контейнера
-    /// </summary>
-    /// <param name="id">ID участника</param>
-    /// <param name="ct">Токен отмены</param>
-    /// <returns>Результат операции</returns>
-    ValueTask<GeoDataOperationResult> RemoveParticipantAsync(Guid id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Очищает все данные в контейнере
+    /// Удаляет все точки контейнера
     /// </summary>
     /// <param name="ct">Токен отмены</param>
     /// <returns>Результат операции</returns>
     ValueTask<GeoDataOperationResult> ClearAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Получает количество участников в контейнере
-    /// </summary>
-    int Count { get; }
 }
 
 /// <summary>
@@ -95,7 +100,19 @@ public class GeoDataOperationResult
     public int ProcessedCount { get; set; }
 
     /// <summary>
-    /// ID записи (для операций с одной записью)
+    /// Количество пропущенных записей при массовом добавлении: <c>null</c>, неверные
+    /// данные, повторы идентификаторов
+    /// </summary>
+    public int SkippedCount { get; set; }
+
+    /// <summary>
+    /// Идентификатор точки (для операций с одной точкой)
+    /// </summary>
+    public string? PointId { get; set; }
+
+    /// <summary>
+    /// Идентификатор записи как GUID — для участников и точек, чей идентификатор
+    /// является GUID
     /// </summary>
     public Guid? RecordId { get; set; }
 
@@ -106,7 +123,19 @@ public class GeoDataOperationResult
     {
         Success = true,
         ProcessedCount = processedCount,
-        RecordId = recordId
+        RecordId = recordId,
+        PointId = recordId?.ToString()
+    };
+
+    /// <summary>
+    /// Создает успешный результат операции с одной точкой
+    /// </summary>
+    public static GeoDataOperationResult OkPoint(string pointId) => new()
+    {
+        Success = true,
+        ProcessedCount = 1,
+        PointId = pointId,
+        RecordId = Guid.TryParse(pointId, out var id) ? id : null
     };
 
     /// <summary>

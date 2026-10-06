@@ -5,12 +5,13 @@ using ZealousMindedPeopleGeo.Models;
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
 /// <summary>
-/// In-memory реализация контейнера гео-данных.
-/// Thread-safe реализация с использованием ConcurrentDictionary.
+/// Контейнер гео-данных в памяти, потокобезопасный.
+/// Хранит копии точек, поэтому, как и хранилище в БД, не зависит от объектов,
+/// которые приложение меняет после добавления.
 /// </summary>
 public class InMemoryGeoDataContainer : IGeoDataContainer
 {
-    private readonly ConcurrentDictionary<Guid, Participant> _participants = new();
+    private readonly ConcurrentDictionary<string, GeoPoint> _points = new(StringComparer.Ordinal);
     private readonly ILogger<InMemoryGeoDataContainer>? _logger;
     private readonly Action<string, GeoDataChangeType>? _onDataChanged;
 
@@ -18,7 +19,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
     public string ContainerId { get; }
 
     /// <inheritdoc />
-    public int Count => _participants.Count;
+    public int Count => _points.Count;
 
     /// <summary>
     /// Создает новый контейнер гео-данных
@@ -37,179 +38,137 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
     }
 
     /// <inheritdoc />
-    public ValueTask<GeoDataOperationResult> AddParticipantAsync(Participant participant, CancellationToken ct = default)
+    public ValueTask<GeoDataOperationResult> AddPointAsync(GeoPoint point, CancellationToken ct = default)
     {
-        if (participant == null)
+        var error = point is null ? "Point is null" : point.Validate();
+        if (error is not null)
         {
-            return ValueTask.FromResult(GeoDataOperationResult.Fail("Participant is null"));
+            return ValueTask.FromResult(GeoDataOperationResult.Fail(error));
         }
 
-        try
+        if (!_points.TryAdd(point!.Id, point.Clone()))
         {
-            if (_participants.ContainsKey(participant.Id))
-            {
-                return ValueTask.FromResult(GeoDataOperationResult.Fail($"Participant with ID {participant.Id} already exists in container '{ContainerId}'"));
-            }
-
-            _participants[participant.Id] = participant;
-            _logger?.LogInformation("Container '{ContainerId}': Added participant {Name} with ID {Id}", ContainerId, participant.Name, participant.Id);
-
-            NotifyDataChanged(GeoDataChangeType.Added);
-
-            return ValueTask.FromResult(GeoDataOperationResult.Ok(1, participant.Id));
+            return ValueTask.FromResult(GeoDataOperationResult.Fail(
+                $"Point with ID {point.Id} already exists in container '{ContainerId}'"));
         }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error adding participant {Name}", ContainerId, participant.Name);
-            return ValueTask.FromResult(GeoDataOperationResult.Fail(ex.Message));
-        }
+
+        _logger?.LogInformation("Container '{ContainerId}': Added point {Title} with ID {Id}", ContainerId, point.Title, point.Id);
+        NotifyDataChanged(GeoDataChangeType.Added);
+
+        return ValueTask.FromResult(GeoDataOperationResult.OkPoint(point.Id));
     }
 
     /// <inheritdoc />
-    public ValueTask<GeoDataOperationResult> AddParticipantsAsync(IEnumerable<Participant> participants, CancellationToken ct = default)
+    public ValueTask<GeoDataOperationResult> AddPointsAsync(IEnumerable<GeoPoint> points, CancellationToken ct = default)
     {
-        if (participants == null)
+        if (points is null)
         {
-            return ValueTask.FromResult(GeoDataOperationResult.Fail("Participants collection is null"));
+            return ValueTask.FromResult(GeoDataOperationResult.Fail("Points collection is null"));
         }
 
-        try
-        {
-            var participantList = participants.ToList();
-            var addedCount = 0;
+        var added = 0;
+        var skipped = 0;
 
-            foreach (var participant in participantList)
+        foreach (var point in points)
+        {
+            if (point is not null && point.Validate() is null && _points.TryAdd(point.Id, point.Clone()))
             {
-                if (participant != null && !_participants.ContainsKey(participant.Id))
-                {
-                    _participants[participant.Id] = participant;
-                    addedCount++;
-                }
+                added++;
             }
-
-            _logger?.LogInformation("Container '{ContainerId}': Added {Count} participants", ContainerId, addedCount);
-
-            if (addedCount > 0)
+            else
             {
-                NotifyDataChanged(GeoDataChangeType.BulkLoaded);
+                skipped++;
             }
+        }
 
-            return ValueTask.FromResult(GeoDataOperationResult.Ok(addedCount));
-        }
-        catch (Exception ex)
+        _logger?.LogInformation("Container '{ContainerId}': Added {Added} points, skipped {Skipped}", ContainerId, added, skipped);
+
+        if (added > 0)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error adding multiple participants", ContainerId);
-            return ValueTask.FromResult(GeoDataOperationResult.Fail(ex.Message));
+            NotifyDataChanged(GeoDataChangeType.BulkLoaded);
         }
+
+        var result = GeoDataOperationResult.Ok(added);
+        result.SkippedCount = skipped;
+        return ValueTask.FromResult(result);
     }
 
     /// <inheritdoc />
-    public ValueTask<IEnumerable<Participant>> GetAllParticipantsAsync(CancellationToken ct = default)
+    public ValueTask<IReadOnlyList<GeoPoint>> GetPointsAsync(CancellationToken ct = default)
     {
-        try
-        {
-            var participants = _participants.Values.ToList();
-            _logger?.LogDebug("Container '{ContainerId}': Retrieved {Count} participants", ContainerId, participants.Count);
-            return ValueTask.FromResult<IEnumerable<Participant>>(participants);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error getting all participants", ContainerId);
-            return ValueTask.FromResult<IEnumerable<Participant>>(Enumerable.Empty<Participant>());
-        }
+        IReadOnlyList<GeoPoint> points = _points.Values.Select(point => point.Clone()).ToList();
+        return ValueTask.FromResult(points);
     }
 
     /// <inheritdoc />
-    public ValueTask<Participant?> GetParticipantByIdAsync(Guid id, CancellationToken ct = default)
+    public ValueTask<GeoPoint?> GetPointAsync(string id, CancellationToken ct = default)
     {
-        try
-        {
-            _participants.TryGetValue(id, out var participant);
-            if (participant != null)
-            {
-                _logger?.LogDebug("Container '{ContainerId}': Found participant {Name} with ID {Id}", ContainerId, participant.Name, id);
-            }
-            return ValueTask.FromResult(participant);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error getting participant by ID {Id}", ContainerId, id);
-            return ValueTask.FromResult<Participant?>(null);
-        }
+        var point = id is not null && _points.TryGetValue(id, out var stored) ? stored.Clone() : null;
+        return ValueTask.FromResult(point);
     }
 
     /// <inheritdoc />
-    public ValueTask<GeoDataOperationResult> UpdateParticipantAsync(Participant participant, CancellationToken ct = default)
+    public ValueTask<GeoDataOperationResult> UpdatePointAsync(GeoPoint point, CancellationToken ct = default)
     {
-        if (participant == null)
+        var error = point is null ? "Point is null" : point.Validate();
+        if (error is not null)
         {
-            return ValueTask.FromResult(GeoDataOperationResult.Fail("Participant is null"));
+            return ValueTask.FromResult(GeoDataOperationResult.Fail(error));
         }
 
-        try
+        // Заменяем только существующую точку; если её параллельно изменили, пробуем снова.
+        var replacement = point!.Clone();
+        var updated = false;
+        while (_points.TryGetValue(point.Id, out var current))
         {
-            if (!_participants.ContainsKey(participant.Id))
+            if (_points.TryUpdate(point.Id, replacement, current))
             {
-                return ValueTask.FromResult(GeoDataOperationResult.Fail($"Participant with ID {participant.Id} not found in container '{ContainerId}'"));
+                updated = true;
+                break;
             }
-
-            _participants[participant.Id] = participant;
-            _logger?.LogInformation("Container '{ContainerId}': Updated participant {Name} with ID {Id}", ContainerId, participant.Name, participant.Id);
-
-            NotifyDataChanged(GeoDataChangeType.Updated);
-
-            return ValueTask.FromResult(GeoDataOperationResult.Ok(1, participant.Id));
         }
-        catch (Exception ex)
+
+        if (!updated)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error updating participant {Name}", ContainerId, participant.Name);
-            return ValueTask.FromResult(GeoDataOperationResult.Fail(ex.Message));
+            return ValueTask.FromResult(GeoDataOperationResult.Fail(
+                $"Point with ID {point.Id} not found in container '{ContainerId}'"));
         }
+
+        _logger?.LogInformation("Container '{ContainerId}': Updated point {Title} with ID {Id}", ContainerId, point.Title, point.Id);
+        NotifyDataChanged(GeoDataChangeType.Updated);
+
+        return ValueTask.FromResult(GeoDataOperationResult.OkPoint(point.Id));
     }
 
     /// <inheritdoc />
-    public ValueTask<GeoDataOperationResult> RemoveParticipantAsync(Guid id, CancellationToken ct = default)
+    public ValueTask<GeoDataOperationResult> RemovePointAsync(string id, CancellationToken ct = default)
     {
-        try
+        if (id is null || !_points.TryRemove(id, out var removed))
         {
-            if (_participants.TryRemove(id, out var removedParticipant))
-            {
-                _logger?.LogInformation("Container '{ContainerId}': Removed participant {Name} with ID {Id}", ContainerId, removedParticipant.Name, id);
-                NotifyDataChanged(GeoDataChangeType.Removed);
-                return ValueTask.FromResult(GeoDataOperationResult.Ok(1, id));
-            }
+            return ValueTask.FromResult(GeoDataOperationResult.Fail(
+                $"Point with ID {id} not found in container '{ContainerId}'"));
+        }
 
-            return ValueTask.FromResult(GeoDataOperationResult.Fail($"Participant with ID {id} not found in container '{ContainerId}'"));
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error removing participant with ID {Id}", ContainerId, id);
-            return ValueTask.FromResult(GeoDataOperationResult.Fail(ex.Message));
-        }
+        _logger?.LogInformation("Container '{ContainerId}': Removed point {Title} with ID {Id}", ContainerId, removed.Title, id);
+        NotifyDataChanged(GeoDataChangeType.Removed);
+
+        return ValueTask.FromResult(GeoDataOperationResult.OkPoint(id));
     }
 
     /// <inheritdoc />
     public ValueTask<GeoDataOperationResult> ClearAsync(CancellationToken ct = default)
     {
-        try
-        {
-            var count = _participants.Count;
-            _participants.Clear();
-            _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} participants", ContainerId, count);
+        var count = _points.Count;
+        _points.Clear();
+        _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} points", ContainerId, count);
 
-            // Как и хранилище в БД: нет изменений — нет события.
-            if (count > 0)
-            {
-                NotifyDataChanged(GeoDataChangeType.Cleared);
-            }
-
-            return ValueTask.FromResult(GeoDataOperationResult.Ok(count));
-        }
-        catch (Exception ex)
+        // Как и хранилище в БД: нет изменений — нет события.
+        if (count > 0)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error clearing container", ContainerId);
-            return ValueTask.FromResult(GeoDataOperationResult.Fail(ex.Message));
+            NotifyDataChanged(GeoDataChangeType.Cleared);
         }
+
+        return ValueTask.FromResult(GeoDataOperationResult.Ok(count));
     }
 
     private void NotifyDataChanged(GeoDataChangeType changeType)

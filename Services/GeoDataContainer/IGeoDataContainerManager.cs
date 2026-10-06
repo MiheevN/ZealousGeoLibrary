@@ -4,7 +4,9 @@ namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
 /// <summary>
 /// Интерфейс менеджера именованных контейнеров гео-данных.
-/// Обеспечивает централизованное управление несколькими контейнерами данных.
+/// Обеспечивает централизованное управление несколькими контейнерами точек
+/// (<see cref="GeoPoint"/>). Загрузка участников сообщества —
+/// <see cref="ParticipantGeoDataExtensions.LoadDataAsync"/>.
 /// </summary>
 public interface IGeoDataContainerManager
 {
@@ -43,13 +45,14 @@ public interface IGeoDataContainerManager
     IEnumerable<string> GetContainerIds();
 
     /// <summary>
-    /// Загружает данные в контейнер из коллекции участников
+    /// Заменяет данные контейнера точками: очищает его и добавляет точки
+    /// (как <see cref="IGeoDataContainer.AddPointsAsync"/>)
     /// </summary>
     /// <param name="containerId">Идентификатор контейнера</param>
-    /// <param name="participants">Коллекция участников для загрузки</param>
+    /// <param name="points">Точки для загрузки</param>
     /// <param name="ct">Токен отмены</param>
     /// <returns>Результат операции</returns>
-    ValueTask<GeoDataOperationResult> LoadDataAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default);
+    ValueTask<GeoDataOperationResult> LoadPointsAsync(string containerId, IEnumerable<GeoPoint> points, CancellationToken ct = default);
 
     /// <summary>
     /// Загружает данные в контейнер из JSON файла
@@ -61,7 +64,11 @@ public interface IGeoDataContainerManager
     ValueTask<GeoDataOperationResult> LoadFromJsonFileAsync(string containerId, string jsonFilePath, CancellationToken ct = default);
 
     /// <summary>
-    /// Загружает данные в контейнер из JSON строки
+    /// Загружает данные в контейнер из JSON строки: массива точек
+    /// (<c>{ "id", "latitude", "longitude", "title", "properties": {…} }</c>)
+    /// или массива участников в прежнем формате (<c>{ "name", "email", … }</c>).
+    /// Форматы можно смешивать: элемент с полем <c>title</c> или <c>properties</c>
+    /// читается как точка, остальные — как участники.
     /// </summary>
     /// <param name="containerId">Идентификатор контейнера</param>
     /// <param name="jsonContent">JSON строка с данными</param>
@@ -79,7 +86,7 @@ public interface IGeoDataContainerManager
     ValueTask<GeoDataOperationResult> SaveToJsonFileAsync(string containerId, string jsonFilePath, CancellationToken ct = default);
 
     /// <summary>
-    /// Экспортирует данные контейнера в JSON строку
+    /// Экспортирует данные контейнера в JSON строку — массив точек
     /// </summary>
     /// <param name="containerId">Идентификатор контейнера</param>
     /// <param name="ct">Токен отмены</param>
@@ -98,17 +105,17 @@ public interface IGeoDataContainerManager
 public enum GeoDataChangeType
 {
     /// <summary>
-    /// Добавление участника
+    /// Добавление точки
     /// </summary>
     Added,
 
     /// <summary>
-    /// Обновление участника
+    /// Обновление точки
     /// </summary>
     Updated,
 
     /// <summary>
-    /// Удаление участника
+    /// Удаление точки
     /// </summary>
     Removed,
 

@@ -7,8 +7,10 @@ namespace ZealousMindedPeopleGeo.Tests.GeoData;
 /// Поведение, общее для всех хранилищ гео-данных. Одни и те же тесты прогоняются на
 /// хранилище в памяти и в БД, чтобы реализации <see cref="IGeoDataContainerManager"/>
 /// не расходились. Различия реализаций проверяются в их собственных классах.
+/// Этот файл — сценарии с участниками (их хранилища держат как точки), точки — в
+/// GeoDataStorageContractTests.Points.cs.
 /// </summary>
-public abstract class GeoDataStorageContractTests : IDisposable
+public abstract partial class GeoDataStorageContractTests : IDisposable
 {
     /// <summary>Свежий менеджер контейнеров для каждого теста.</summary>
     protected abstract IGeoDataContainerManager Manager { get; }

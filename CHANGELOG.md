@@ -17,6 +17,15 @@
     - `GeoJson.cs`
 
 ### Добавлено
+- **Контейнеры гео-данных хранят любые точки, а не только участников**
+  - Модель `GeoPoint`: строковый `Id` (до 128 символов), координаты, `Title`, `Description`, `Category`, `Color`, `Icon`, `Url` и произвольные `Properties`. `Validate()` проверяет диапазон координат и длину полей, `Clone()` делает копию со своим словарём свойств
+  - `IGeoDataContainer`: `AddPointAsync`, `AddPointsAsync`, `GetPointsAsync`, `GetPointAsync`, `UpdatePointAsync`, `RemovePointAsync`; `IGeoDataContainerManager.LoadPointsAsync`. Хранилища отдают копии точек, поэтому память и БД ведут себя одинаково
+  - `GeoDataOperationResult.PointId` и `SkippedCount`: сколько записей пропущено при массовом добавлении
+  - Участник хранится как точка: имя — `Title`, сообщение — `Description`, остальные поля — `Properties` (ключи в `ParticipantPointProperties`). Методы `AddParticipantAsync`, `GetAllParticipantsAsync`, `LoadDataAsync` и другие остались с теми же именами (теперь это методы-расширения), прежний код компилируется без изменений. `participant.ToGeoPoint()` и `point.ToParticipant()` переводят напрямую
+  - `LoadFromJsonAsync` читает массив точек, массив участников в прежнем формате и их смесь; элементы без координат пропускаются
+  - В БД точки лежат в таблице `GeoPoints`, свойства — одним JSON. `EnsureGeoDataDatabaseCreatedAsync` создаёт её и в существующей БД, а участников из таблицы прежних версий `GeoDataParticipants` переносит в точки (старая таблица остаётся как `GeoDataParticipants_Migrated`); для миграций EF Core — `GeoDataDatabaseInitializer.MigrateLegacyParticipantsAsync`
+  - Тесты: контракт точек и участников-как-точек на обоих хранилищах, модель и преобразование, перенос старой БД, созданной прежней моделью EF
+
 - **Для работы на сайте хватает пакета и `AddZealousMindedPeopleGeo()`**
   - Новый `AddZealousMindedPeopleGeo()` без параметров; все варианты (`(configuration)`, `(options => …)`, `AddZealousMindedPeopleGeoServices()`) регистрируют один и тот же полный набор сервисов
   - JS-инициализатор `ZealousMindedPeopleGeo.lib.module.js`: Blazor загружает его сам, и он добавляет `zealous-geo.css` в `<head>` после Bootstrap; подключённые вручную стили не дублируются, после улучшенной навигации восстанавливаются
@@ -167,6 +176,8 @@
   - Исправлена ссылка в ServiceCollectionExtensions.cs с NominatimGeocodingService на GoogleMapsGeocodingService
 
 ### Изменено
+- **Контейнеры гео-данных основаны на точках** (`GeoPoint`). Несовместимо для кода, который реализует `IGeoDataContainer` сам, обращается к `GeoDataDbContext.Participants` или к классу `GeoDataParticipantEntity` (теперь `Points` и `GeoPointEntity`). `ExportToJsonAsync` выгружает массив точек: поля участника лежат в `properties`. Участника без координат контейнер больше не принимает
+
 - **Стили подключаются одной строкой `zealous-geo.css`**
   - Новый `wwwroot/css/zealous-geo.css` импортирует токены `zealous-ui.css` и стили всех компонентов
   - Компоненты больше не добавляют стили в `<head>` сами. Приложению нужно один раз подключить `<link rel="stylesheet" href="_content/ZealousMindedPeopleGeo/css/zealous-geo.css" />` в `App.razor` или `index.html`, после Bootstrap и до своих стилей
