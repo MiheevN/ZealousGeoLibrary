@@ -7,7 +7,7 @@ namespace ZealousMindedPeopleGeo.Services.GeoDataContainer.Persistence;
 /// <summary>
 /// Менеджер именованных контейнеров гео-данных с хранением в базе данных.
 /// Каждый контейнер соответствует набору строк с одинаковым
-/// <see cref="GeoDataParticipantEntity.ContainerId"/>, что позволяет хранить
+/// <see cref="GeoPointEntity.ContainerId"/>, что позволяет хранить
 /// данные множества глобусов в одной базе данных.
 /// </summary>
 public class DatabaseGeoDataContainerManager : GeoDataContainerManagerBase
@@ -68,7 +68,7 @@ public class DatabaseGeoDataContainerManager : GeoDataContainerManagerBase
         }
 
         using var context = _contextFactory.CreateDbContext();
-        return context.Participants.Any(p => p.ContainerId == containerId);
+        return context.Points.Any(p => p.ContainerId == containerId);
     }
 
     /// <inheritdoc />
@@ -80,7 +80,7 @@ public class DatabaseGeoDataContainerManager : GeoDataContainerManagerBase
         }
 
         using var context = _contextFactory.CreateDbContext();
-        var removed = context.Participants
+        var removed = context.Points
             .Where(p => p.ContainerId == containerId)
             .ExecuteDelete();
 
@@ -100,7 +100,7 @@ public class DatabaseGeoDataContainerManager : GeoDataContainerManagerBase
     public override IEnumerable<string> GetContainerIds()
     {
         using var context = _contextFactory.CreateDbContext();
-        return context.Participants
+        return context.Points
             .Select(p => p.ContainerId)
             .Distinct()
             .ToList();

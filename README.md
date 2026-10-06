@@ -11,7 +11,7 @@
 - **Настройки глобуса** - Полная настройка параметров глобуса (размеры, освещение, атмосфера, облака)
 - **Динамическое управление** - Включение/выключение атмосферы и облаков в реальном времени
 - **Множественные глобусы** - Поддержка нескольких независимых 3D глобусов на одной странице
-- **Именованные контейнеры гео-данных** - Удобная организация данных в именованных контейнерах для разных глобусов
+- **Именованные контейнеры гео-данных** - Любые точки (`GeoPoint`: офисы, события, датчики, участники) в именованных наборах для разных глобусов и карт, в памяти или в БД
 - **Управление состоянием** - Централизованное управление состоянием всех глобусов
 - **Загрузка/сохранение данных** - Удобные интерфейсы для инициализации и сохранения данных из JSON и других источников
 - **In-Memory репозиторий** - Простое хранение данных участников в памяти
@@ -612,7 +612,21 @@ var isValid = await ValidationService.IsAddressValidForGeocodingAsync(address);
 
 ## 📦 Именованные контейнеры гео-данных
 
-Библиотека предоставляет удобные интерфейсы для загрузки и сохранения данных в именованные контейнеры гео-данных, что упрощает работу с несколькими глобусами и разными наборами данных.
+Контейнер — именованный набор точек: данные одного глобуса, одной карты или одного
+контекста («офисы», «события», «датчики»). Точка (`GeoPoint`) — это что угодно с
+координатами, не обязательно человек:
+
+| Поле | Что это |
+|---|---|
+| `Id` | Строка до 128 символов: GUID, номер из вашей системы, `moscow-office`. По умолчанию — новый GUID |
+| `Latitude`, `Longitude` | Координаты, −90…90 и −180…180 |
+| `Title`, `Description` | Подпись и описание |
+| `Category` | Группа точки: `office`, `event`, `sensor` |
+| `Color`, `Icon`, `Url` | Цвет маркера (CSS), иконка, ссылка |
+| `Properties` | Любые свои поля, `Dictionary<string, string>` |
+
+Карта и глобус пока показывают точки как участников: подпись и координаты.
+Категории, цвета и иконки маркеров появятся в них на следующем этапе.
 
 ### Регистрация сервисов
 
@@ -643,7 +657,44 @@ if (ContainerManager.ContainerExists("europe-participants"))
 var containerIds = ContainerManager.GetContainerIds();
 ```
 
-#### Добавление участников
+#### Точки
+
+```csharp
+var offices = ContainerManager.GetOrCreateContainer("offices");
+
+await offices.AddPointAsync(new GeoPoint
+{
+    Id = "moscow",
+    Latitude = 55.7558,
+    Longitude = 37.6176,
+    Title = "Офис в Москве",
+    Category = "office",
+    Url = "https://example.com/offices/moscow",
+    Properties = { ["staff"] = "120", ["opened"] = "2019-04-01" }
+});
+
+// Массивом: null, точки с неверными координатами и повторы Id пропускаются
+var result = await offices.AddPointsAsync(points);
+Console.WriteLine($"Добавлено {result.ProcessedCount}, пропущено {result.SkippedCount}");
+
+var all = await offices.GetPointsAsync();          // копии: их изменение не трогает контейнер
+var moscow = await offices.GetPointAsync("moscow");
+moscow!.Properties["staff"] = "130";
+await offices.UpdatePointAsync(moscow);            // заменяет точку целиком
+await offices.RemovePointAsync("moscow");
+
+// Заменить всё содержимое контейнера
+await ContainerManager.LoadPointsAsync("offices", points);
+```
+
+Точку с неверными координатами (вне диапазона, `NaN`), пустым или слишком длинным `Id`
+контейнер не сохранит и вернёт ошибку в `GeoDataOperationResult.ErrorMessage`.
+
+#### Участники сообщества
+
+Участника (`Participant`) контейнер хранит как точку: имя становится `Title`, сообщение —
+`Description`, остальные поля — `Properties` (ключи в `ParticipantPointProperties`). Код,
+написанный для участников, работает как раньше:
 
 ```csharp
 // Добавление одного участника
@@ -661,9 +712,17 @@ var result = await container.AddParticipantAsync(participant);
 // Добавление нескольких участников
 var participants = new List<Participant> { ... };
 var result = await container.AddParticipantsAsync(participants);
+
+// Заменить содержимое контейнера участниками
+await ContainerManager.LoadDataAsync("europe-participants", participants);
 ```
 
-#### Получение данных
+Участник без координат в контейнер не попадает. Точку, добавленную не как участник,
+методы участников тоже видят: если её `Id` не GUID, участник получает GUID, вычисленный
+из `Id`, и по нему же её можно найти, изменить или удалить. Перевести участника в точку и
+обратно можно напрямую: `participant.ToGeoPoint()` и `point.ToParticipant()`.
+
+#### Получение участников
 
 ```csharp
 // Получение всех участников из контейнера
@@ -685,14 +744,27 @@ int count = container.Count;
 var result = await ContainerManager.LoadFromJsonFileAsync("my-container", "data/participants.json");
 
 // Загрузка из JSON строки
-var jsonContent = "[{\"name\": \"Test\", \"latitude\": 55.7558, \"longitude\": 37.6176}]";
 var result = await ContainerManager.LoadFromJsonAsync("my-container", jsonContent);
 ```
+
+JSON — массив точек. Участники в прежнем формате тоже читаются, форматы можно смешивать:
+элемент с полем `title` или `properties` — точка, остальные — участники.
+
+```json
+[
+  { "id": "berlin", "latitude": 52.52, "longitude": 13.405, "title": "Berlin",
+    "category": "office", "properties": { "staff": "40" } },
+  { "name": "Иван", "email": "ivan@example.com", "latitude": 55.75, "longitude": 37.62 }
+]
+```
+
+Элементы без `latitude` и `longitude` пропускаются (`SkippedCount`): иначе точка молча
+оказалась бы в (0, 0).
 
 ### Сохранение данных в JSON
 
 ```csharp
-// Экспорт в JSON строку
+// Экспорт в JSON строку — массив точек; поля участников лежат в "properties"
 var json = await ContainerManager.ExportToJsonAsync("my-container");
 
 // Сохранение в файл
@@ -800,9 +872,28 @@ await app.Services.EnsureGeoDataDatabaseCreatedAsync();
 
 Для управления схемой в продакшене подключите [миграции EF Core](https://learn.microsoft.com/ef/core/managing-schemas/migrations/) к контексту `GeoDataDbContext` вместо `EnsureGeoDataDatabaseCreatedAsync`.
 
+Точки лежат в таблице `GeoPoints`: общие поля — в своих столбцах, `Properties` — одним
+JSON в `PropertiesJson`, поэтому схема не меняется, какие бы поля ни хранило приложение.
+`EnsureGeoDataDatabaseCreatedAsync` создаёт эту таблицу и в уже существующей БД, например
+общей с таблицами приложения: сам `EnsureCreated` из EF такую БД не трогает.
+
+#### База прежних версий
+
+Прежние версии хранили участников в таблице `GeoDataParticipants`. При первом
+`EnsureGeoDataDatabaseCreatedAsync` библиотека в одной транзакции переносит их в
+`GeoPoints` и переименовывает старую таблицу в `GeoDataParticipants_Migrated`. Удалённые
+потом точки не вернутся. Строки без координат точкой не станут и остаются в
+переименованной таблице. Если схемой управляют миграции EF Core, после их применения
+вызовите перенос сами:
+
+```csharp
+await using var context = await dbFactory.CreateDbContextAsync();
+await GeoDataDatabaseInitializer.MigrateLegacyParticipantsAsync(context);
+```
+
 ### Работа с несколькими глобусами
 
-Каждый именованный контейнер (`containerId`) соответствует отдельному глобусу. Данные разных глобусов изолированы друг от друга в одной таблице за счёт колонки `ContainerId` (составной ключ `ContainerId` + `Id`), поэтому один и тот же участник может присутствовать в разных глобусах.
+Каждый именованный контейнер (`containerId`) соответствует отдельному глобусу или карте. Данные разных контейнеров изолированы друг от друга в одной таблице за счёт колонки `ContainerId` (составной ключ `ContainerId` + `Id`), поэтому одна и та же точка может присутствовать в разных контейнерах.
 
 ```csharp
 @inject IGeoDataContainerManager ContainerManager
@@ -830,7 +921,7 @@ var globeIds = ContainerManager.GetContainerIds();
 API загрузки/выгрузки JSON идентичен хранилищу в памяти, но данные читаются и пишутся в БД:
 
 ```csharp
-// Загрузка массива участников из JSON-строки прямо в БД
+// Загрузка массива точек или участников из JSON-строки прямо в БД
 await ContainerManager.LoadFromJsonAsync("europe", jsonContent);
 
 // Загрузка из файла
@@ -926,10 +1017,14 @@ ZealousMindedPeopleGeo/
 │   │   ├── IGeoDataContainerManager.cs   # Менеджер контейнеров
 │   │   ├── InMemoryGeoDataContainer.cs   # In-Memory реализация
 │   │   ├── GeoDataContainerManager.cs    # Реализация менеджера
+│   │   ├── ParticipantGeoDataExtensions.cs # Методы участников поверх точек
+│   │   ├── Persistence/                  # Хранение в БД: таблица GeoPoints, перенос старой таблицы
 │   │   └── GeoDataLoaderExtensions.cs    # Расширения для загрузки
 │   └── Repositories/                     # Репозитории данных
 │       └── InMemoryParticipantRepository.cs # In-Memory хранилище
 ├── Models/              # Модели данных
+│   ├── GeoPoint.cs                       # Точка: координаты, подпись, категория, свои поля
+│   ├── ParticipantGeoPointExtensions.cs  # Участник ↔ точка
 │   ├── Participant.cs                    # Модель участника
 │   ├── GlobeOptions.cs                   # Настройки глобуса
 │   └── GlobeState.cs                     # Состояние глобуса

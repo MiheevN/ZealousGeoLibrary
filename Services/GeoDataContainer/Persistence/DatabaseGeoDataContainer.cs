@@ -6,7 +6,7 @@ namespace ZealousMindedPeopleGeo.Services.GeoDataContainer.Persistence;
 
 /// <summary>
 /// Реализация контейнера гео-данных с хранением в базе данных.
-/// Каждый экземпляр работает с данными одного именованного контейнера (глобуса),
+/// Каждый экземпляр работает с точками одного именованного контейнера,
 /// отфильтрованными по <see cref="IGeoDataContainer.ContainerId"/>.
 /// Для безопасной работы в многопоточной среде (в т.ч. в Blazor)
 /// используется <see cref="IDbContextFactory{TContext}"/> — контекст создается
@@ -27,7 +27,7 @@ public class DatabaseGeoDataContainer : IGeoDataContainer
         get
         {
             using var context = _contextFactory.CreateDbContext();
-            return context.Participants.Count(p => p.ContainerId == ContainerId);
+            return context.Points.Count(p => p.ContainerId == ContainerId);
         }
     }
 
@@ -51,210 +51,212 @@ public class DatabaseGeoDataContainer : IGeoDataContainer
     }
 
     /// <inheritdoc />
-    public async ValueTask<GeoDataOperationResult> AddParticipantAsync(Participant participant, CancellationToken ct = default)
+    public async ValueTask<GeoDataOperationResult> AddPointAsync(GeoPoint point, CancellationToken ct = default)
     {
-        if (participant == null)
+        var error = point is null ? "Point is null" : point.Validate();
+        if (error is not null)
         {
-            return GeoDataOperationResult.Fail("Participant is null");
+            return GeoDataOperationResult.Fail(error);
         }
+
+        var valid = point!;
 
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var exists = await context.Participants
-                .AnyAsync(p => p.ContainerId == ContainerId && p.Id == participant.Id, ct);
+            var exists = await context.Points
+                .AnyAsync(p => p.ContainerId == ContainerId && p.Id == valid.Id, ct);
 
             if (exists)
             {
-                return GeoDataOperationResult.Fail($"Participant with ID {participant.Id} already exists in container '{ContainerId}'");
+                return GeoDataOperationResult.Fail($"Point with ID {valid.Id} already exists in container '{ContainerId}'");
             }
 
-            context.Participants.Add(GeoDataParticipantEntity.FromParticipant(ContainerId, participant));
+            context.Points.Add(GeoPointEntity.FromPoint(ContainerId, valid));
             await context.SaveChangesAsync(ct);
 
-            _logger?.LogInformation("Container '{ContainerId}': Added participant {Name} with ID {Id}", ContainerId, participant.Name, participant.Id);
+            _logger?.LogInformation("Container '{ContainerId}': Added point {Title} with ID {Id}", ContainerId, valid.Title, valid.Id);
 
             NotifyDataChanged(GeoDataChangeType.Added);
 
-            return GeoDataOperationResult.Ok(1, participant.Id);
+            return GeoDataOperationResult.OkPoint(valid.Id);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error adding participant {Name}", ContainerId, participant.Name);
+            _logger?.LogError(ex, "Container '{ContainerId}': Error adding point {Id}", ContainerId, valid.Id);
             return GeoDataOperationResult.Fail(ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async ValueTask<GeoDataOperationResult> AddParticipantsAsync(IEnumerable<Participant> participants, CancellationToken ct = default)
+    public async ValueTask<GeoDataOperationResult> AddPointsAsync(IEnumerable<GeoPoint> points, CancellationToken ct = default)
     {
-        if (participants == null)
+        if (points is null)
         {
-            return GeoDataOperationResult.Fail("Participants collection is null");
+            return GeoDataOperationResult.Fail("Points collection is null");
         }
 
         try
         {
-            var participantList = participants.Where(p => p != null).ToList();
-            if (participantList.Count == 0)
-            {
-                return GeoDataOperationResult.Ok(0);
-            }
+            var incoming = points.ToList();
+            var valid = incoming.Where(p => p is not null && p.Validate() is null).ToList();
 
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var incomingIds = participantList.Select(p => p.Id).ToList();
-            var existingIds = await context.Participants
-                .Where(p => p.ContainerId == ContainerId && incomingIds.Contains(p.Id))
-                .Select(p => p.Id)
-                .ToListAsync(ct);
+            var incomingIds = valid.Select(p => p.Id).Distinct().ToList();
+            var existingIds = incomingIds.Count == 0
+                ? new List<string>()
+                : await context.Points
+                    .Where(p => p.ContainerId == ContainerId && incomingIds.Contains(p.Id))
+                    .Select(p => p.Id)
+                    .ToListAsync(ct);
 
-            var existingSet = existingIds.ToHashSet();
-            var seen = new HashSet<Guid>();
-            var addedCount = 0;
+            // Пропускаем уже существующие в БД и повторы внутри входного набора
+            var taken = new HashSet<string>(existingIds, StringComparer.Ordinal);
+            var added = 0;
 
-            foreach (var participant in participantList)
+            foreach (var point in valid)
             {
-                // Пропускаем уже существующих в БД и дубликаты внутри входного набора
-                if (existingSet.Contains(participant.Id) || !seen.Add(participant.Id))
+                if (taken.Add(point.Id))
                 {
-                    continue;
+                    context.Points.Add(GeoPointEntity.FromPoint(ContainerId, point));
+                    added++;
                 }
-
-                context.Participants.Add(GeoDataParticipantEntity.FromParticipant(ContainerId, participant));
-                addedCount++;
             }
 
-            if (addedCount > 0)
+            if (added > 0)
             {
                 await context.SaveChangesAsync(ct);
                 NotifyDataChanged(GeoDataChangeType.BulkLoaded);
             }
 
-            _logger?.LogInformation("Container '{ContainerId}': Added {Count} participants", ContainerId, addedCount);
+            var skipped = incoming.Count - added;
+            _logger?.LogInformation("Container '{ContainerId}': Added {Added} points, skipped {Skipped}", ContainerId, added, skipped);
 
-            return GeoDataOperationResult.Ok(addedCount);
+            var result = GeoDataOperationResult.Ok(added);
+            result.SkippedCount = skipped;
+            return result;
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error adding multiple participants", ContainerId);
+            _logger?.LogError(ex, "Container '{ContainerId}': Error adding multiple points", ContainerId);
             return GeoDataOperationResult.Fail(ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async ValueTask<IEnumerable<Participant>> GetAllParticipantsAsync(CancellationToken ct = default)
+    public async ValueTask<IReadOnlyList<GeoPoint>> GetPointsAsync(CancellationToken ct = default)
     {
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var entities = await context.Participants
+            var entities = await context.Points
                 .AsNoTracking()
                 .Where(p => p.ContainerId == ContainerId)
                 .ToListAsync(ct);
 
-            _logger?.LogDebug("Container '{ContainerId}': Retrieved {Count} participants", ContainerId, entities.Count);
-
-            return entities.Select(e => e.ToParticipant()).ToList();
+            return entities.Select(e => e.ToPoint()).ToList();
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error getting all participants", ContainerId);
-            return Enumerable.Empty<Participant>();
+            _logger?.LogError(ex, "Container '{ContainerId}': Error getting points", ContainerId);
+            return Array.Empty<GeoPoint>();
         }
     }
 
     /// <inheritdoc />
-    public async ValueTask<Participant?> GetParticipantByIdAsync(Guid id, CancellationToken ct = default)
+    public async ValueTask<GeoPoint?> GetPointAsync(string id, CancellationToken ct = default)
     {
+        if (id is null)
+        {
+            return null;
+        }
+
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var entity = await context.Participants
+            var entity = await context.Points
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.ContainerId == ContainerId && p.Id == id, ct);
 
-            if (entity != null)
-            {
-                _logger?.LogDebug("Container '{ContainerId}': Found participant {Name} with ID {Id}", ContainerId, entity.Name, id);
-                return entity.ToParticipant();
-            }
-
-            return null;
+            return entity?.ToPoint();
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error getting participant by ID {Id}", ContainerId, id);
+            _logger?.LogError(ex, "Container '{ContainerId}': Error getting point {Id}", ContainerId, id);
             return null;
         }
     }
 
     /// <inheritdoc />
-    public async ValueTask<GeoDataOperationResult> UpdateParticipantAsync(Participant participant, CancellationToken ct = default)
+    public async ValueTask<GeoDataOperationResult> UpdatePointAsync(GeoPoint point, CancellationToken ct = default)
     {
-        if (participant == null)
+        var error = point is null ? "Point is null" : point.Validate();
+        if (error is not null)
         {
-            return GeoDataOperationResult.Fail("Participant is null");
+            return GeoDataOperationResult.Fail(error);
         }
+
+        var valid = point!;
 
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var entity = await context.Participants
-                .FirstOrDefaultAsync(p => p.ContainerId == ContainerId && p.Id == participant.Id, ct);
+            var entity = await context.Points
+                .FirstOrDefaultAsync(p => p.ContainerId == ContainerId && p.Id == valid.Id, ct);
 
             if (entity == null)
             {
-                return GeoDataOperationResult.Fail($"Participant with ID {participant.Id} not found in container '{ContainerId}'");
+                return GeoDataOperationResult.Fail($"Point with ID {valid.Id} not found in container '{ContainerId}'");
             }
 
-            entity.UpdateFrom(participant);
+            entity.UpdateFrom(valid);
             await context.SaveChangesAsync(ct);
 
-            _logger?.LogInformation("Container '{ContainerId}': Updated participant {Name} with ID {Id}", ContainerId, participant.Name, participant.Id);
+            _logger?.LogInformation("Container '{ContainerId}': Updated point {Title} with ID {Id}", ContainerId, valid.Title, valid.Id);
 
             NotifyDataChanged(GeoDataChangeType.Updated);
 
-            return GeoDataOperationResult.Ok(1, participant.Id);
+            return GeoDataOperationResult.OkPoint(valid.Id);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error updating participant {Name}", ContainerId, participant.Name);
+            _logger?.LogError(ex, "Container '{ContainerId}': Error updating point {Id}", ContainerId, valid.Id);
             return GeoDataOperationResult.Fail(ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async ValueTask<GeoDataOperationResult> RemoveParticipantAsync(Guid id, CancellationToken ct = default)
+    public async ValueTask<GeoDataOperationResult> RemovePointAsync(string id, CancellationToken ct = default)
     {
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var entity = await context.Participants
-                .FirstOrDefaultAsync(p => p.ContainerId == ContainerId && p.Id == id, ct);
+            var removed = id is null
+                ? 0
+                : await context.Points
+                    .Where(p => p.ContainerId == ContainerId && p.Id == id)
+                    .ExecuteDeleteAsync(ct);
 
-            if (entity == null)
+            if (removed == 0)
             {
-                return GeoDataOperationResult.Fail($"Participant with ID {id} not found in container '{ContainerId}'");
+                return GeoDataOperationResult.Fail($"Point with ID {id} not found in container '{ContainerId}'");
             }
 
-            context.Participants.Remove(entity);
-            await context.SaveChangesAsync(ct);
-
-            _logger?.LogInformation("Container '{ContainerId}': Removed participant {Name} with ID {Id}", ContainerId, entity.Name, id);
+            _logger?.LogInformation("Container '{ContainerId}': Removed point with ID {Id}", ContainerId, id);
 
             NotifyDataChanged(GeoDataChangeType.Removed);
 
-            return GeoDataOperationResult.Ok(1, id);
+            return GeoDataOperationResult.OkPoint(id!);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Container '{ContainerId}': Error removing participant with ID {Id}", ContainerId, id);
+            _logger?.LogError(ex, "Container '{ContainerId}': Error removing point {Id}", ContainerId, id);
             return GeoDataOperationResult.Fail(ex.Message);
         }
     }
@@ -266,11 +268,11 @@ public class DatabaseGeoDataContainer : IGeoDataContainer
         {
             await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-            var count = await context.Participants
+            var count = await context.Points
                 .Where(p => p.ContainerId == ContainerId)
                 .ExecuteDeleteAsync(ct);
 
-            _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} participants", ContainerId, count);
+            _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} points", ContainerId, count);
 
             if (count > 0)
             {

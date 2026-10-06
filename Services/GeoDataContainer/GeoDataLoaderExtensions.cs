@@ -57,9 +57,11 @@ public static class GeoDataLoaderExtensions
     }
 
     /// <summary>
-    /// Создает схему базы данных гео-данных, если она ещё не существует
-    /// (через <c>EnsureCreated</c>). Удобно для разработки, тестов и сценариев
-    /// без миграций. Для продакшена рекомендуется использовать миграции EF Core.
+    /// Создает схему базы данных гео-данных, если её ещё нет: новую БД целиком или
+    /// таблицу <c>GeoPoints</c> в существующей. Участников из таблицы прежних версий
+    /// (<c>GeoDataParticipants</c>) переносит в точки, см.
+    /// <see cref="GeoDataDatabaseInitializer.MigrateLegacyParticipantsAsync"/>.
+    /// Удобно для разработки, тестов и сценариев без миграций EF Core.
     /// </summary>
     /// <param name="serviceProvider">Провайдер сервисов</param>
     /// <param name="ct">Токен отмены операции</param>
@@ -70,8 +72,9 @@ public static class GeoDataLoaderExtensions
     {
         using var scope = serviceProvider.CreateScope();
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<GeoDataDbContext>>();
+        var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(typeof(GeoDataDatabaseInitializer));
         await using var context = await factory.CreateDbContextAsync(ct);
-        await context.Database.EnsureCreatedAsync(ct);
+        await GeoDataDatabaseInitializer.InitializeAsync(context, logger, ct);
     }
 
     /// <summary>
