@@ -21,6 +21,7 @@ const STATIC_ASSETS = [
     '/_content/ZealousMindedPeopleGeo/js/community-map.js',
     '/_content/ZealousMindedPeopleGeo/js/community-globe.js',
     '/_content/ZealousMindedPeopleGeo/js/label-scale.js',
+    '/_content/ZealousMindedPeopleGeo/js/label-layout.js',
     '/_content/ZealousMindedPeopleGeo/js/libs/three.module.js',
     '/_content/ZealousMindedPeopleGeo/js/libs/three.core.js',
     '/_content/ZealousMindedPeopleGeo/js/libs/OrbitControls.js',
