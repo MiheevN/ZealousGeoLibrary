@@ -3,7 +3,8 @@
 // Jenny, 2018); как опция доступна равнопромежуточная цилиндрическая проекция
 // (equirectangular). Центральный меридиан настраивается. Карта не зависит
 // от внешних картографических API, поддерживает приближение/отдаление колесом
-// мыши или кнопками и перемещение по карте перетаскиванием.
+// мыши, щипком (двумя пальцами или на тачпаде) или кнопками и перемещение по
+// карте перетаскиванием.
 
 const mapInstances = new Map();
 const containerStates = new WeakMap();
@@ -42,6 +43,12 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 20;
 // Шаг приближения колесом и кнопками.
 const ZOOM_STEP = 1.25;
+// Щелчок колеса мыши (50–120 px) — ровно один шаг, мелкие сдвиги тачпада — доля шага.
+const WHEEL_STEP_PX = 50;
+// Сколько пикселей в «строке» колеса (deltaMode = 1, так шлёт Firefox).
+const WHEEL_LINE_PX = 20;
+// Щипок на тачпаде браузеры присылают как wheel с ctrlKey, где deltaY ≈ −100·ln(масштаб).
+const PINCH_WHEEL_PX = 100;
 
 // Размеры маркеров в CSS-пикселях.
 const POINT_RADIUS = 9;
@@ -293,6 +300,9 @@ function createMapInstance(container, initialState) {
         dragStart: null,
         // Карту сдвинули: отпускание кнопки — не клик по маркеру.
         dragMoved: false,
+        // Нажатые указатели (pointerId → точка на холсте) и щипок двумя из них.
+        pointers: new Map(),
+        pinch: null,
         // Ключ маркера под указателем
         hoveredKey: null,
         // Подписки на события
@@ -320,16 +330,21 @@ function createMapInstance(container, initialState) {
 
     const draw = () => drawScene(state);
 
-    const onWheel = (event) => {
-        event.preventDefault();
-        const direction = event.deltaY > 0 ? -1 : 1;
-        const factor = direction > 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+    const canvasPoint = (event) => {
         const rect = canvas.getBoundingClientRect();
-        const pointer = {
+        return {
             x: event.clientX - rect.left,
             y: event.clientY - rect.top
         };
-        zoomAt(state, factor, pointer);
+    };
+
+    const onWheel = (event) => {
+        event.preventDefault();
+        const factor = wheelZoomFactor(event);
+        if (factor === 1) {
+            return;
+        }
+        zoomAt(state, factor, canvasPoint(event));
         draw();
     };
 
@@ -337,27 +352,40 @@ function createMapInstance(container, initialState) {
         if (event.button !== 0) {
             return;
         }
-        const view = getView(state);
-        state.dragging = true;
-        state.dragMoved = false;
-        state.dragStart = {
-            x: event.clientX,
-            y: event.clientY,
-            centerX: view.centerX,
-            centerY: view.centerY
-        };
+        const pointer = canvasPoint(event);
+        state.pointers.set(event.pointerId, pointer);
         canvas.setPointerCapture?.(event.pointerId);
-        canvas.style.cursor = 'grabbing';
+        if (state.pointers.size === 1) {
+            state.dragMoved = false;
+            startDrag(state, pointer);
+            canvas.style.cursor = 'grabbing';
+        } else {
+            // Второй палец: перетаскивание сменяется щипком.
+            startPinch(state);
+            hideTooltip(state);
+        }
     };
 
     const onPointerMove = (event) => {
+        if (state.pointers.has(event.pointerId)) {
+            state.pointers.set(event.pointerId, canvasPoint(event));
+        }
+
+        if (state.pinch) {
+            const [first, second] = state.pointers.values();
+            applyPinch(state, state.pinch, first, second);
+            draw();
+            return;
+        }
+
         if (state.dragging && state.dragStart) {
-            if (Math.hypot(event.clientX - state.dragStart.x, event.clientY - state.dragStart.y) > 3) {
+            const pointer = canvasPoint(event);
+            if (Math.hypot(pointer.x - state.dragStart.x, pointer.y - state.dragStart.y) > 3) {
                 state.dragMoved = true;
             }
             const scale = viewScale(state);
-            state.centerX = state.dragStart.centerX - (event.clientX - state.dragStart.x) / scale;
-            state.centerY = state.dragStart.centerY + (event.clientY - state.dragStart.y) / scale;
+            state.centerX = state.dragStart.centerX - (pointer.x - state.dragStart.x) / scale;
+            state.centerY = state.dragStart.centerY + (pointer.y - state.dragStart.y) / scale;
             commitView(state);
             draw();
             return;
@@ -366,11 +394,23 @@ function createMapInstance(container, initialState) {
         updateHover(state, event);
     };
 
-    const endDrag = (event) => {
-        if (state.dragging) {
+    const endPointer = (event) => {
+        if (!state.pointers.delete(event.pointerId)) {
+            return;
+        }
+        canvas.releasePointerCapture?.(event.pointerId);
+        if (state.pointers.size >= 2) {
+            // Третий палец остался вместо поднятого: щипок продолжается с новой пары.
+            startPinch(state);
+        } else if (state.pointers.size === 1) {
+            // После щипка оставшийся палец двигает карту с того места, где он сейчас.
+            state.pinch = null;
+            const [rest] = state.pointers.values();
+            startDrag(state, rest);
+        } else {
+            state.pinch = null;
             state.dragging = false;
             state.dragStart = null;
-            canvas.releasePointerCapture?.(event.pointerId);
             canvas.style.cursor = 'grab';
         }
     };
@@ -407,8 +447,10 @@ function createMapInstance(container, initialState) {
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
-    canvas.addEventListener('pointerup', endDrag);
-    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
+    // Браузер забрал указатель: без этого «залипший» палец превратил бы следующее касание в щипок.
+    canvas.addEventListener('lostpointercapture', endPointer);
     canvas.addEventListener('pointerleave', () => hideTooltip(state));
     canvas.addEventListener('click', onClick);
 
@@ -678,6 +720,68 @@ function setCenter(state, lat, lng) {
     const [x, y] = projectPoint(state, lat, lng);
     state.centerX = x;
     state.centerY = y;
+}
+
+// Во сколько раз изменить масштаб по событию wheel: 1 — не менять.
+function wheelZoomFactor(event) {
+    const unit = event.deltaMode === 1 ? WHEEL_LINE_PX : event.deltaMode === 2 ? WHEEL_STEP_PX : 1;
+    // Сдвиг тачпада вбок (deltaY = 0) масштаб не меняет: множитель выйдет ровно 1.
+    const pixels = (Number(event.deltaY) || 0) * unit;
+    // Щипок на тачпаде: масштаб следует за пальцами. Ctrl с колесом мыши даёт
+    // большие deltaY — их ограничиваем тем же шагом, что у обычного колеса.
+    const factor = event.ctrlKey
+        ? Math.exp(-pixels / PINCH_WHEEL_PX)
+        : ZOOM_STEP ** (-pixels / WHEEL_STEP_PX);
+    return Math.min(ZOOM_STEP, Math.max(1 / ZOOM_STEP, factor));
+}
+
+function startDrag(state, pointer) {
+    const view = getView(state);
+    state.dragging = true;
+    state.dragStart = {
+        x: pointer.x,
+        y: pointer.y,
+        centerX: view.centerX,
+        centerY: view.centerY
+    };
+}
+
+// Щипок по первым двум нажатым указателям: запоминаем расстояние между ними и
+// точку карты под серединой — она и дальше остаётся между пальцами.
+function startPinch(state) {
+    const [first, second] = state.pointers.values();
+    state.pinch = pinchStart(state, first, second);
+    state.dragging = false;
+    state.dragStart = null;
+    // Щипок не должен закончиться кликом по маркеру.
+    state.dragMoved = true;
+}
+
+function pinchStart(state, first, second) {
+    const view = getView(state);
+    const middle = midpoint(first, second);
+    return {
+        distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+        zoom: state.zoom,
+        anchorX: view.centerX + (middle.x - state.width / 2) / view.scale,
+        anchorY: view.centerY - (middle.y - state.height / 2) / view.scale
+    };
+}
+
+// Масштаб меняется во столько раз, во сколько изменилось расстояние между
+// пальцами, а точка-якорь идёт за их серединой: два пальца ещё и двигают карту.
+function applyPinch(state, pinch, first, second) {
+    const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+    state.zoom = clampZoom(pinch.zoom * distance / pinch.distance);
+    const scale = viewScale(state);
+    const middle = midpoint(first, second);
+    state.centerX = pinch.anchorX - (middle.x - state.width / 2) / scale;
+    state.centerY = pinch.anchorY + (middle.y - state.height / 2) / scale;
+    commitView(state);
+}
+
+function midpoint(first, second) {
+    return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
 }
 
 function zoomAt(state, factor, pointer) {

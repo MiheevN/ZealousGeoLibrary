@@ -174,6 +174,10 @@ Blazor Web App).
 сохраняются, а карта выглядит привычно. При `zoom = 1` мир целиком вписан в окно;
 при приближении карту можно двигать, пока её край не упрётся в край окна.
 
+Приближают карту колесом мыши, кнопками «+» и «−», а на телефоне и тачпаде — щипком
+двумя пальцами: место между пальцами остаётся под ними, и двумя же пальцами карту можно
+двигать. Страница при этом не масштабируется.
+
 Как опция доступна прежняя равнопромежуточная проекция (`Equirectangular`) —
 прямоугольная карта, которая бесконечно прокручивается по горизонтали.
 Центральный меридиан задаётся в градусах: `0` — Гринвич, `150` — Тихий океан в центре.
@@ -574,7 +578,7 @@ public class Participant
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = "";
-    public string Email { get; set; } = "";
+    public string Email { get; set; } = "";   // необязателен, указанный виден всем на карте
     public string Location { get; set; } = "";
     public string? City { get; set; }
     public string? Country { get; set; }
@@ -918,7 +922,8 @@ GeoJsonReadResult read = GeoPointGeoJson.Read(text); // read.Points, read.Skippe
     JSON-записью.
 - **Геометрия.** `MultiPoint` даёт по точке на каждую позицию (`id#1`, `id#2`, …).
   Линии, полигоны, объекты без геометрии и точки, не прошедшие `GeoPoint.Validate()`,
-  пропускаются, и причина каждого пропуска есть в `GeoJsonReadResult.Skipped`.
+  пропускаются, и причина каждого пропуска есть в `GeoJsonReadResult.Skipped` — на языке
+  пользователя (см. [«Язык сообщений»](#язык-сообщений)).
 - **Совпадение имён.** Если имя свойства в `Properties` совпадает с полем точки (`title`,
   `url`…), оно записывается, только когда само поле пустое.
 
@@ -981,6 +986,9 @@ var result = await ContainerManager.LoadToGlobeAsync(
     }
 }
 ```
+
+Обязательны имя и адрес. Email можно не указывать; указанный адрес виден всем в подсказке
+и карточке точки на карте, о чём форма предупреждает под полем.
 
 ### Подписка на изменения данных
 
@@ -1139,6 +1147,40 @@ else
 }
 ```
 
+### Язык сообщений
+
+Причины пропуска при импорте (`GeoJsonReadResult.Skipped`, `ErrorMessage` загрузки JSON),
+ошибки `GeoPoint.Validate()` и `JsonException` из `GeoPointGeoJson.Read` выходят на языке
+`CultureInfo.CurrentUICulture`, а числа в них форматируются по `CultureInfo.CurrentCulture`.
+Переводы есть на английский (он же для языков без перевода) и русский:
+
+| `CurrentUICulture` | Сообщение |
+|---|---|
+| `ru`, `ru-RU` | Объект 1 («road»): геометрия LineString — не точка |
+| `en` и остальные | Feature 1 ('road'): geometry LineString is not a point |
+
+Язык выбирает приложение, например middleware локализации ASP.NET Core:
+
+```csharp
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    // Язык браузера, если для него есть перевод, иначе русский. Формат чисел не меняется.
+    DefaultRequestCulture = new RequestCulture(CultureInfo.CurrentCulture, new CultureInfo("ru")),
+    SupportedCultures = new[] { CultureInfo.CurrentCulture },
+    SupportedUICultures = new[] { new CultureInfo("ru"), new CultureInfo("en") }
+});
+```
+
+Интерактивные компоненты Blazor Server работают через WebSocket, а в его запросе
+заголовка `Accept-Language` может не быть. Поэтому выбранный при загрузке страницы язык
+стоит запомнить в cookie, как это делает `App.razor` витрины. Подробности, в том числе
+для WebAssembly, — в [документации ASP.NET Core](https://learn.microsoft.com/aspnet/core/blazor/globalization-localization).
+
+Новый язык — файл `Resources/Messages.<код>.resx` с теми же ключами, что в `Messages.resx`.
+Тест `MessagesTests` сверяет ключи и подстановки `{0}` каждого перевода с английским, если
+добавить код языка в его список `Translations`. Надписи самих компонентов (карты, формы,
+глобуса) пока не переводятся.
+
 ## 🔒 Безопасность
 
 Рекомендации по безопасности:
@@ -1181,6 +1223,7 @@ ZealousMindedPeopleGeo/
 │   ├── Participant.cs                    # Модель участника
 │   ├── GlobeOptions.cs                   # Настройки глобуса
 │   └── GlobeState.cs                     # Состояние глобуса
+├── Resources/           # Сообщения: Messages.resx (английский) и Messages.ru.resx
 └── wwwroot/             # Статические ресурсы
     ├── ZealousMindedPeopleGeo.lib.module.js # JS-инициализатор: Blazor загружает его сам, он подключает стили
     ├── js/              # JavaScript модули

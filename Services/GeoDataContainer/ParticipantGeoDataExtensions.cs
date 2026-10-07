@@ -1,4 +1,5 @@
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Resources;
 
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
@@ -135,7 +136,7 @@ public static class ParticipantGeoDataExtensions
         }
 
         return participant.Latitude is null || participant.Longitude is null
-            ? $"Participant '{participant.Name}' ({participant.Id}) has no coordinates"
+            ? Messages.ParticipantNoCoordinates(participant.Name, participant.Id)
             : null;
     }
 

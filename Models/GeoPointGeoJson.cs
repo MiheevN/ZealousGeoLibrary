@@ -1,6 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
+using ZealousMindedPeopleGeo.Resources;
 
 namespace ZealousMindedPeopleGeo.Models;
 
@@ -21,7 +22,8 @@ namespace ZealousMindedPeopleGeo.Models;
 /// отсутствующий <c>id</c> объекта. <c>MultiPoint</c> даёт по точке на позицию
 /// (идентификаторы <c>id#1</c>, <c>id#2</c>, …). Объекты с другой геометрией или без
 /// неё, с координатами вне диапазона и с полями длиннее допустимого пропускаются,
-/// причина каждого пропуска — в <see cref="GeoJsonReadResult.Skipped"/>. Числа,
+/// причина каждого пропуска — в <see cref="GeoJsonReadResult.Skipped"/> на языке
+/// <see cref="System.Globalization.CultureInfo.CurrentUICulture"/>. Числа,
 /// логические значения, массивы и объекты в свойствах становятся строками с их
 /// JSON-записью, а высота (третья координата) отбрасывается.
 /// </para>
@@ -118,7 +120,7 @@ public static class GeoPointGeoJson
             case "FeatureCollection":
                 if (!root.TryGetProperty("features", out var features) || features.ValueKind != JsonValueKind.Array)
                 {
-                    throw new JsonException("GeoJSON FeatureCollection has no \"features\" array");
+                    throw new JsonException(Messages.GeoJsonNoFeatures);
                 }
 
                 var number = 0;
@@ -132,7 +134,7 @@ public static class GeoPointGeoJson
                 ReadFeature(root, 1, result);
                 break;
             default:
-                throw new JsonException("GeoJSON must be a FeatureCollection or a Feature");
+                throw new JsonException(Messages.GeoJsonNotFeatureCollection);
         }
 
         return result;
@@ -198,7 +200,7 @@ public static class GeoPointGeoJson
     {
         if (TypeOf(feature) != "Feature")
         {
-            result.Skipped.Add($"Feature {number}: not a GeoJSON Feature");
+            result.Skipped.Add(Messages.GeoJsonNotFeature(Messages.GeoJsonFeature(number, null)));
             return;
         }
 
@@ -216,7 +218,7 @@ public static class GeoPointGeoJson
 
         if (!feature.TryGetProperty("geometry", out var geometry) || geometry.ValueKind != JsonValueKind.Object)
         {
-            result.Skipped.Add($"{Describe(number, id)}: no geometry");
+            result.Skipped.Add(Messages.GeoJsonNoGeometry(Messages.GeoJsonFeature(number, id)));
             return;
         }
 
@@ -235,13 +237,13 @@ public static class GeoPointGeoJson
                 positions = new();
                 break;
             default:
-                result.Skipped.Add($"{Describe(number, id)}: geometry {geometryType ?? "?"} is not a point");
+                result.Skipped.Add(Messages.GeoJsonNotPoint(Messages.GeoJsonFeature(number, id), geometryType ?? "?"));
                 return;
         }
 
         if (positions.Count == 0)
         {
-            result.Skipped.Add($"{Describe(number, id)}: no coordinates");
+            result.Skipped.Add(Messages.GeoJsonNoCoordinates(Messages.GeoJsonFeature(number, id)));
             return;
         }
 
@@ -256,8 +258,8 @@ public static class GeoPointGeoJson
             if (positions[index] is not { } position)
             {
                 result.Skipped.Add(geometryType == "MultiPoint"
-                    ? $"{Describe(number, id)}: position {index + 1} is not [longitude, latitude]"
-                    : $"{Describe(number, id)}: coordinates are not [longitude, latitude]");
+                    ? Messages.GeoJsonBadPosition(Messages.GeoJsonFeature(number, id), index + 1)
+                    : Messages.GeoJsonBadCoordinates(Messages.GeoJsonFeature(number, id)));
                 continue;
             }
 
@@ -270,7 +272,7 @@ public static class GeoPointGeoJson
 
             if (point.Validate() is { } error)
             {
-                result.Skipped.Add($"{Describe(number, id)}: {error}");
+                result.Skipped.Add(Messages.GeoJsonInvalidPoint(Messages.GeoJsonFeature(number, id), error));
             }
             else
             {
@@ -376,8 +378,6 @@ public static class GeoPointGeoJson
 
         return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
     }
-
-    private static string Describe(int number, string? id) => id is null ? $"Feature {number}" : $"Feature {number} ('{id}')";
 }
 
 /// <summary>
@@ -389,7 +389,9 @@ public sealed class GeoJsonReadResult
     public List<GeoPoint> Points { get; } = new();
 
     /// <summary>
-    /// Почему пропущены объекты: «Feature 3 ('road'): geometry LineString is not a point».
+    /// Почему пропущены объекты, на языке <see cref="System.Globalization.CultureInfo.CurrentUICulture"/>:
+    /// «Feature 3 ('road'): geometry LineString is not a point» или
+    /// «Объект 3 («road»): геометрия LineString — не точка».
     /// </summary>
     public List<string> Skipped { get; } = new();
 

@@ -1,3 +1,5 @@
+@using System.Globalization
+@using Microsoft.AspNetCore.Localization
 <!DOCTYPE html>
 <html lang="ru" data-bs-theme="dark">
 <head>
@@ -25,3 +27,20 @@
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Интерактивная схема Blazor работает через WebSocket и берёт язык из его запроса,
+    // а Accept-Language там есть не всегда. Cookie есть всегда: запоминаем язык,
+    // выбранный UseRequestLocalization при загрузке страницы (так советует документация
+    // ASP.NET Core по локализации Blazor).
+    protected override void OnInitialized()
+    {
+        HttpContext?.Response.Cookies.Append(
+            CookieRequestCultureProvider.DefaultCookieName,
+            CookieRequestCultureProvider.MakeCookieValue(
+                new RequestCulture(CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture)));
+    }
+}

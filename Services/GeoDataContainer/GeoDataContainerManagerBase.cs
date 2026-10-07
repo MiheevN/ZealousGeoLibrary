@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Resources;
 
 namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
@@ -93,7 +94,7 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
         {
             if (!File.Exists(jsonFilePath))
             {
-                return GeoDataOperationResult.Fail($"File not found: {jsonFilePath}");
+                return GeoDataOperationResult.Fail(Messages.JsonFileNotFound(jsonFilePath));
             }
 
             var jsonContent = await File.ReadAllTextAsync(jsonFilePath, ct);
@@ -113,7 +114,7 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
         {
             if (string.IsNullOrWhiteSpace(jsonContent))
             {
-                return GeoDataOperationResult.Fail("JSON content is empty");
+                return GeoDataOperationResult.Fail(Messages.JsonEmpty);
             }
 
             using var document = JsonDocument.Parse(jsonContent);
@@ -124,7 +125,7 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
 
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
-                return GeoDataOperationResult.Fail("JSON content must be an array of points or a GeoJSON FeatureCollection");
+                return GeoDataOperationResult.Fail(Messages.JsonWrongShape);
             }
 
             var points = new List<GeoPoint>();
@@ -149,7 +150,7 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
         catch (JsonException ex)
         {
             Logger.LogError(ex, "Error parsing JSON content for container '{ContainerId}'", containerId);
-            return GeoDataOperationResult.Fail($"JSON parsing error: {ex.Message}");
+            return GeoDataOperationResult.Fail(Messages.JsonParseError(ex.Message));
         }
         catch (Exception ex)
         {

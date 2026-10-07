@@ -22,13 +22,13 @@ public class ParticipantValidator : AbstractValidator<Participant>
             .Matches(@"^[\p{L}\p{M}\s\-']+$")
             .WithMessage("Имя может содержать только буквы, пробелы, дефисы и апострофы");
 
+        // Email необязателен: проверяем только заполненный.
         RuleFor(p => p.Email)
-            .NotEmpty()
-            .WithMessage(localizationService.GetString("RequiredField"))
             .EmailAddress()
             .WithMessage(localizationService.GetString("InvalidEmail"))
             .MaximumLength(254)
-            .WithMessage(localizationService.GetString("MaxLength", 254));
+            .WithMessage(localizationService.GetString("MaxLength", 254))
+            .When(p => !string.IsNullOrWhiteSpace(p.Email));
 
         RuleFor(p => p.Location)
             .NotEmpty()
@@ -183,13 +183,13 @@ public class ParticipantRegistrationValidator : AbstractValidator<ParticipantReg
             .Matches(@"^[\p{L}\p{M}\s\-']+$")
             .WithMessage("Имя может содержать только буквы, пробелы, дефисы и апострофы");
 
+        // Email необязателен: проверяем только заполненный.
         RuleFor(p => p.Email)
-            .NotEmpty()
-            .WithMessage(localizationService.GetString("RequiredField"))
             .EmailAddress()
             .WithMessage(localizationService.GetString("InvalidEmail"))
             .MaximumLength(254)
-            .WithMessage(localizationService.GetString("MaxLength", 254));
+            .WithMessage(localizationService.GetString("MaxLength", 254))
+            .When(p => !string.IsNullOrWhiteSpace(p.Email));
 
         RuleFor(p => p.Address)
             .NotEmpty()

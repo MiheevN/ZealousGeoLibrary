@@ -74,6 +74,7 @@ public abstract partial class GeoDataStorageContractTests
     [Fact]
     public async Task ParticipantWithoutCoordinates_IsRejected()
     {
+        using var english = new CultureScope("en");
         var container = Manager.GetOrCreateContainer("people");
 
         var single = await container.AddParticipantAsync(CreateParticipant("Nowhere", latitude: null));

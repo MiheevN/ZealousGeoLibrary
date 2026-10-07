@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="PointIdRequired" xml:space="preserve">
+    <value>Point Id is required</value>
+  </data>
+  <data name="PointIdTooLong" xml:space="preserve">
+    <value>Point Id is longer than {0} characters</value>
+    <comment>{0} — предел длины</comment>
+  </data>
+  <data name="PointLatitudeOutOfRange" xml:space="preserve">
+    <value>Point '{0}': latitude {1} is outside -90..90</value>
+    <comment>{0} — Id точки, {1} — широта</comment>
+  </data>
+  <data name="PointLongitudeOutOfRange" xml:space="preserve">
+    <value>Point '{0}': longitude {1} is outside -180..180</value>
+    <comment>{0} — Id точки, {1} — долгота</comment>
+  </data>
+  <data name="PointFieldTooLong" xml:space="preserve">
+    <value>Point '{0}': {1} is longer than {2} characters</value>
+    <comment>{0} — Id точки, {1} — имя поля (Title, Category…), {2} — предел длины</comment>
+  </data>
+  <data name="GeoJsonFeature" xml:space="preserve">
+    <value>Feature {0}</value>
+    <comment>{0} — номер объекта в файле, с 1</comment>
+  </data>
+  <data name="GeoJsonFeatureWithId" xml:space="preserve">
+    <value>Feature {0} ('{1}')</value>
+    <comment>{0} — номер объекта в файле, {1} — его id</comment>
+  </data>
+  <data name="GeoJsonNotFeature" xml:space="preserve">
+    <value>{0}: not a GeoJSON Feature</value>
+    <comment>{0} — GeoJsonFeature или GeoJsonFeatureWithId</comment>
+  </data>
+  <data name="GeoJsonNoGeometry" xml:space="preserve">
+    <value>{0}: no geometry</value>
+    <comment>{0} — объект</comment>
+  </data>
+  <data name="GeoJsonNotPoint" xml:space="preserve">
+    <value>{0}: geometry {1} is not a point</value>
+    <comment>{0} — объект, {1} — тип геометрии (LineString, Polygon…)</comment>
+  </data>
+  <data name="GeoJsonNoCoordinates" xml:space="preserve">
+    <value>{0}: no coordinates</value>
+    <comment>{0} — объект</comment>
+  </data>
+  <data name="GeoJsonBadCoordinates" xml:space="preserve">
+    <value>{0}: coordinates are not [longitude, latitude]</value>
+    <comment>{0} — объект</comment>
+  </data>
+  <data name="GeoJsonBadPosition" xml:space="preserve">
+    <value>{0}: position {1} is not [longitude, latitude]</value>
+    <comment>{0} — объект, {1} — номер позиции в MultiPoint, с 1</comment>
+  </data>
+  <data name="GeoJsonInvalidPoint" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>{0} — объект, {1} — ошибка проверки точки (Point…)</comment>
+  </data>
+  <data name="GeoJsonNotFeatureCollection" xml:space="preserve">
+    <value>GeoJSON must be a FeatureCollection or a Feature</value>
+  </data>
+  <data name="GeoJsonNoFeatures" xml:space="preserve">
+    <value>GeoJSON FeatureCollection has no "features" array</value>
+  </data>
+  <data name="JsonFileNotFound" xml:space="preserve">
+    <value>File not found: {0}</value>
+    <comment>{0} — путь к файлу</comment>
+  </data>
+  <data name="JsonEmpty" xml:space="preserve">
+    <value>JSON content is empty</value>
+  </data>
+  <data name="JsonWrongShape" xml:space="preserve">
+    <value>JSON content must be an array of points or a GeoJSON FeatureCollection</value>
+  </data>
+  <data name="JsonParseError" xml:space="preserve">
+    <value>JSON parsing error: {0}</value>
+    <comment>{0} — сообщение System.Text.Json</comment>
+  </data>
+  <data name="ParticipantNoCoordinates" xml:space="preserve">
+    <value>Participant '{0}' ({1}) has no coordinates</value>
+    <comment>{0} — имя, {1} — Id участника</comment>
+  </data>
+</root>
