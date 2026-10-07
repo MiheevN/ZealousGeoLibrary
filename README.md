@@ -295,7 +295,9 @@ loadPointsOnMap([{ id: 'berlin', latitude: 52.52, longitude: 13.405, title: 'Ber
 setCommunityMapClustering({ clustering: false }, 'map');
 ```
 
-`loadParticipantsOnMap` по-прежнему принимает участников в прежнем формате.
+`loadPointsOnMap` принимает и GeoJSON (`FeatureCollection` или `Feature`) по тем же
+правилам, что `GeoPointGeoJson.Read` на сервере. `loadParticipantsOnMap` по-прежнему
+принимает участников в прежнем формате.
 
 #### Одиночный 3D глобус
 
@@ -866,6 +868,61 @@ var json = await ContainerManager.ExportToJsonAsync("my-container");
 // Сохранение в файл
 var result = await ContainerManager.SaveToJsonFileAsync("my-container", "data/export.json");
 ```
+
+### GeoJSON
+
+Точки контейнера выгружаются в GeoJSON ([RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946)),
+а `LoadFromJsonAsync` и `LoadFromJsonFileAsync` принимают GeoJSON так же, как массив точек:
+формат определяется по содержимому.
+
+```csharp
+// FeatureCollection строкой и в файл
+var geoJson = await ContainerManager.ExportToGeoJsonAsync("offices");
+await ContainerManager.SaveToGeoJsonFileAsync("offices", "data/offices.geojson");
+
+// Обратно — тем же методом, что и JSON
+var result = await ContainerManager.LoadFromJsonFileAsync("offices", "data/offices.geojson");
+// result.SkippedCount — линии, полигоны и объекты с неверными координатами
+
+// Без контейнера
+string text = GeoPointGeoJson.Write(points);
+GeoJsonReadResult read = GeoPointGeoJson.Read(text); // read.Points, read.Skipped — причины пропусков
+```
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "berlin",
+      "geometry": { "type": "Point", "coordinates": [13.405, 52.52] },
+      "properties": { "title": "Berlin", "category": "office", "marker-color": "#3987e5", "staff": "40" }
+    }
+  ]
+}
+```
+
+- **Координаты** в GeoJSON идут в порядке [долгота, широта]. Высота (третья координата)
+  отбрасывается, а долгота за ±180° сворачивается в диапазон.
+- **Поля точки** записываются в `properties` под именами `title`, `description`, `category`,
+  `marker-color`, `icon` и `url`. Заголовок, описание и цвет названы по
+  [simplestyle-spec](https://github.com/mapbox/simplestyle-spec), поэтому
+  [geojson.io](https://geojson.io) и подобные редакторы сразу показывают подписи и цвета
+  маркеров. Остальные `Properties` лежат рядом как есть.
+- **Чужие файлы:**
+  - `name` подставляется в заголовок, если `title` нет;
+  - `properties.id` подставляется в идентификатор, если у объекта нет `id`; без того и
+    другого точка получает новый GUID;
+  - числа, `true`/`false`, массивы и объекты в свойствах сохраняются строками с их
+    JSON-записью.
+- **Геометрия.** `MultiPoint` даёт по точке на каждую позицию (`id#1`, `id#2`, …).
+  Линии, полигоны, объекты без геометрии и точки, не прошедшие `GeoPoint.Validate()`,
+  пропускаются, и причина каждого пропуска есть в `GeoJsonReadResult.Skipped`.
+- **Совпадение имён.** Если имя свойства в `Properties` совпадает с полем точки (`title`,
+  `url`…), оно записывается, только когда само поле пустое.
+
+На странице `/map` витрины точки можно скачать в GeoJSON и загрузить свой файл.
 
 ### Интеграция с глобусом
 

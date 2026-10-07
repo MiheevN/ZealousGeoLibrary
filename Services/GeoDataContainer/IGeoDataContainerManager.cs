@@ -68,7 +68,10 @@ public interface IGeoDataContainerManager
     /// (<c>{ "id", "latitude", "longitude", "title", "properties": {…} }</c>)
     /// или массива участников в прежнем формате (<c>{ "name", "email", … }</c>).
     /// Форматы можно смешивать: элемент с полем <c>title</c> или <c>properties</c>
-    /// читается как точка, остальные — как участники.
+    /// читается как точка, остальные — как участники. GeoJSON (<c>FeatureCollection</c>
+    /// или <c>Feature</c>) тоже принимается и читается как в
+    /// <see cref="GeoPointGeoJson.Read(string)"/>: пропущенные объекты попадают в
+    /// <see cref="GeoDataOperationResult.SkippedCount"/>.
     /// </summary>
     /// <param name="containerId">Идентификатор контейнера</param>
     /// <param name="jsonContent">JSON строка с данными</param>
@@ -92,6 +95,24 @@ public interface IGeoDataContainerManager
     /// <param name="ct">Токен отмены</param>
     /// <returns>JSON строка с данными</returns>
     ValueTask<string> ExportToJsonAsync(string containerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Экспортирует точки контейнера в GeoJSON (<c>FeatureCollection</c>, см.
+    /// <see cref="GeoPointGeoJson.Write"/>). Обратно его читает <see cref="LoadFromJsonAsync"/>.
+    /// </summary>
+    /// <param name="containerId">Идентификатор контейнера</param>
+    /// <param name="ct">Токен отмены</param>
+    /// <returns>GeoJSON; пустая <c>FeatureCollection</c>, если контейнера нет</returns>
+    ValueTask<string> ExportToGeoJsonAsync(string containerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Сохраняет точки контейнера в файл GeoJSON (обычно с расширением <c>.geojson</c>).
+    /// </summary>
+    /// <param name="containerId">Идентификатор контейнера</param>
+    /// <param name="geoJsonFilePath">Путь к файлу</param>
+    /// <param name="ct">Токен отмены</param>
+    /// <returns>Результат операции</returns>
+    ValueTask<GeoDataOperationResult> SaveToGeoJsonFileAsync(string containerId, string geoJsonFilePath, CancellationToken ct = default);
 
     /// <summary>
     /// Событие, вызываемое при изменении данных в контейнере
