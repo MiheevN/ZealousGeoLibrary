@@ -1,4 +1,6 @@
 @page "/map"
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>2D карта · ZealousGeo</PageTitle>
 
@@ -10,7 +12,8 @@
         Близкие маркеры сливаются в группы со счётчиком: клик приближает группу,
         а точки с одинаковыми координатами раскрываются веером.
         Набор данных и группировка меняются на лету, а при смене проекции или
-        меридиана компонент создаётся заново.
+        меридиана компонент создаётся заново. Точки можно скачать в GeoJSON и
+        загрузить свой файл GeoJSON, например нарисованный в geojson.io.
     </Description>
     <Meta>
         <span class="chip">Точек: @_points.Count</span>
@@ -56,17 +59,34 @@
         <div class="segmented" role="group" aria-label="Набор данных">
             @foreach (var set in DemoDataSets.All)
             {
-                <button type="button" class="@Active(set.Key == _dataSet.Key)" aria-pressed="@(set.Key == _dataSet.Key)"
+                <button type="button" class="@Active(set.Key == _dataSet?.Key)" aria-pressed="@(set.Key == _dataSet?.Key)"
                         @onclick="() => SelectDataSet(set)">@set.Title</button>
             }
         </div>
     </div>
+
+    <div class="field">
+        <span class="field-label">GeoJSON</span>
+        <div class="field-actions">
+            @* Ссылка с data: URL скачивает файл без JavaScript. *@
+            <a class="button button-small" href="@DownloadHref" download="@DownloadName">Скачать</a>
+            <label class="button button-small file-button">
+                Загрузить…
+                <InputFile OnChange="ImportAsync" accept=".geojson,.json,application/geo+json" />
+            </label>
+        </div>
+    </div>
 </section>
+
+@if (_importMessage is not null)
+{
+    <p class="import-status @(_importFailed ? "import-status-error" : null)" role="status">@_importMessage</p>
+}
 
 <CommunityMapComponent @key="MapId"
                        MapId="@MapId"
                        Points="_points"
-                       Title="@_dataSet.Title"
+                       Title="@_title"
                        ListTitle="Точки"
                        Projection="_projection"
                        CentralMeridian="_centralMeridian"
@@ -93,8 +113,16 @@
     private MapProjection _projection = MapProjection.EqualEarth;
     private int _centralMeridian;
     private bool _clusterPoints = true;
-    private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.FindByKey("tech-hubs")!;
+    // Больше этого файл GeoJSON не загружается: точки идут через соединение Blazor Server.
+    private const long MaxImportBytes = 5 * 1024 * 1024;
+
+    // null — точки загружены из файла, а не из демо-набора.
+    private DemoDataSets.DataSetInfo? _dataSet = DemoDataSets.FindByKey("tech-hubs")!;
     private List<GeoPoint> _points = DemoDataSets.TechHubs();
+    private string _title = DemoDataSets.FindByKey("tech-hubs")!.Title;
+    private string? _downloadHref;
+    private string? _importMessage;
+    private bool _importFailed;
 
     // Своя карта на каждую проекцию и меридиан: старая освобождается по своему MapId
     // асинхронно и не должна задеть новую. Набор данных в MapId не входит: новые точки
@@ -104,9 +132,61 @@
 
     private static string? Active(bool active) => active ? "active" : null;
 
+    // GeoJSON текущих точек; пересчитывается только при их смене.
+    private string DownloadHref => _downloadHref ??=
+        "data:application/geo+json;charset=utf-8," + Uri.EscapeDataString(GeoPointGeoJson.Write(_points));
+
+    private string DownloadName => $"{_dataSet?.Key ?? "points"}.geojson";
+
     private void SelectDataSet(DemoDataSets.DataSetInfo set)
     {
         _dataSet = set;
-        _points = set.Create();
+        ShowPoints(set.Create(), set.Title);
+        _importMessage = null;
+    }
+
+    private void ShowPoints(List<GeoPoint> points, string title)
+    {
+        _points = points;
+        _title = title;
+        _downloadHref = null;
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        _importFailed = true;
+        if (file.Size > MaxImportBytes)
+        {
+            _importMessage = $"Файл «{file.Name}» больше 5 МБ.";
+            return;
+        }
+
+        GeoJsonReadResult read;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxImportBytes);
+            using var reader = new StreamReader(stream);
+            read = GeoPointGeoJson.Read(await reader.ReadToEndAsync());
+        }
+        catch (JsonException)
+        {
+            _importMessage = $"«{file.Name}» — не GeoJSON: нужен FeatureCollection или Feature.";
+            return;
+        }
+
+        if (read.Points.Count == 0)
+        {
+            _importMessage = $"В «{file.Name}» нет точек"
+                + (read.SkippedCount > 0 ? $": {read.Skipped[0]}" : ".");
+            return;
+        }
+
+        _dataSet = null;
+        ShowPoints(read.Points, Path.GetFileNameWithoutExtension(file.Name));
+        _importFailed = false;
+        _importMessage = read.SkippedCount == 0
+            ? $"Загружено точек: {read.Points.Count} из «{file.Name}»."
+            : $"Загружено точек: {read.Points.Count} из «{file.Name}», пропущено: {read.SkippedCount} (например, {read.Skipped[0]}).";
     }
 }

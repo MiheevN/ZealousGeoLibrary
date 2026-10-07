@@ -24,7 +24,7 @@ async function loadMapModule() {
 
     const exportFooter = [
         '',
-        'export { clampZoom, clampLat, wrapLng, viewScale, getView, setCenter, projectToCanvas, canvasToLatLng, zoomAt, commitView, isFinitePair, escapeHtml, buildWorldLandPaths, buildProjectedLand, densifyRing, resolveProjection, equalEarthForward, equalEarthInverse, PROJECTIONS, normalizePoint, participantToPoint, markerLabel, renderPointTooltip, DEFAULT_MARKER_COLOR };',
+        'export { clampZoom, clampLat, wrapLng, viewScale, getView, setCenter, projectToCanvas, canvasToLatLng, zoomAt, commitView, isFinitePair, escapeHtml, buildWorldLandPaths, buildProjectedLand, densifyRing, resolveProjection, equalEarthForward, equalEarthInverse, PROJECTIONS, normalizePoint, participantToPoint, markerLabel, renderPointTooltip, DEFAULT_MARKER_COLOR, isGeoJson, pointsFromGeoJson };',
         ''
     ].join('\n');
 
@@ -396,4 +396,79 @@ test('tooltip escapes everything that comes from data, including property names'
     assert.match(html, /🏷 Категория:/);
     assert.match(html, /📧 Email:/);
     assert.match(html, /Berlin, Germany/);
+});
+
+test('GeoJSON points are read with the same rules as on the server', async () => {
+    const { pointsFromGeoJson } = await loadMapModule();
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (message) => warnings.push(message);
+    let points;
+    try {
+        points = pointsFromGeoJson({
+            type: 'FeatureCollection',
+            features: [
+                {
+                    type: 'Feature',
+                    id: 42,
+                    geometry: { type: 'Point', coordinates: [37.6176, 55.7558, 150] },
+                    properties: {
+                        name: 'Москва', 'marker-color': '#d95926', category: 'Столицы',
+                        population: 13010112, capital: true, tags: ['city'], note: null
+                    }
+                },
+                {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [190, 10] },
+                    properties: { id: 'east', title: 'East', name: 'Восток' }
+                },
+                {
+                    type: 'Feature',
+                    id: 'offices',
+                    geometry: { type: 'MultiPoint', coordinates: [[2.35, 48.86], ['x'], [-0.13, 51.51]] },
+                    properties: { title: 'Офис' }
+                },
+                { type: 'Feature', id: 'road', geometry: { type: 'LineString', coordinates: [[0, 0], [1, 1]] } },
+                { type: 'Feature', id: 'north', geometry: { type: 'Point', coordinates: [10, 95] } },
+                { type: 'Feature', id: 'nowhere', geometry: null }
+            ]
+        });
+    } finally {
+        console.warn = originalWarn;
+    }
+
+    assert.deepEqual(points.map((point) => point.id), ['42', 'east', 'offices#1', 'offices#3']);
+    const [moscow, east] = points;
+    assert.equal(moscow.latitude, 55.7558, 'GeoJSON: сначала долгота, потом широта');
+    assert.equal(moscow.longitude, 37.6176);
+    assert.equal(moscow.title, 'Москва');
+    assert.equal(moscow.color, '#d95926');
+    assert.equal(moscow.category, 'Столицы');
+    assert.deepEqual(moscow.properties, { population: '13010112', capital: 'true', tags: '["city"]' });
+
+    assert.equal(east.longitude, -170, 'долгота за 180° сворачивается');
+    assert.equal(east.title, 'East');
+    assert.deepEqual(east.properties, { name: 'Восток' }, 'properties.id стал идентификатором, name остался свойством');
+
+    assert.equal(points[2].title, 'Офис');
+    points[2].properties.changed = '1';
+    assert.equal(points[3].properties.changed, undefined, 'у точек MultiPoint свои свойства');
+    assert.match(warnings.join('\n'), /пропущено .*: 4/);
+});
+
+test('loadPointsOnMap accepts GeoJSON and rejects other objects', async () => {
+    const { isGeoJson, pointsFromGeoJson } = await loadMapModule();
+    const source = await readText('wwwroot/js/community-map.js');
+
+    assert.equal(isGeoJson({ type: 'FeatureCollection', features: [] }), true);
+    assert.equal(isGeoJson({ type: 'Feature', geometry: null }), true);
+    assert.equal(isGeoJson({ type: 'Point', coordinates: [1, 2] }), false);
+    assert.equal(isGeoJson([{ type: 'Feature' }]), false);
+    assert.equal(isGeoJson(null), false);
+    assert.throws(() => pointsFromGeoJson({ type: 'FeatureCollection' }), /features/);
+
+    const [single] = pointsFromGeoJson({ type: 'Feature', geometry: { type: 'Point', coordinates: [13.405, 52.52] }, properties: null });
+    assert.deepEqual([single.id, single.latitude, single.longitude, single.title], ['feature-1', 52.52, 13.405, '']);
+
+    assert.match(source, /isGeoJson\(data\)\) \{\s*instance\.setPoints\(pointsFromGeoJson\(data\)\);/, 'loadPointsOnMap читает GeoJSON');
 });

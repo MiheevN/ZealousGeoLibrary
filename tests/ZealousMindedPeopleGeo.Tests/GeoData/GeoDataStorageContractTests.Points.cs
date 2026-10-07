@@ -325,6 +325,118 @@ public abstract partial class GeoDataStorageContractTests
         Assert.Equal("person@example.com", person.Email);
     }
 
+    [Fact]
+    public async Task LoadFromJsonAsync_ReadsGeoJson_AndCountsWhatIsNotAPoint()
+    {
+        var geoJson = """
+        {
+          "type": "FeatureCollection",
+          "features": [
+            { "type": "Feature", "id": "berlin", "geometry": { "type": "Point", "coordinates": [13.405, 52.52] },
+              "properties": { "title": "Berlin", "category": "office", "marker-color": "#3987e5", "staff": 40 } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [2.35, 48.85] },
+              "properties": { "id": "paris", "name": "Paris" } },
+            { "type": "Feature", "id": "road", "geometry": { "type": "LineString", "coordinates": [[0, 0], [1, 1]] } }
+          ]
+        }
+        """;
+        await Manager.GetOrCreateContainer("geojson").AddPointAsync(CreatePoint("old", 0, 0));
+
+        var result = await Manager.LoadFromJsonAsync("geojson", geoJson);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.ProcessedCount);
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Equal(new[] { "berlin", "paris" }, await PointIdsAsync("geojson"));
+        var berlin = await Manager.GetContainer("geojson")!.GetPointAsync("berlin");
+        Assert.Equal((52.52, 13.405), (berlin!.Latitude, berlin.Longitude));
+        Assert.Equal(("Berlin", "office", "#3987e5"), (berlin.Title, berlin.Category, berlin.Color));
+        Assert.Equal("40", berlin.Properties["staff"]);
+        Assert.Equal("Paris", (await Manager.GetContainer("geojson")!.GetPointAsync("paris"))!.Title);
+    }
+
+    [Fact]
+    public async Task ExportToGeoJsonAsync_RoundTripsPointsAndParticipants()
+    {
+        var berlin = CreatePoint("berlin", 52.52, 13.405);
+        berlin.Description = "Офис";
+        berlin.Category = "office";
+        berlin.Color = "#3987e5";
+        berlin.Icon = "B";
+        berlin.Url = "https://example.org/berlin";
+        berlin.Properties["staff"] = "40";
+        await Manager.LoadPointsAsync("source", new[] { berlin });
+        var participant = CreateParticipant("Person", 10, 20);
+        await Manager.GetContainer("source")!.AddParticipantAsync(participant);
+
+        var geoJson = await Manager.ExportToGeoJsonAsync("source");
+        var result = await Manager.LoadFromJsonAsync("copy", geoJson);
+
+        using (var document = JsonDocument.Parse(geoJson))
+        {
+            Assert.Equal("FeatureCollection", document.RootElement.GetProperty("type").GetString());
+            Assert.Equal(2, document.RootElement.GetProperty("features").GetArrayLength());
+        }
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.ProcessedCount);
+        var source = (await Manager.GetContainer("source")!.GetPointsAsync()).OrderBy(p => p.Id, StringComparer.Ordinal);
+        var copy = (await Manager.GetContainer("copy")!.GetPointsAsync()).OrderBy(p => p.Id, StringComparer.Ordinal);
+        Assert.Equal(source.Select(Snapshot), copy.Select(Snapshot));
+        var person = Assert.Single(await Manager.GetContainer("copy")!.GetAllParticipantsAsync(), p => p.Name == "Person");
+        Assert.Equal((participant.Id, participant.Email), (person.Id, person.Email));
+    }
+
+    [Fact]
+    public async Task ExportToGeoJsonAsync_MissingContainer_IsEmptyCollection()
+    {
+        var geoJson = await Manager.ExportToGeoJsonAsync("missing");
+
+        using var document = JsonDocument.Parse(geoJson);
+        Assert.Equal("FeatureCollection", document.RootElement.GetProperty("type").GetString());
+        Assert.Equal(0, document.RootElement.GetProperty("features").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task SaveToGeoJsonFileAsync_WritesFileThatLoadsBack()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"zgl-geojson-{Guid.NewGuid():N}");
+        var file = Path.Combine(directory, "nested", "points.geojson");
+        try
+        {
+            await Manager.LoadPointsAsync("source", new[] { CreatePoint("a", 1, 2), CreatePoint("b", -3, -4) });
+
+            var saved = await Manager.SaveToGeoJsonFileAsync("source", file);
+            var loaded = await Manager.LoadFromJsonFileAsync("copy", file);
+
+            Assert.True(saved.Success);
+            Assert.True(loaded.Success);
+            Assert.Equal(new[] { "a", "b" }, await PointIdsAsync("copy"));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadFromJsonAsync_FeatureCollectionWithoutFeatures_FailsAndKeepsData()
+    {
+        await Manager.GetOrCreateContainer("kept").AddPointAsync(CreatePoint("old", 0, 0));
+
+        var result = await Manager.LoadFromJsonAsync("kept", """{ "type": "FeatureCollection" }""");
+
+        Assert.False(result.Success);
+        Assert.Equal(new[] { "old" }, await PointIdsAsync("kept"));
+    }
+
+    private static string Snapshot(GeoPoint point) =>
+        $"{point.Id}|{point.Latitude:R}|{point.Longitude:R}|{point.Title}|{point.Description}|{point.Category}|{point.Color}|{point.Icon}|{point.Url}|"
+        + string.Join(";", point.Properties.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}"));
+
     private static GeoPoint CreatePoint(string id, double latitude, double longitude) => new()
     {
         Id = id,

@@ -121,7 +121,8 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
 };
 
 // points: массив точек { id, latitude, longitude, title, description, category, color,
-// icon, url, properties } или JSON-строка с ним.
+// icon, url, properties }, GeoJSON (FeatureCollection или Feature с точками) или
+// JSON-строка с любым из них.
 window.loadPointsOnMap = (pointsJson, containerId) => {
     const instance = resolveInstance(containerId);
     if (!instance) {
@@ -129,8 +130,14 @@ window.loadPointsOnMap = (pointsJson, containerId) => {
     }
 
     try {
-        const points = Array.isArray(pointsJson) ? pointsJson : JSON.parse(pointsJson);
-        instance.setPoints(points.map(normalizePoint).filter(Boolean));
+        const data = typeof pointsJson === 'string' ? JSON.parse(pointsJson) : pointsJson;
+        if (Array.isArray(data)) {
+            instance.setPoints(data.map(normalizePoint).filter(Boolean));
+        } else if (isGeoJson(data)) {
+            instance.setPoints(pointsFromGeoJson(data));
+        } else {
+            throw new Error('ожидался массив точек или GeoJSON FeatureCollection');
+        }
     } catch (error) {
         console.error('Ошибка загрузки точек на карту:', error);
     }
@@ -1605,6 +1612,121 @@ function normalizePoint(raw) {
         url: raw.url ?? raw.Url ?? null,
         properties: properties && typeof properties === 'object' ? { ...properties } : {}
     };
+}
+
+// --- GeoJSON --------------------------------------------------------------
+// Те же правила, что у GeoPointGeoJson на сервере: заголовок — title или name,
+// цвет — marker-color (simplestyle-spec), идентификатор — id объекта или
+// properties.id; MultiPoint даёт по точке на позицию, другие геометрии пропускаются.
+
+// Свойства GeoJSON, которые становятся полями точки.
+const GEOJSON_FIELDS = {
+    title: 'title',
+    description: 'description',
+    category: 'category',
+    'marker-color': 'color',
+    icon: 'icon',
+    url: 'url'
+};
+
+function isGeoJson(data) {
+    return Boolean(data) && typeof data === 'object' && !Array.isArray(data)
+        && (data.type === 'FeatureCollection' || data.type === 'Feature');
+}
+
+function pointsFromGeoJson(data) {
+    if (!isGeoJson(data)) {
+        throw new Error('GeoJSON должен быть FeatureCollection или Feature');
+    }
+    if (data.type === 'FeatureCollection' && !Array.isArray(data.features)) {
+        throw new Error('у FeatureCollection нет массива features');
+    }
+    const features = data.type === 'FeatureCollection' ? data.features : [data];
+    const points = [];
+    let skipped = 0;
+    features.forEach((feature, index) => {
+        const read = pointsFromFeature(feature, index + 1);
+        skipped += read.skipped;
+        read.points.forEach((point) => points.push(point));
+    });
+    if (skipped > 0) {
+        console.warn(`GeoJSON: пропущено объектов без точечной геометрии или с неверными координатами: ${skipped}`);
+    }
+    return points;
+}
+
+function pointsFromFeature(feature, number) {
+    const geometry = feature?.type === 'Feature' ? feature.geometry : null;
+    if (!geometry || (geometry.type !== 'Point' && geometry.type !== 'MultiPoint')) {
+        return { points: [], skipped: 1 };
+    }
+    const positions = geometry.type === 'Point'
+        ? [geometry.coordinates]
+        : (Array.isArray(geometry.coordinates) ? geometry.coordinates : []);
+    if (positions.length === 0) {
+        return { points: [], skipped: 1 };
+    }
+
+    const source = feature.properties && typeof feature.properties === 'object' ? feature.properties : {};
+    let id = geoJsonText(feature.id);
+    const idFromProperties = id === null && geoJsonText(source.id) !== null;
+    if (idFromProperties) {
+        id = geoJsonText(source.id);
+    }
+    const base = { title: '', description: null, category: null, color: null, icon: null, url: null, properties: {} };
+    const hasTitle = geoJsonText(source.title) !== null;
+    Object.keys(source).forEach((key) => {
+        const value = geoJsonText(source[key]);
+        if (value === null || (key === 'id' && idFromProperties)) {
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(GEOJSON_FIELDS, key)) {
+            base[GEOJSON_FIELDS[key]] = value;
+        } else if (key === 'name' && !hasTitle) {
+            base.title = value;
+        } else {
+            base.properties[key] = value;
+        }
+    });
+
+    const points = [];
+    let skipped = 0;
+    positions.forEach((position, index) => {
+        const valid = Array.isArray(position) && position.length >= 2
+            && typeof position[0] === 'number' && typeof position[1] === 'number'
+            && Number.isFinite(position[0]) && Number.isFinite(position[1])
+            && Math.abs(position[1]) <= 90;
+        if (!valid) {
+            skipped += 1;
+            return;
+        }
+        const pointId = id === null
+            ? `feature-${number}${positions.length > 1 ? `-${index + 1}` : ''}`
+            : (geometry.type === 'MultiPoint' ? `${id}#${index + 1}` : id);
+        // normalizePoint копирует properties: у каждой точки MultiPoint они свои.
+        points.push(normalizePoint({
+            ...base,
+            id: pointId,
+            latitude: position[1],
+            // Долгота за ±180° — то же место на сфере.
+            longitude: wrapLng(position[0])
+        }));
+    });
+    return { points, skipped };
+}
+
+// Строка — как есть, остальное — его JSON-запись; null и отсутствие — null.
+function geoJsonText(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (typeof value === 'object') {
+        return JSON.stringify(value);
+    }
+    return String(value);
 }
 
 // Участник в прежнем формате (поля в PascalCase или camelCase) → точка, как

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ZealousMindedPeopleGeo.Models;
@@ -51,6 +52,34 @@ public class GeoJsonGeometry
             Type = "Point",
             Coordinates = coords.ToArray()
         };
+    }
+
+    /// <summary>
+    /// Координаты точки (<c>Point</c>). После чтения из JSON в <see cref="Coordinates"/>
+    /// лежит <see cref="JsonElement"/>, а не <c>double[]</c>: разбираются оба варианта.
+    /// </summary>
+    public bool TryGetPoint(out double longitude, out double latitude)
+    {
+        longitude = latitude = 0;
+        if (Type != "Point")
+        {
+            return false;
+        }
+
+        switch (Coordinates)
+        {
+            case double[] { Length: >= 2 } array:
+                (longitude, latitude) = (array[0], array[1]);
+                return true;
+            case JsonElement { ValueKind: JsonValueKind.Array } element
+                when element.GetArrayLength() >= 2
+                     && element[0].ValueKind == JsonValueKind.Number
+                     && element[1].ValueKind == JsonValueKind.Number:
+                (longitude, latitude) = (element[0].GetDouble(), element[1].GetDouble());
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -226,12 +255,10 @@ public class GeoJsonFeatureCollection
     {
         foreach (var feature in Features)
         {
-            if (feature.Geometry?.Type == "Point" &&
-                feature.Geometry.Coordinates is double[] coords &&
-                coords.Length >= 2)
+            if (feature.Geometry is not null && feature.Geometry.TryGetPoint(out var longitude, out var latitude))
             {
-                var coordsObj = GeoJsonCoordinates.FromArray(coords);
-                
+                var coordsObj = new GeoJsonCoordinates(longitude, latitude);
+
                 var participant = new Participant
                 {
                     Id = Guid.TryParse(feature.Id, out var id) ? id : Guid.NewGuid(),
@@ -335,11 +362,9 @@ public static class GeoJsonExtensions
     /// </summary>
     public static bool IsValidParticipantPoint(this GeoJsonFeature feature)
     {
-        return feature.Geometry?.Type == "Point" &&
-               feature.Geometry.Coordinates is double[] coords &&
-               coords.Length >= 2 &&
-               coords[0] >= -180 && coords[0] <= 180 && // Longitude
-               coords[1] >= -90 && coords[1] <= 90;      // Latitude
+        return feature.Geometry is not null
+               && feature.Geometry.TryGetPoint(out var longitude, out var latitude)
+               && IsValidCoordinates(longitude, latitude);
     }
 
     /// <summary>

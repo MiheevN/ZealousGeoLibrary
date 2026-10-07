@@ -366,23 +366,23 @@ public class CommunityMapComponentTests : BunitContext
     }
 
     [Fact]
-    public void DataContainer_IsReadAndMapFollowsItsChanges()
+    public async Task DataContainer_IsReadAndMapFollowsItsChanges()
     {
         var offices = _containers.GetOrCreateContainer("offices");
-        offices.AddPointAsync(Point("berlin", "office")).AsTask().Wait();
+        await offices.AddPointAsync(Point("berlin", "office"));
 
         var cut = Render<CommunityMapComponent>(p => p.Add(c => c.DataContainerId, "offices"));
         WaitForInitialization(cut);
         Assert.Single(SentPoints(JSInterop.Invocations["loadPointsOnMap"][0]));
 
-        cut.InvokeAsync(() => offices.AddPointAsync(Point("paris", "office")).AsTask()).Wait();
+        await cut.InvokeAsync(() => offices.AddPointAsync(Point("paris", "office")).AsTask());
 
         cut.WaitForAssertion(() => Assert.Equal(2, JSInterop.Invocations["loadPointsOnMap"].Count));
         Assert.Equal(2, SentPoints(JSInterop.Invocations["loadPointsOnMap"][1]).Length);
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".participant-card").Count));
 
         // Чужой контейнер карту не трогает.
-        cut.InvokeAsync(() => _containers.GetOrCreateContainer("events").AddPointAsync(Point("x")).AsTask()).Wait();
+        await cut.InvokeAsync(() => _containers.GetOrCreateContainer("events").AddPointAsync(Point("x")).AsTask());
         Assert.Equal(2, JSInterop.Invocations["loadPointsOnMap"].Count);
     }
 

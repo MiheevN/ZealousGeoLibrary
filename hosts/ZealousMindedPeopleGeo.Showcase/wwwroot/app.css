@@ -276,6 +276,46 @@ h1:focus-visible {
     height: 18px;
 }
 
+.button-small {
+    padding: 6px 12px;
+    font-size: 0.86rem;
+}
+
+/* Поле выбора файла спрятано в подписи-кнопке, но остаётся доступным с клавиатуры. */
+.file-button {
+    position: relative;
+}
+
+.file-button input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.file-button:focus-within {
+    outline: 2px solid var(--zgl-accent);
+    outline-offset: 2px;
+}
+
+.field-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.import-status {
+    margin: -4px 0 16px;
+    color: var(--zgl-muted);
+    font-size: 0.88rem;
+}
+
+.import-status-error {
+    color: var(--zgl-danger);
+}
+
 .button-primary {
     border-color: var(--zgl-accent);
     background: var(--zgl-accent);

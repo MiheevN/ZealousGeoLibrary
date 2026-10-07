@@ -117,9 +117,14 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
             }
 
             using var document = JsonDocument.Parse(jsonContent);
+            if (GeoPointGeoJson.IsGeoJson(document.RootElement))
+            {
+                return await LoadGeoJsonAsync(containerId, document.RootElement, ct);
+            }
+
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
-                return GeoDataOperationResult.Fail("JSON content must be an array of points");
+                return GeoDataOperationResult.Fail("JSON content must be an array of points or a GeoJSON FeatureCollection");
             }
 
             var points = new List<GeoPoint>();
@@ -153,24 +158,28 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
         }
     }
 
+    private async ValueTask<GeoDataOperationResult> LoadGeoJsonAsync(string containerId, JsonElement root, CancellationToken ct)
+    {
+        var read = GeoPointGeoJson.Read(root);
+        if (read.SkippedCount > 0)
+        {
+            Logger.LogWarning(
+                "GeoJSON for container '{ContainerId}': skipped {Count} objects, first: {Reasons}",
+                containerId, read.SkippedCount, string.Join("; ", read.Skipped.Take(5)));
+        }
+
+        var result = await LoadPointsAsync(containerId, read.Points, ct);
+        result.SkippedCount += read.SkippedCount;
+        return result;
+    }
+
     /// <inheritdoc />
     public virtual async ValueTask<GeoDataOperationResult> SaveToJsonFileAsync(string containerId, string jsonFilePath, CancellationToken ct = default)
     {
         try
         {
-            var jsonContent = await ExportToJsonAsync(containerId, ct);
-
-            // Создаем директорию если не существует
-            var directory = Path.GetDirectoryName(jsonFilePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await File.WriteAllTextAsync(jsonFilePath, jsonContent, ct);
-
+            await WriteFileAsync(jsonFilePath, await ExportToJsonAsync(containerId, ct), ct);
             Logger.LogInformation("Saved container '{ContainerId}' data to file '{FilePath}'", containerId, jsonFilePath);
-
             return GeoDataOperationResult.Ok();
         }
         catch (Exception ex)
@@ -178,6 +187,34 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
             Logger.LogError(ex, "Error saving container '{ContainerId}' data to file '{FilePath}'", containerId, jsonFilePath);
             return GeoDataOperationResult.Fail(ex.Message);
         }
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<GeoDataOperationResult> SaveToGeoJsonFileAsync(string containerId, string geoJsonFilePath, CancellationToken ct = default)
+    {
+        try
+        {
+            await WriteFileAsync(geoJsonFilePath, await ExportToGeoJsonAsync(containerId, ct), ct);
+            Logger.LogInformation("Saved container '{ContainerId}' as GeoJSON to file '{FilePath}'", containerId, geoJsonFilePath);
+            return GeoDataOperationResult.Ok();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving container '{ContainerId}' as GeoJSON to file '{FilePath}'", containerId, geoJsonFilePath);
+            return GeoDataOperationResult.Fail(ex.Message);
+        }
+    }
+
+    private static async Task WriteFileAsync(string filePath, string content, CancellationToken ct)
+    {
+        // Создаем директорию если не существует
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await File.WriteAllTextAsync(filePath, content, ct);
     }
 
     /// <inheritdoc />
@@ -201,6 +238,19 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
             Logger.LogError(ex, "Error exporting container '{ContainerId}' to JSON", containerId);
             return "[]";
         }
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<string> ExportToGeoJsonAsync(string containerId, CancellationToken ct = default)
+    {
+        var container = GetContainer(containerId);
+        if (container == null)
+        {
+            Logger.LogWarning("Container '{ContainerId}' not found for GeoJSON export", containerId);
+            return GeoPointGeoJson.Write(Array.Empty<GeoPoint>());
+        }
+
+        return GeoPointGeoJson.Write(await container.GetPointsAsync(ct));
     }
 
     // Элемент массива — точка, если у него есть title или properties, иначе участник в
