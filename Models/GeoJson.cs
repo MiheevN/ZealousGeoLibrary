@@ -83,6 +83,78 @@ public class GeoJsonGeometry
     }
 
     /// <summary>
+    /// Полигоны геометрии <c>Polygon</c> (один) или <c>MultiPolygon</c> (несколько).
+    /// Каждый полигон — массив колец, первое кольцо внешнее, остальные — дыры;
+    /// позиция кольца — <c>[longitude, latitude]</c>. Как и в <see cref="TryGetPoint"/>,
+    /// разбираются и массивы <c>double</c>, и <see cref="JsonElement"/> после чтения из JSON.
+    /// </summary>
+    public bool TryGetPolygons(out IReadOnlyList<double[][][]> polygons)
+    {
+        polygons = Array.Empty<double[][][]>();
+        switch (Type, Coordinates)
+        {
+            case ("Polygon", double[][][] polygon):
+                polygons = new[] { polygon };
+                return true;
+            case ("MultiPolygon", double[][][][] multiPolygon):
+                polygons = multiPolygon;
+                return true;
+            case ("Polygon", JsonElement element) when TryReadPolygon(element, out var polygon):
+                polygons = new[] { polygon };
+                return true;
+            case ("MultiPolygon", JsonElement { ValueKind: JsonValueKind.Array } element):
+                var result = new double[element.GetArrayLength()][][][];
+                for (var i = 0; i < result.Length; i++)
+                {
+                    if (!TryReadPolygon(element[i], out result[i]))
+                    {
+                        return false;
+                    }
+                }
+                polygons = result;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryReadPolygon(JsonElement element, out double[][][] polygon)
+    {
+        polygon = Array.Empty<double[][]>();
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        var rings = new double[element.GetArrayLength()][][];
+        for (var r = 0; r < rings.Length; r++)
+        {
+            var ring = element[r];
+            if (ring.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            rings[r] = new double[ring.GetArrayLength()][];
+            for (var p = 0; p < rings[r].Length; p++)
+            {
+                var position = ring[p];
+                if (position.ValueKind != JsonValueKind.Array
+                    || position.GetArrayLength() < 2
+                    || position[0].ValueKind != JsonValueKind.Number
+                    || position[1].ValueKind != JsonValueKind.Number)
+                {
+                    return false;
+                }
+                rings[r][p] = new[] { position[0].GetDouble(), position[1].GetDouble() };
+            }
+        }
+
+        polygon = rings;
+        return true;
+    }
+
+    /// <summary>
     /// Создает LineString геометрию
     /// </summary>
     public static GeoJsonGeometry CreateLineString(IEnumerable<GeoJsonCoordinates> coords)
