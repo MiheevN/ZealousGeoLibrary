@@ -38,6 +38,7 @@ public class CommunityMapComponentTests : BunitContext
         JSInterop.SetupVoid("initializeCommunityMap", _ => true).SetVoidResult();
         JSInterop.SetupVoid("loadPointsOnMap", _ => true).SetVoidResult();
         JSInterop.SetupVoid("disposeCommunityMap", _ => true).SetVoidResult();
+        JSInterop.SetupVoid("setCommunityMapClustering", _ => true).SetVoidResult();
     }
 
     [Fact]
@@ -55,6 +56,8 @@ public class CommunityMapComponentTests : BunitContext
         Assert.Equal("map-a", init.Arguments[4]);
         Assert.Equal("EqualEarth", Option(init, "projection"));
         Assert.Equal(0.0, Option(init, "centralMeridian"));
+        Assert.Equal(true, Option(init, "clustering"));
+        Assert.Equal(24, Option(init, "clusterRadius"));
     }
 
     [Fact]
@@ -93,6 +96,53 @@ public class CommunityMapComponentTests : BunitContext
         Assert.Equal(3.0, init.Arguments[3]);
         Assert.Equal("Equirectangular", Option(init, "projection"));
         Assert.Equal(-90.0, Option(init, "centralMeridian"));
+    }
+
+    [Fact]
+    public void Clustering_ComesFromSettings()
+    {
+        _options.Map = new MapConfiguration { ClusterPoints = false, ClusterRadius = 60 };
+
+        var init = WaitForInitialization(RenderMap(p => p.Add(c => c.MapId, "map-settings")));
+
+        Assert.Equal(false, Option(init, "clustering"));
+        Assert.Equal(60, Option(init, "clusterRadius"));
+    }
+
+    [Fact]
+    public void ClusteringParameters_OverrideSettings_RadiusIsClamped()
+    {
+        _options.Map = new MapConfiguration { ClusterPoints = false, ClusterRadius = 60 };
+
+        var init = WaitForInitialization(RenderMap(p => p
+            .Add(c => c.ClusterPoints, true)
+            .Add(c => c.ClusterRadius, 1000)));
+
+        Assert.Equal(true, Option(init, "clustering"));
+        Assert.Equal(200, Option(init, "clusterRadius"));
+    }
+
+    [Fact]
+    public void ClusteringParameters_ChangeLive_WithoutRecreatingMap()
+    {
+        var cut = RenderMap(p => p.Add(c => c.MapId, "map-live"));
+        WaitForInitialization(cut);
+
+        // Повторная отрисовка с теми же значениями в JS ничего не отправляет.
+        cut.Render(p => p.Add(c => c.Title, "Same clustering"));
+        Assert.Empty(JSInterop.Invocations["setCommunityMapClustering"]);
+
+        cut.Render(p => p.Add(c => c.ClusterPoints, false));
+        cut.Render(p => p.Add(c => c.ClusterRadius, -5));
+
+        var updates = JSInterop.Invocations["setCommunityMapClustering"];
+        Assert.Equal(2, updates.Count);
+        Assert.Equal(false, Value(updates[0].Arguments[0]!, "clustering"));
+        Assert.Equal(24, Value(updates[0].Arguments[0]!, "clusterRadius"));
+        Assert.Equal(false, Value(updates[1].Arguments[0]!, "clustering"));
+        Assert.Equal(0, Value(updates[1].Arguments[0]!, "clusterRadius"));
+        Assert.Equal("map-live", updates[1].Arguments[1]);
+        Assert.Single(JSInterop.Invocations["initializeCommunityMap"]);
     }
 
     [Fact]
@@ -456,10 +506,9 @@ public class CommunityMapComponentTests : BunitContext
         Category = category
     };
 
-    // Настройки проекции передаются в JS анонимным объектом { projection, centralMeridian }.
-    private static object? Option(JSRuntimeInvocation init, string name)
-    {
-        var options = init.Arguments[5]!;
-        return options.GetType().GetProperty(name)!.GetValue(options);
-    }
+    // Настройки карты передаются в JS анонимным объектом { projection, centralMeridian, clustering, … }.
+    private static object? Option(JSRuntimeInvocation init, string name) => Value(init.Arguments[5]!, name);
+
+    private static object? Value(object options, string name) =>
+        options.GetType().GetProperty(name)!.GetValue(options);
 }

@@ -327,7 +327,9 @@ test('Razor component passes projection and central meridian to JS', async () =>
 
     assert.match(codeBehind, /\[Parameter\] public MapProjection\? Projection/, 'Projection parameter declared');
     assert.match(codeBehind, /\[Parameter\] public double\? CentralMeridian/, 'CentralMeridian parameter declared');
-    assert.match(codeBehind, /new \{ projection = projection\.ToString\(\), centralMeridian, dotNetHelper = _dotNetRef \}/, 'options object is passed to JS');
+    assert.match(codeBehind,
+        /new\s*\{\s*projection = projection\.ToString\(\),\s*centralMeridian,\s*clustering = _appliedClustering\.Enabled,\s*clusterRadius = _appliedClustering\.Radius,\s*dotNetHelper = _dotNetRef\s*\}/,
+        'options object is passed to JS');
     assert.match(configuration, /public MapProjection Projection \{ get; set; \} = MapProjection\.EqualEarth;/, 'Equal Earth is the configured default');
     assert.match(configuration, /enum MapProjection\s*\{[\s\S]*EqualEarth,[\s\S]*Equirectangular/, 'both projections are available');
 });
