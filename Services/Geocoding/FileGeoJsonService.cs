@@ -49,7 +49,7 @@ public class FileGeoJsonService : IGeoJsonService
                     throw new HttpRequestException($"Ошибка загрузки данных стран: {response.StatusCode}");
                 }
 
-                var data = await response.Content.ReadFromJsonAsync<Models.GeoJsonFeatureCollection>();
+                var data = await response.Content.ReadFromJsonAsync<Models.GeoJsonFeatureCollection>(ct);
 
                 if (data == null)
                 {
@@ -89,7 +89,7 @@ public class FileGeoJsonService : IGeoJsonService
                     throw new HttpRequestException($"Ошибка загрузки данных городов: {response.StatusCode}");
                 }
 
-                var cities = await response.Content.ReadFromJsonAsync<List<CityData>>();
+                var cities = await response.Content.ReadFromJsonAsync<List<CityData>>(ct);
 
                 if (cities == null)
                 {
@@ -118,31 +118,17 @@ public class FileGeoJsonService : IGeoJsonService
         // Используем алгоритм point-in-polygon для определения страны
         foreach (var feature in countries.Features)
         {
-            if (feature.Geometry?.Type == "Polygon")
+            if (feature.Geometry is not null
+                && feature.Geometry.TryGetPolygons(out var polygons)
+                && polygons.Any(polygon => IsPointInPolygon(latitude, longitude, polygon)))
             {
-                if (IsPointInPolygon(latitude, longitude, feature.Geometry.Coordinates as double[][][]))
+                return new Models.CountryInfo
                 {
-                    return new Models.CountryInfo
-                    {
-                        Name = feature.Properties?.Name,
-                        IsoCode = feature.Properties?.IsoCode,
-                        NameRu = feature.Properties?.NameRu,
-                        Geometry = feature.Geometry
-                    };
-                }
-            }
-            else if (feature.Geometry?.Type == "MultiPolygon")
-            {
-                if (IsPointInMultiPolygon(latitude, longitude, feature.Geometry.Coordinates as double[][][][]))
-                {
-                    return new Models.CountryInfo
-                    {
-                        Name = feature.Properties?.Name,
-                        IsoCode = feature.Properties?.IsoCode,
-                        NameRu = feature.Properties?.NameRu,
-                        Geometry = feature.Geometry
-                    };
-                }
+                    Name = feature.Properties?.Name,
+                    IsoCode = feature.Properties?.IsoCode ?? feature.Id,
+                    NameRu = feature.Properties?.NameRu,
+                    Geometry = feature.Geometry
+                };
             }
         }
 
@@ -158,12 +144,7 @@ public class FileGeoJsonService : IGeoJsonService
 
         foreach (var feature in cities.Features)
         {
-            if (feature.Properties?.City == null) continue;
-
-            var cityLat = feature.Properties.City.Contains(",") ?
-                double.Parse(feature.Properties.City.Split(',')[0]) : 0;
-            var cityLon = feature.Properties.City.Contains(",") ?
-                double.Parse(feature.Properties.City.Split(',')[1]) : 0;
+            if (feature.Geometry is null || !feature.Geometry.TryGetPoint(out var cityLon, out var cityLat)) continue;
 
             var distance = CalculateDistance(latitude, longitude, cityLat, cityLon);
 
@@ -172,11 +153,11 @@ public class FileGeoJsonService : IGeoJsonService
                 minDistance = distance;
                 nearestCity = new Models.CityInfo
                 {
-                    Name = feature.Properties.Name,
-                    Country = feature.Properties.Country,
+                    Name = feature.Properties?.Name,
+                    Country = feature.Properties?.Country,
                     Latitude = cityLat,
                     Longitude = cityLon,
-                    Population = feature.Properties.Population,
+                    Population = feature.Properties?.Population,
                     Distance = distance
                 };
             }
@@ -189,20 +170,24 @@ public class FileGeoJsonService : IGeoJsonService
     {
         var cities = await GetCitiesDataAsync(ct);
 
-        return cities.Features
-            .Where(f => f.Properties?.Name != null &&
-                       f.Properties.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
-            .Take(limit)
-            .Select(f => new Models.CityInfo
+        var result = new List<Models.CityInfo>();
+        foreach (var feature in cities.Features)
+        {
+            if (result.Count >= limit) break;
+            if (feature.Properties?.Name?.Contains(name, StringComparison.OrdinalIgnoreCase) != true) continue;
+            if (feature.Geometry is null || !feature.Geometry.TryGetPoint(out var longitude, out var latitude)) continue;
+
+            result.Add(new Models.CityInfo
             {
-                Name = f.Properties?.Name,
-                Country = f.Properties?.Country,
-                Latitude = f.Properties?.City?.Contains(",") == true ?
-                    double.Parse(f.Properties.City.Split(',')[0]) : 0,
-                Longitude = f.Properties?.City?.Contains(",") == true ?
-                    double.Parse(f.Properties.City.Split(',')[1]) : 0,
-                Population = f.Properties?.Population
+                Name = feature.Properties.Name,
+                Country = feature.Properties.Country,
+                Latitude = latitude,
+                Longitude = longitude,
+                Population = feature.Properties.Population
             });
+        }
+
+        return result;
     }
 
     public void ClearCache()
@@ -329,7 +314,6 @@ public class FileGeoJsonService : IGeoJsonService
                 {
                     Name = c.name,
                     Country = c.country,
-                    City = $"{c.lat},{c.lng}",
                     Population = c.population
                 }
             })
@@ -339,25 +323,13 @@ public class FileGeoJsonService : IGeoJsonService
     }
 
     /// <summary>
-    /// Проверяет, находится ли точка внутри полигона
+    /// Проверяет, находится ли точка внутри полигона: внутри внешнего кольца и вне всех дыр
     /// </summary>
-    private bool IsPointInPolygon(double latitude, double longitude, double[][][]? polygon)
+    private bool IsPointInPolygon(double latitude, double longitude, double[][][] polygon)
     {
-        if (polygon == null || polygon.Length == 0) return false;
+        if (polygon.Length == 0 || !IsPointInRing(latitude, longitude, polygon[0])) return false;
 
-        return polygon.Any(ring =>
-            IsPointInRing(latitude, longitude, ring));
-    }
-
-    /// <summary>
-    /// Проверяет, находится ли точка внутри полигона с отверстиями
-    /// </summary>
-    private bool IsPointInMultiPolygon(double latitude, double longitude, double[][][][]? multiPolygon)
-    {
-        if (multiPolygon == null || multiPolygon.Length == 0) return false;
-
-        return multiPolygon.Any(polygon =>
-            IsPointInPolygon(latitude, longitude, polygon));
+        return !polygon.Skip(1).Any(hole => IsPointInRing(latitude, longitude, hole));
     }
 
     /// <summary>
