@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <!-- Тексты в Resources/Messages.resx — английские; переводы в Messages.{язык}.resx -->
+    <NeutralLanguage>en</NeutralLanguage>
 
     <!-- Информация о пакете -->
     <PackageId>ZealousMindedPeopleGeo</PackageId>
@@ -110,7 +112,6 @@
 
   <!-- Исходные файлы проекта -->
   <ItemGroup>
-    <!-- Локализация настроена программно без .resx файлов -->
     <!-- Вспомогательные экспериментальные проекты не входят в состав библиотеки -->
     <Compile Remove="experiments\**\*.cs" />
     <Content Remove="experiments\**\*" />

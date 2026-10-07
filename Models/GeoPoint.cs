@@ -1,3 +1,5 @@
+using ZealousMindedPeopleGeo.Resources;
+
 namespace ZealousMindedPeopleGeo.Models;
 
 /// <summary>
@@ -73,27 +75,30 @@ public class GeoPoint
     /// <summary>
     /// Проверяет, можно ли сохранить точку.
     /// </summary>
-    /// <returns><c>null</c>, если точка корректна, иначе текст ошибки.</returns>
+    /// <returns>
+    /// <c>null</c>, если точка корректна, иначе текст ошибки на языке
+    /// <see cref="System.Globalization.CultureInfo.CurrentUICulture"/>.
+    /// </returns>
     public string? Validate()
     {
         if (string.IsNullOrWhiteSpace(Id))
         {
-            return "Point Id is required";
+            return Messages.PointIdRequired;
         }
 
         if (Id.Length > MaxIdLength)
         {
-            return $"Point Id is longer than {MaxIdLength} characters";
+            return Messages.PointIdTooLong(MaxIdLength);
         }
 
         if (!double.IsFinite(Latitude) || Latitude is < -90 or > 90)
         {
-            return $"Point '{Id}': latitude {Latitude} is outside -90..90";
+            return Messages.PointLatitudeOutOfRange(Id, Latitude);
         }
 
         if (!double.IsFinite(Longitude) || Longitude is < -180 or > 180)
         {
-            return $"Point '{Id}': longitude {Longitude} is outside -180..180";
+            return Messages.PointLongitudeOutOfRange(Id, Longitude);
         }
 
         // Те же пределы, что у столбцов БД: хранилища принимают одни и те же точки.
@@ -117,6 +122,6 @@ public class GeoPoint
 
     private string? TooLong(string field, string? value, int maxLength) =>
         value is not null && value.Length > maxLength
-            ? $"Point '{Id}': {field} is longer than {maxLength} characters"
+            ? Messages.PointFieldTooLong(Id, field, maxLength)
             : null;
 }

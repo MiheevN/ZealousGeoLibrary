@@ -157,6 +157,7 @@ public class GeoPointGeoJsonTests
               ]
             }
             """;
+        using var english = new CultureScope("en");
 
         var read = GeoPointGeoJson.Read(json);
 
@@ -181,6 +182,7 @@ public class GeoPointGeoJsonTests
               "properties": { "title": "Офис", "category": "Офисы" }
             }
             """;
+        using var english = new CultureScope("en");
 
         var read = GeoPointGeoJson.Read(json);
 
@@ -217,6 +219,7 @@ public class GeoPointGeoJsonTests
     public void Read_TooLongField_IsSkippedWithValidationMessage()
     {
         var json = GeoPointGeoJson.Write(new[] { new GeoPoint { Id = "long", Latitude = 1, Longitude = 1, Category = new string('x', GeoPoint.MaxCategoryLength + 1) } });
+        using var english = new CultureScope("en");
 
         var read = GeoPointGeoJson.Read(json);
 

@@ -1,3 +1,5 @@
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
 using ZealousMindedPeopleGeo;
 using ZealousMindedPeopleGeo.Showcase.Components;
 
@@ -16,6 +18,18 @@ builder.Services.AddZealousMindedPeopleGeo();
 var app = builder.Build();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+// Сообщения библиотеки (например, почему объект GeoJSON не загрузился) выходят на
+// языке CurrentUICulture: здесь — на языке браузера, если он есть среди переводов,
+// иначе по-русски, как вся витрина; ?ui-culture=en в адресе выбирает язык явно.
+// Формат чисел и дат не меняется. App.razor запоминает язык в cookie для схемы Blazor.
+var messageLanguages = new[] { new CultureInfo("ru"), new CultureInfo("en") };
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(CultureInfo.CurrentCulture, messageLanguages[0]),
+    SupportedCultures = new[] { CultureInfo.CurrentCulture },
+    SupportedUICultures = messageLanguages
+});
 
 // Необязательно: офлайн-кэш. Без этого заголовка сайт и установка PWA работают,
 // но сервис-воркер библиотеки не регистрируется (см. README, раздел PWA).

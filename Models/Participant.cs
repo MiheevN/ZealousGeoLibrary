@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ZealousMindedPeopleGeo.Validation;
 
 namespace ZealousMindedPeopleGeo.Models;
 
@@ -17,8 +18,11 @@ public class Participant
     [StringLength(200, ErrorMessage = "Адрес не может превышать 200 символов")]
     public string Address { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Email обязателен для заполнения")]
-    [EmailAddress(ErrorMessage = "Некорректный адрес электронной почты")]
+    /// <summary>
+    /// Email участника, необязательный: пустая строка — не указан. Указанный email
+    /// виден всем в подсказке и карточке точки на карте.
+    /// </summary>
+    [OptionalEmailAddress(ErrorMessage = "Некорректный адрес электронной почты")]
     [StringLength(254, ErrorMessage = "Email не может превышать 254 символа")]
     public string Email { get; set; } = string.Empty;
 
@@ -80,8 +84,8 @@ public class ParticipantRegistrationModel
     [StringLength(100, ErrorMessage = "Имя не может превышать 100 символов")]
     public string Name { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Email обязателен для заполнения")]
-    [EmailAddress(ErrorMessage = "Некорректный адрес электронной почты")]
+    /// <summary>Необязательный email: пустая строка — не указан.</summary>
+    [OptionalEmailAddress(ErrorMessage = "Некорректный адрес электронной почты")]
     [StringLength(254, ErrorMessage = "Email не может превышать 254 символа")]
     public string Email { get; set; } = string.Empty;
 
