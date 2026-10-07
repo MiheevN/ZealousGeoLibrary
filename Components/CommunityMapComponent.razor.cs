@@ -110,6 +110,21 @@ public partial class CommunityMapComponent : IAsyncDisposable
     /// </summary>
     [Parameter] public double? CenterLongitude { get; set; }
 
+    /// <summary>
+    /// Сливать близкие маркеры в группы со счётчиком. Если не задано, берётся из
+    /// <see cref="MapConfiguration.ClusterPoints"/> (по умолчанию включено).
+    /// Меняется без пересоздания карты.
+    /// </summary>
+    [Parameter] public bool? ClusterPoints { get; set; }
+
+    /// <summary>
+    /// Расстояние между центрами маркеров в пикселях, ближе которого они сливаются
+    /// в группу. Если не задано, берётся из <see cref="MapConfiguration.ClusterRadius"/>
+    /// (по умолчанию 24 — сливаются только маркеры, которые иначе налезли бы друг на друга).
+    /// Меняется без пересоздания карты.
+    /// </summary>
+    [Parameter] public int? ClusterRadius { get; set; }
+
     private const string MapScriptPath = "/_content/ZealousMindedPeopleGeo/js/community-map.js";
 
     // Точки уходят в JS одним JSON: свойства с camelCase, ключи Properties как есть.
@@ -135,6 +150,9 @@ public partial class CommunityMapComponent : IAsyncDisposable
     private string? _loadedContainerId;
     private object? _loadedCategoryColors;
 
+    // Группировка, с которой работает карта в JS.
+    private (bool Enabled, int Radius) _appliedClustering;
+
     private string ParticipantsPanelId => $"{MapId}-participants";
 
     private IEnumerable<GeoPoint> VisiblePoints =>
@@ -145,11 +163,20 @@ public partial class CommunityMapComponent : IAsyncDisposable
         _participantsListOpen = ParticipantsListOpen;
     }
 
+    private (bool Enabled, int Radius) Clustering => (
+        ClusterPoints ?? Options.Value.Map?.ClusterPoints ?? true,
+        Math.Clamp(ClusterRadius ?? Options.Value.Map?.ClusterRadius ?? MapConfiguration.DefaultClusterRadius, 0, 200));
+
     protected override async Task OnParametersSetAsync()
     {
         if (!_mapReady)
         {
             return;
+        }
+
+        if (Clustering != _appliedClustering)
+        {
+            await ApplyClusteringAsync();
         }
 
         if (!ReferenceEquals(_loadedPoints, Points)
@@ -193,6 +220,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
             // Обработчик кликов передаётся каждой карте свой: общий setDotNetHelper
             // отправлял клики всех карт страницы последней из них.
             _dotNetRef = DotNetObjectReference.Create(this);
+            _appliedClustering = Clustering;
             await JSRuntime.InvokeVoidAsync(
                 "initializeCommunityMap",
                 // Первый аргумент (ключ Google Maps) скрипт игнорирует. Ключ из настроек
@@ -203,7 +231,14 @@ public partial class CommunityMapComponent : IAsyncDisposable
                 zoom,
                 MapId,
                 // JS принимает имя проекции без учёта регистра: "EqualEarth", "Equirectangular".
-                new { projection = projection.ToString(), centralMeridian, dotNetHelper = _dotNetRef });
+                new
+                {
+                    projection = projection.ToString(),
+                    centralMeridian,
+                    clustering = _appliedClustering.Enabled,
+                    clusterRadius = _appliedClustering.Radius,
+                    dotNetHelper = _dotNetRef
+                });
 
             await PushPointsAsync();
             _mapReady = true;
@@ -309,6 +344,26 @@ public partial class CommunityMapComponent : IAsyncDisposable
         });
 
         await JSRuntime.InvokeVoidAsync("loadPointsOnMap", JsonSerializer.Serialize(payload, PointJsonOptions), MapId);
+    }
+
+    private async Task ApplyClusteringAsync()
+    {
+        _appliedClustering = Clustering;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync(
+                "setCommunityMapClustering",
+                new { clustering = _appliedClustering.Enabled, clusterRadius = _appliedClustering.Radius },
+                MapId);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Страница закрыта: обновлять нечего.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка смены группировки карты {MapId}", MapId);
+        }
     }
 
     private void HandleContainerChanged(string containerId, GeoDataChangeType changeType)

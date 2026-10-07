@@ -36,6 +36,36 @@ const PROJECTIONS = {
 const WORLD_LAND_PATHS = buildWorldLandPaths();
 // Цвет маркера, если у точки нет своего (совпадает с GeoPointPalette.DefaultColor).
 const DEFAULT_MARKER_COLOR = '#24dce7';
+// Тот же шаблон, что GeoPointPalette.IsCssColor: цвет из данных попадает и в canvas, и в style подсказки.
+const CSS_COLOR_PATTERN = /^(#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|[a-zA-Z]{3,30}|(rgb|rgba|hsl|hsla)\([0-9.,%\s/deg]+\))$/;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 20;
+// Шаг приближения колесом и кнопками.
+const ZOOM_STEP = 1.25;
+
+// Размеры маркеров в CSS-пикселях.
+const POINT_RADIUS = 9;
+const POINT_HOVER_RADIUS = 11;
+// Попасть по маркеру можно чуть за его краем.
+const HIT_SLOP = 4;
+// Значок группы растёт с числом точек от CLUSTER_MIN_RADIUS до CLUSTER_MAX_RADIUS.
+const CLUSTER_MIN_RADIUS = 11;
+const CLUSTER_MAX_RADIUS = 21;
+// Наименьший просвет между краями соседних значков: ближе — и они сливаются в группу.
+const CLUSTER_GAP = 6;
+// По умолчанию в группу сливаются только маркеры, которые иначе соприкоснулись бы.
+const DEFAULT_CLUSTER_RADIUS = 2 * POINT_RADIUS + CLUSTER_GAP;
+const MAX_CLUSTER_RADIUS = 200;
+// Слитая группа может налезть на соседа, поэтому слияние повторяется, пока
+// есть что сливать. Обычно хватает двух-трёх проходов.
+const MAX_CLUSTER_PASSES = 12;
+// Сколько заголовков показывает подсказка группы.
+const CLUSTER_TOOLTIP_TITLES = 8;
+// Раскрытая «веером» группа: до SPIDER_CIRCLE_MAX точек — по кругу, больше — по спирали.
+const SPIDER_CIRCLE_MAX = 8;
+const SPIDER_FOOT_SPACING = 26;
+const SPIDER_MIN_LEG = 30;
+const SPIDER_SPIRAL_START = 24;
 // Подписи свойств участника в подсказке (ключи ParticipantPointProperties).
 const PROPERTY_LABELS = {
     email: '📧 Email:',
@@ -57,7 +87,8 @@ window.setDotNetHelper = (helper) => {
     dotNetHelper = helper;
 };
 
-// options: { projection: 'equalEarth' | 'equirectangular', centralMeridian: градусы }.
+// options: { projection: 'equalEarth' | 'equirectangular', centralMeridian: градусы,
+// clustering: группировать близкие маркеры (по умолчанию true), clusterRadius: пиксели }.
 window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId, options) => {
     // apiKey оставлен в сигнатуре для обратной совместимости и игнорируется:
     // карта работает полностью локально, без обращений к Google Maps.
@@ -78,6 +109,7 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
         zoom: numberOrDefault(zoom, 2),
         projection: options?.projection,
         centralMeridian: numberOrDefault(options?.centralMeridian, 0),
+        clustering: normalizeClusterOptions(options),
         // Обработчик кликов этой карты. Общий setDotNetHelper остаётся для прежнего кода,
         // но с ним клик по любой карте страницы уходил последней инициализированной.
         dotNetHelper: options?.dotNetHelper ?? null
@@ -119,6 +151,12 @@ window.loadParticipantsOnMap = (participantsJson, containerId) => {
     } catch (error) {
         console.error('Ошибка загрузки участников на карту:', error);
     }
+};
+
+// options: { clustering: true | false, clusterRadius: пиксели }. Поля, которых
+// нет, остаются прежними.
+window.setCommunityMapClustering = (options, containerId) => {
+    resolveInstance(containerId)?.setClustering(options);
 };
 
 window.centerMapOnUserLocation = (containerId) => {
@@ -168,6 +206,7 @@ window.disposeCommunityMap = (containerId) => {
 window.CommunityMapUtils = {
     initializeCommunityMap: window.initializeCommunityMap,
     loadParticipantsOnMap: window.loadParticipantsOnMap,
+    setCommunityMapClustering: window.setCommunityMapClustering,
     centerMapOnUserLocation: window.centerMapOnUserLocation,
     focusOnParticipant: window.focusOnParticipant,
     disposeCommunityMap: window.disposeCommunityMap,
@@ -219,6 +258,14 @@ function createMapInstance(container, initialState) {
         tooltip,
         controls,
         points: [],
+        // Растёт при каждой смене точек: по нему узнаём, что группы устарели.
+        pointsVersion: 0,
+        clustering: initialState.clustering,
+        // Группы маркеров для текущего масштаба и точка, раскрытая веером.
+        groupCache: null,
+        spider: null,
+        // Маркеры, нарисованные в последнем кадре, сверху вниз — для попадания мышью.
+        hitTargets: [],
         dotNetHelper: initialState.dotNetHelper,
         userLocation: null,
         focused: null,
@@ -237,8 +284,10 @@ function createMapInstance(container, initialState) {
         // Состояние перетаскивания
         dragging: false,
         dragStart: null,
-        // Кеш hover-маркера
-        hoveredPointIndex: -1,
+        // Карту сдвинули: отпускание кнопки — не клик по маркеру.
+        dragMoved: false,
+        // Ключ маркера под указателем
+        hoveredKey: null,
         // Подписки на события
         listeners: []
     };
@@ -267,7 +316,7 @@ function createMapInstance(container, initialState) {
     const onWheel = (event) => {
         event.preventDefault();
         const direction = event.deltaY > 0 ? -1 : 1;
-        const factor = direction > 0 ? 1.25 : 1 / 1.25;
+        const factor = direction > 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
         const rect = canvas.getBoundingClientRect();
         const pointer = {
             x: event.clientX - rect.left,
@@ -283,6 +332,7 @@ function createMapInstance(container, initialState) {
         }
         const view = getView(state);
         state.dragging = true;
+        state.dragMoved = false;
         state.dragStart = {
             x: event.clientX,
             y: event.clientY,
@@ -295,6 +345,9 @@ function createMapInstance(container, initialState) {
 
     const onPointerMove = (event) => {
         if (state.dragging && state.dragStart) {
+            if (Math.hypot(event.clientX - state.dragStart.x, event.clientY - state.dragStart.y) > 3) {
+                state.dragMoved = true;
+            }
             const scale = viewScale(state);
             state.centerX = state.dragStart.centerX - (event.clientX - state.dragStart.x) / scale;
             state.centerY = state.dragStart.centerY + (event.clientY - state.dragStart.y) / scale;
@@ -316,15 +369,32 @@ function createMapInstance(container, initialState) {
     };
 
     const onClick = (event) => {
+        if (state.dragMoved) {
+            state.dragMoved = false;
+            return;
+        }
         const rect = canvas.getBoundingClientRect();
         const pointer = {
             x: event.clientX - rect.left,
             y: event.clientY - rect.top
         };
-        const index = findPointAt(state, pointer);
-        if (index >= 0) {
-            notifyPointClick(state, state.points[index]);
+        const target = findTargetAt(state, pointer);
+        if (!target) {
+            // Клик мимо маркеров сворачивает раскрытую группу.
+            if (state.spider) {
+                state.spider = null;
+                draw();
+            }
+            return;
         }
+        if (target.type === 'cluster') {
+            expandCluster(state, target.group);
+            state.hoveredKey = null;
+            hideTooltip(state);
+            draw();
+            return;
+        }
+        notifyPointClick(state, state.points[target.pointIndex]);
     };
 
     canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -338,11 +408,11 @@ function createMapInstance(container, initialState) {
     canvas.style.cursor = 'grab';
 
     controls.zoomIn.addEventListener('click', () => {
-        zoomAt(state, 1.25, { x: state.width / 2, y: state.height / 2 });
+        zoomAt(state, ZOOM_STEP, { x: state.width / 2, y: state.height / 2 });
         draw();
     });
     controls.zoomOut.addEventListener('click', () => {
-        zoomAt(state, 1 / 1.25, { x: state.width / 2, y: state.height / 2 });
+        zoomAt(state, 1 / ZOOM_STEP, { x: state.width / 2, y: state.height / 2 });
         draw();
     });
     controls.reset.addEventListener('click', () => {
@@ -362,7 +432,15 @@ function createMapInstance(container, initialState) {
         projection: projection.name,
         setPoints(list) {
             state.points = Array.isArray(list) ? list.slice() : [];
-            state.hoveredPointIndex = -1;
+            state.pointsVersion += 1;
+            state.spider = null;
+            state.hoveredKey = null;
+            hideTooltip(state);
+            draw();
+        },
+        setClustering(options) {
+            state.clustering = normalizeClusterOptions(options, state.clustering);
+            state.spider = null;
             hideTooltip(state);
             draw();
         },
@@ -431,7 +509,20 @@ function createZoomControls(container) {
 
 function clampZoom(value) {
     const fallback = Number.isFinite(value) ? value : 2;
-    return Math.min(20, Math.max(1, fallback));
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, fallback));
+}
+
+// Настройки группировки из options; поля, которых нет, берутся из current.
+function normalizeClusterOptions(options, current) {
+    const base = current ?? { enabled: true, radius: DEFAULT_CLUSTER_RADIUS };
+    const enabled = typeof options?.clustering === 'boolean' ? options.clustering : base.enabled;
+    const radius = Number(options?.clusterRadius);
+    return {
+        enabled,
+        radius: Number.isFinite(radius) && options?.clusterRadius !== null
+            ? Math.min(MAX_CLUSTER_RADIUS, Math.max(0, radius))
+            : base.radius
+    };
 }
 
 function clampLat(value) {
@@ -620,6 +711,10 @@ function projectToCanvas(state, lat, lng) {
 // в каждой видимой копии мира.
 function projectToCanvasCopies(state, view, lat, lng) {
     const [x, y] = projectPoint(state, lat, lng);
+    return projectedToCanvasCopies(state, view, x, y);
+}
+
+function projectedToCanvasCopies(state, view, x, y) {
     return worldCopyOffsets(state, view).map((offset) => toCanvas(state, view, x + offset, y));
 }
 
@@ -706,6 +801,353 @@ function densifyRing(ring, step) {
     return points;
 }
 
+// --- Группировка маркеров -----------------------------------------------
+// Маркеры, которые на экране налезли бы друг на друга, сливаются в группу со
+// счётчиком. Группы считаются в пикселях текущего масштаба, но от сдвига карты
+// не зависят: при перетаскивании они не пересчитываются и не «прыгают».
+
+// Группы для текущего масштаба: { key, count, members, x, y }, где members —
+// индексы state.points, а x, y — центр группы в координатах проекции.
+function getMarkerGroups(state, view) {
+    const { clustering } = state;
+    const focus = state.focused ? `${state.focused.lat},${state.focused.lng}` : '';
+    const cacheKey = `${state.pointsVersion}|${view.scale}|${clustering.enabled}|${clustering.radius}|${focus}`;
+    if (state.groupCache?.key === cacheKey) {
+        return state.groupCache.groups;
+    }
+
+    const projected = state.points.map((point) => projectPoint(state, point.latitude, point.longitude));
+    const single = (index) => ({
+        key: String(index),
+        count: 1,
+        members: [index],
+        x: projected[index][0],
+        y: projected[index][1]
+    });
+
+    let groups;
+    if (!clustering.enabled) {
+        groups = state.points.map((_, index) => single(index));
+    } else {
+        // Точку, на которой сфокусирована карта, не прячем в группу.
+        const free = [];
+        const pinned = [];
+        state.points.forEach((point, index) => (isFocusedPoint(state, point) ? pinned : free).push(index));
+        const period = state.projection.wrapsHorizontally ? state.projection.period * view.scale : 0;
+        const clusters = clusterMarkers(
+            free.map((index) => ({ x: projected[index][0] * view.scale, y: projected[index][1] * view.scale })),
+            { radius: clustering.radius, period });
+        groups = clusters.map((cluster) => {
+            const members = cluster.members.map((index) => free[index]);
+            if (cluster.count === 1) {
+                return single(members[0]);
+            }
+            return {
+                key: members.join(','),
+                count: cluster.count,
+                members,
+                x: cluster.x / view.scale,
+                y: cluster.y / view.scale
+            };
+        }).concat(pinned.map(single));
+    }
+
+    state.groupCache = { key: cacheKey, groups };
+    return groups;
+}
+
+function isFocusedPoint(state, point) {
+    return Boolean(state.focused)
+        && Math.abs(point.latitude - state.focused.lat) < 1e-9
+        && Math.abs(point.longitude - state.focused.lng) < 1e-9;
+}
+
+// Ключ маркера для подсветки: точка — по индексу, группа — по составу.
+function markerKey(group) {
+    return group.count === 1 ? `p:${group.members[0]}` : `c:${group.key}`;
+}
+
+// Радиус значка группы из count точек; одиночная точка — обычный маркер.
+function clusterBadgeRadius(count) {
+    if (count <= 1) {
+        return POINT_RADIUS;
+    }
+    return Math.min(CLUSTER_MAX_RADIUS, CLUSTER_MIN_RADIUS + 2.5 * Math.log2(count));
+}
+
+// items — маркеры { x, y } в пикселях; options.radius — расстояние между
+// центрами, ближе которого маркеры сливаются, options.period — период по x
+// у склеивающейся проекции (0 — нет). Две группы сливаются, если их центры
+// ближе radius или их значки не помещаются рядом с просветом CLUSTER_GAP.
+// Возвращает группы { x, y, count, members } с индексами items по возрастанию.
+function clusterMarkers(items, options = {}) {
+    const radius = Math.max(0, Number(options.radius) || 0);
+    const period = options.period > 0 ? options.period : 0;
+    const separation = (a, b) =>
+        Math.max(radius, clusterBadgeRadius(a.count) + clusterBadgeRadius(b.count) + CLUSTER_GAP);
+    // Ячейка сетки не меньше наибольшего порога: соседей ищем в соседних ячейках.
+    const cellSize = Math.max(radius, 2 * CLUSTER_MAX_RADIUS + CLUSTER_GAP);
+
+    let groups = items.map((item, index) => ({
+        x: period ? wrapPeriodic(item.x, period) : item.x,
+        y: item.y,
+        count: 1,
+        members: [index]
+    }));
+    for (let pass = 0; pass < MAX_CLUSTER_PASSES; pass += 1) {
+        const merged = mergeNearbyGroups(groups, separation, cellSize, period);
+        if (merged.length === groups.length) {
+            break;
+        }
+        groups = merged;
+    }
+    groups.forEach((group) => group.members.sort((a, b) => a - b));
+    return groups;
+}
+
+// Один жадный проход: каждая ещё не занятая группа (крупные — первыми)
+// забирает близких соседей, а её центр становится средним по всем точкам.
+function mergeNearbyGroups(groups, separation, cellSize, period) {
+    const grid = buildClusterGrid(groups, cellSize, period);
+    const order = groups.map((_, index) => index)
+        .sort((a, b) => groups[b].count - groups[a].count || a - b);
+    const taken = new Uint8Array(groups.length);
+    const result = [];
+
+    for (const index of order) {
+        if (taken[index]) {
+            continue;
+        }
+        taken[index] = 1;
+        const seed = groups[index];
+        let count = seed.count;
+        let shiftX = 0;
+        let shiftY = 0;
+        let members = null;
+
+        grid.forEachNear(seed, (otherIndex) => {
+            if (taken[otherIndex]) {
+                return;
+            }
+            const other = groups[otherIndex];
+            const dx = period ? wrapPeriodic(other.x - seed.x, period) : other.x - seed.x;
+            const dy = other.y - seed.y;
+            const limit = separation(seed, other);
+            if (dx * dx + dy * dy >= limit * limit) {
+                return;
+            }
+            taken[otherIndex] = 1;
+            shiftX += dx * other.count;
+            shiftY += dy * other.count;
+            count += other.count;
+            members ??= seed.members.slice();
+            other.members.forEach((member) => members.push(member));
+        });
+
+        if (!members) {
+            result.push(seed);
+            continue;
+        }
+        const x = seed.x + shiftX / count;
+        result.push({ x: period ? wrapPeriodic(x, period) : x, y: seed.y + shiftY / count, count, members });
+    }
+    return result;
+}
+
+// Сетка с ячейками cellSize: соседи группы — в её ячейке и восьми вокруг.
+// У склеивающейся проекции столбцы замкнуты в кольцо.
+function buildClusterGrid(groups, cellSize, period) {
+    const columns = period ? Math.max(1, Math.floor(period / cellSize)) : 0;
+    const cellWidth = period ? period / columns : cellSize;
+    const columnOf = (x) => (period
+        ? Math.min(columns - 1, Math.max(0, Math.floor((x + period / 2) / cellWidth)))
+        : Math.floor(x / cellWidth));
+    const rowOf = (y) => Math.floor(y / cellSize);
+    const cells = new Map();
+    groups.forEach((group, index) => {
+        const key = `${columnOf(group.x)}:${rowOf(group.y)}`;
+        const cell = cells.get(key);
+        if (cell) {
+            cell.push(index);
+        } else {
+            cells.set(key, [index]);
+        }
+    });
+
+    return {
+        forEachNear(group, visit) {
+            const column = columnOf(group.x);
+            const row = rowOf(group.y);
+            const nearColumns = new Set([column - 1, column, column + 1]
+                .map((value) => (period ? ((value % columns) + columns) % columns : value)));
+            nearColumns.forEach((nearColumn) => {
+                for (let nearRow = row - 1; nearRow <= row + 1; nearRow += 1) {
+                    cells.get(`${nearColumn}:${nearRow}`)?.forEach(visit);
+                }
+            });
+        }
+    };
+}
+
+// Доли цветов в группе в порядке первого появления: [{ color, count }].
+function clusterColorShares(members, points) {
+    const shares = new Map();
+    members.forEach((index) => {
+        const color = markerColor(points[index]);
+        shares.set(color, (shares.get(color) ?? 0) + 1);
+    });
+    return Array.from(shares, ([color, count]) => ({ color, count }));
+}
+
+function formatClusterCount(count) {
+    if (count < 1000) {
+        return String(count);
+    }
+    if (count < 10000) {
+        return `${(Math.floor(count / 100) / 10).toString()}k`;
+    }
+    return `${Math.floor(count / 1000)}k`;
+}
+
+// Смещения точек раскрытой группы от её центра, в пикселях. Соседние точки
+// отстоят друг от друга не меньше чем на SPIDER_FOOT_SPACING.
+function spiderOffsets(count) {
+    const offsets = [];
+    if (count <= SPIDER_CIRCLE_MAX) {
+        // Хорда между соседями на круге не короче SPIDER_FOOT_SPACING.
+        const leg = Math.max(SPIDER_MIN_LEG, SPIDER_FOOT_SPACING / (2 * Math.sin(Math.PI / Math.max(count, 2))));
+        for (let i = 0; i < count; i += 1) {
+            const angle = -Math.PI / 2 + (2 * Math.PI * i) / count;
+            offsets.push({ x: leg * Math.cos(angle), y: leg * Math.sin(angle) });
+        }
+        return offsets;
+    }
+    // Спираль Архимеда r = r0 + bθ: витки отстоят друг от друга на тот же шаг,
+    // что и соседние точки на витке.
+    const turnStep = SPIDER_FOOT_SPACING / (2 * Math.PI);
+    let angle = 0;
+    for (let i = 0; i < count; i += 1) {
+        const leg = SPIDER_SPIRAL_START + turnStep * angle;
+        offsets.push({ x: leg * Math.cos(angle), y: leg * Math.sin(angle) });
+        angle += SPIDER_FOOT_SPACING / leg;
+    }
+    return offsets;
+}
+
+// Что сделает клик по группе. Если точки разойдутся при приближении — карта
+// приблизится шагами колеса ровно настолько, чтобы группа распалась, и встанет
+// по центру группы ({ mode: 'zoom', zoom, centerX, centerY }). Если не разойдутся
+// и на наибольшем приближении (одинаковые или почти одинаковые координаты) —
+// группа раскроется веером ({ mode: 'spider' }). Результат хранится в группе:
+// группы пересчитываются при любой смене масштаба.
+function clusterExpansion(state, group) {
+    if (!group.expansion) {
+        group.expansion = computeClusterExpansion(state, group);
+    }
+    return group.expansion;
+}
+
+function computeClusterExpansion(state, group) {
+    const { projection } = state;
+    // Координаты точек группы без разрыва на линии перемены даты.
+    const members = group.members.map((index) => {
+        const point = state.points[index];
+        const [x, y] = projectPoint(state, point.latitude, point.longitude);
+        return {
+            x: projection.wrapsHorizontally ? group.x + wrapPeriodic(x - group.x, projection.period) : x,
+            y
+        };
+    });
+    const xs = members.map(({ x }) => x);
+    const ys = members.map(({ y }) => y);
+    const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+    // Масштаб пропорционален приближению. Ступени — как у колеса, последняя —
+    // наибольшее приближение.
+    const scalePerZoom = getView(state).scale / state.zoom;
+    const zooms = [];
+    for (let zoom = state.zoom * ZOOM_STEP; zoom < MAX_ZOOM; zoom *= ZOOM_STEP) {
+        zooms.push(zoom);
+    }
+    zooms.push(MAX_ZOOM);
+    const splits = (zoom) => {
+        const scale = scalePerZoom * zoom;
+        const parts = clusterMarkers(
+            members.map(({ x, y }) => ({ x: x * scale, y: y * scale })),
+            { radius: state.clustering.radius });
+        return parts.length > 1;
+    };
+
+    if (state.zoom >= MAX_ZOOM || !splits(MAX_ZOOM)) {
+        return { mode: 'spider' };
+    }
+    // Чем ближе, тем дальше точки друг от друга: ищем первую ступень делением пополам.
+    let low = 0;
+    let high = zooms.length - 1;
+    while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (splits(zooms[middle])) {
+            high = middle;
+        } else {
+            low = middle + 1;
+        }
+    }
+    return { mode: 'zoom', zoom: zooms[low], centerX, centerY };
+}
+
+function expandCluster(state, group) {
+    const expansion = clusterExpansion(state, group);
+    if (expansion.mode === 'spider') {
+        state.spider = { key: group.key };
+        return;
+    }
+    state.spider = null;
+    state.zoom = expansion.zoom;
+    state.centerX = expansion.centerX;
+    state.centerY = expansion.centerY;
+    commitView(state);
+}
+
+function renderClusterTooltip(group, points, mode) {
+    const shown = group.members.slice(0, CLUSTER_TOOLTIP_TITLES);
+    const rows = shown.map((index) => {
+        const point = points[index];
+        return `
+            <li style="display: flex; align-items: center; gap: 8px; margin: 5px 0; color: #b8c2d0; line-height: 1.35;">
+                <span style="flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${markerColor(point)};"></span>
+                <span>${escapeHtml(point.title || 'Точка')}</span>
+            </li>
+        `;
+    });
+    const rest = group.count - shown.length;
+    const hint = mode === 'spider' ? 'Нажмите, чтобы раскрыть' : 'Нажмите, чтобы приблизить';
+
+    return `
+        <div class="zgl-info-window" style="background: #171a1f; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38); color: #f4f7fb; font-family: Arial, sans-serif; max-width: 320px; padding: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #24dce7; font-size: 16px;">${group.count} ${pluralizePoints(group.count)}</h4>
+            <ul style="list-style: none; margin: 0; padding: 0;">${rows.join('')}</ul>
+            ${rest > 0 ? `<p style="margin: 6px 0 0 0; color: #b8c2d0;">и ещё ${rest}</p>` : ''}
+            <p style="margin: 10px 0 0 0; color: #8a94a6; font-size: 12px;">${hint}</p>
+        </div>
+    `;
+}
+
+function pluralizePoints(count) {
+    const tens = count % 100;
+    const units = count % 10;
+    if (tens >= 11 && tens <= 14) {
+        return 'точек';
+    }
+    if (units === 1) {
+        return 'точка';
+    }
+    if (units >= 2 && units <= 4) {
+        return 'точки';
+    }
+    return 'точек';
+}
+
 // --- Отрисовка ------------------------------------------------------------
 
 function drawScene(state) {
@@ -740,7 +1182,7 @@ function drawScene(state) {
         ctx.restore();
     }
 
-    drawPoints(state, view);
+    drawMarkers(state, view);
     drawUserLocation(state, view);
     drawFocusedParticipant(state, view);
 }
@@ -846,34 +1288,148 @@ function isOnScreen(state, point, margin) {
         && point.y >= -margin && point.y <= state.height + margin;
 }
 
-function drawPoints(state, view) {
+// Рисует точки и группы точек и запоминает, где они легли, для попадания мышью.
+function drawMarkers(state, view) {
     const { ctx } = state;
-    state.points.forEach((point, index) => {
-        const radius = state.hoveredPointIndex === index ? 11 : 9;
-        const label = markerLabel(point);
-        const positions = projectToCanvasCopies(state, view, point.latitude, point.longitude);
-        positions.filter((position) => isOnScreen(state, position, 40)).forEach(({ x, y }) => {
+    const groups = getMarkerGroups(state, view);
+    const targets = [];
+    let spiderGroup = null;
+
+    groups.forEach((group) => {
+        if (state.spider && group.key === state.spider.key) {
+            spiderGroup = group;
+            return;
+        }
+        const single = group.count === 1;
+        const key = markerKey(group);
+        const hovered = state.hoveredKey === key;
+        const radius = single
+            ? (hovered ? POINT_HOVER_RADIUS : POINT_RADIUS)
+            : clusterBadgeRadius(group.count) + (hovered ? 2 : 0);
+        projectedToCanvasCopies(state, view, group.x, group.y)
+            .filter((position) => isOnScreen(state, position, 40))
+            .forEach(({ x, y }) => {
+                if (single) {
+                    drawPointMarker(ctx, x, y, radius, state.points[group.members[0]]);
+                    targets.push({ type: 'point', key, pointIndex: group.members[0], x, y, radius: radius + HIT_SLOP });
+                } else {
+                    drawClusterMarker(ctx, x, y, radius, group, state.points);
+                    targets.push({ type: 'cluster', key, group, x, y, radius: radius + HIT_SLOP });
+                }
+            });
+    });
+
+    // Раскрытую группу рисуем поверх остальных. Если такой группы больше нет
+    // (сменился масштаб или данные), веер сворачивается сам.
+    if (state.spider && !spiderGroup) {
+        state.spider = null;
+    }
+    if (spiderGroup) {
+        drawSpider(state, view, spiderGroup, targets);
+    }
+
+    // Последний нарисованный — сверху: проверять попадание с конца.
+    state.hitTargets = targets.reverse();
+}
+
+function drawPointMarker(ctx, x, y, radius, point) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = markerColor(point);
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#0e1013';
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = '#0e1013';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(markerLabel(point), x, y + 0.5);
+    ctx.restore();
+}
+
+// Значок группы: число точек на тёмном круге, а кольцо вокруг поделено между
+// цветами точек пропорционально их числу.
+function drawClusterMarker(ctx, x, y, radius, group, points) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#171a1f';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#0e1013';
+    ctx.stroke();
+    ctx.restore();
+
+    const shares = clusterColorShares(group.members, points);
+    // Между долями — тёмный зазор: соседние цвета различимы и без различения цвета.
+    const gap = shares.length > 1 ? 0.12 : 0;
+    let angle = -Math.PI / 2;
+    ctx.save();
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'butt';
+    shares.forEach(({ color, count }) => {
+        const sweep = (2 * Math.PI * count) / group.count;
+        ctx.beginPath();
+        ctx.arc(x, y, radius - 3, angle + gap / 2, angle + Math.max(sweep - gap / 2, gap / 2 + 0.01));
+        ctx.strokeStyle = color;
+        ctx.stroke();
+        angle += sweep;
+    });
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = '#f4f7fb';
+    ctx.font = `bold ${group.count >= 100 ? 10 : 11}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatClusterCount(group.count), x, y + 0.5);
+    ctx.restore();
+}
+
+// Точки раскрытой группы — веером вокруг её значка, с тонкими «ножками» к центру.
+function drawSpider(state, view, group, targets) {
+    const { ctx } = state;
+    const offsets = spiderOffsets(group.count);
+    projectedToCanvasCopies(state, view, group.x, group.y)
+        .filter((position) => isOnScreen(state, position, 40 + spiderReach(offsets)))
+        .forEach((center) => {
             ctx.save();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-            ctx.shadowBlur = 4;
+            ctx.strokeStyle = 'rgba(244, 247, 251, 0.55)';
+            ctx.lineWidth = 1.5;
+            offsets.forEach((offset) => {
+                ctx.beginPath();
+                ctx.moveTo(center.x, center.y);
+                ctx.lineTo(center.x + offset.x, center.y + offset.y);
+                ctx.stroke();
+            });
             ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = point.color || DEFAULT_MARKER_COLOR;
+            ctx.arc(center.x, center.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#f4f7fb';
             ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#0e1013';
-            ctx.stroke();
             ctx.restore();
 
-            ctx.save();
-            ctx.fillStyle = '#0e1013';
-            ctx.font = 'bold 11px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, x, y + 0.5);
-            ctx.restore();
+            group.members.forEach((pointIndex, index) => {
+                const key = `p:${pointIndex}`;
+                const radius = state.hoveredKey === key ? POINT_HOVER_RADIUS : POINT_RADIUS;
+                const x = center.x + offsets[index].x;
+                const y = center.y + offsets[index].y;
+                drawPointMarker(ctx, x, y, radius, state.points[pointIndex]);
+                targets.push({ type: 'point', key, pointIndex, x, y, radius: radius + HIT_SLOP });
+            });
         });
-    });
+}
+
+function spiderReach(offsets) {
+    return offsets.reduce((max, { x, y }) => Math.max(max, Math.hypot(x, y)), 0);
 }
 
 function drawUserLocation(state, view) {
@@ -922,13 +1478,17 @@ function updateHover(state, event) {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top
     };
-    const index = findPointAt(state, pointer);
-    if (index !== state.hoveredPointIndex) {
-        state.hoveredPointIndex = index;
+    const target = findTargetAt(state, pointer);
+    const key = target ? target.key : null;
+    if (key !== state.hoveredKey) {
+        state.hoveredKey = key;
         drawScene(state);
     }
-    if (index >= 0) {
-        showTooltip(state, state.points[index], pointer);
+    if (target) {
+        const html = target.type === 'cluster'
+            ? renderClusterTooltip(target.group, state.points, clusterExpansion(state, target.group).mode)
+            : renderPointTooltip(state.points[target.pointIndex]);
+        showTooltip(state, html, pointer);
         state.canvas.style.cursor = 'pointer';
     } else {
         hideTooltip(state);
@@ -936,21 +1496,13 @@ function updateHover(state, event) {
     }
 }
 
-function findPointAt(state, pointer) {
-    const view = getView(state);
-    for (let i = state.points.length - 1; i >= 0; i -= 1) {
-        const point = state.points[i];
-        const positions = projectToCanvasCopies(state, view, point.latitude, point.longitude);
-        const hit = positions.some(({ x, y }) => {
-            const dx = pointer.x - x;
-            const dy = pointer.y - y;
-            return dx * dx + dy * dy <= 13 * 13;
-        });
-        if (hit) {
-            return i;
-        }
-    }
-    return -1;
+// Маркер под указателем по раскладке последнего кадра или null.
+function findTargetAt(state, pointer) {
+    return state.hitTargets.find(({ x, y, radius }) => {
+        const dx = pointer.x - x;
+        const dy = pointer.y - y;
+        return dx * dx + dy * dy <= radius * radius;
+    }) ?? null;
 }
 
 // Своя карта знает свой компонент (OnPointMarkerClick). Без него — прежний общий
@@ -963,9 +1515,9 @@ function notifyPointClick(state, point) {
     }
 }
 
-function showTooltip(state, point, pointer) {
+function showTooltip(state, html, pointer) {
     const { tooltip, container } = state;
-    tooltip.innerHTML = renderPointTooltip(point);
+    tooltip.innerHTML = html;
     tooltip.style.display = 'block';
     const containerRect = container.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
@@ -1092,6 +1644,11 @@ function participantToPoint(participant) {
         description: get('Message') ?? null,
         properties
     });
+}
+
+function markerColor(point) {
+    const color = typeof point?.color === 'string' ? point.color.trim() : '';
+    return CSS_COLOR_PATTERN.test(color) ? color : DEFAULT_MARKER_COLOR;
 }
 
 // Подпись внутри маркера: короткая иконка (символ, эмодзи) или первая буква заголовка.

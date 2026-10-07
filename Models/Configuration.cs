@@ -50,6 +50,24 @@ namespace ZealousMindedPeopleGeo.Models
         /// 150 — Тихий океан в центре карты.
         /// </summary>
         public double CentralMeridian { get; set; }
+
+        /// <summary>
+        /// Сливать близкие маркеры 2D-карты в группы со счётчиком. По клику группа
+        /// приближается, а точки с одинаковыми координатами раскрываются веером.
+        /// </summary>
+        public bool ClusterPoints { get; set; } = true;
+
+        /// <summary>
+        /// Расстояние между центрами маркеров в пикселях, ближе которого они сливаются
+        /// в группу (0–200). Маркеры, которые иначе налезли бы друг на друга, сливаются
+        /// при любом значении; по умолчанию — только они.
+        /// </summary>
+        public int ClusterRadius { get; set; } = DefaultClusterRadius;
+
+        /// <summary>
+        /// Радиус группировки по умолчанию: маркеры диаметром 18 пикселей с просветом 6.
+        /// </summary>
+        public const int DefaultClusterRadius = 24;
     }
 
     /// <summary>

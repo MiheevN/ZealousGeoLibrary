@@ -245,6 +245,30 @@ Blazor Web App).
 
 `OnPointClick` получает копию точки, `OnMarkerClick` — её же в виде участника.
 
+#### Группы близких точек
+
+Маркеры, которые на текущем масштабе налезли бы друг на друга, сливаются в значок
+с числом точек. Кольцо значка поделено между цветами его точек, а подсказка
+перечисляет первые восемь заголовков. Клик по значку приближает карту ровно
+настолько, чтобы группа распалась. Точки с одинаковыми или почти одинаковыми
+координатами не разойдутся и на наибольшем приближении: клик раскладывает их
+веером вокруг значка, клик мимо сворачивает веер. При перетаскивании группы не
+пересчитываются и не прыгают.
+
+```razor
+<!-- Сливать маркеры, центры которых ближе 60 пикселей -->
+<CommunityMapComponent Points="_offices" ClusterRadius="60" />
+
+<!-- Без групп -->
+<CommunityMapComponent Points="_offices" ClusterPoints="false" />
+```
+
+`ClusterRadius` — расстояние между центрами маркеров в пикселях (0–200). По
+умолчанию 24: сливаются только маркеры, которые иначе соприкоснулись бы, и меньшее
+значение этого не отменяет. Оба параметра меняются на лету, без пересоздания
+карты. Точка, на которую сфокусирована карта (`focusOnParticipant`), в группу не
+прячется.
+
 Значения по умолчанию для всех карт задаются в `ZealousMindedPeopleGeoOptions.Map`.
 Центр и зум стоит указать явно: у `MapConfiguration` они по умолчанию равны
 Москве и `DefaultZoom = 10`.
@@ -266,8 +290,9 @@ builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
 Без Blazor карта инициализируется напрямую из JavaScript:
 
 ```js
-initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralMeridian: 150 });
+initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralMeridian: 150, clusterRadius: 40 });
 loadPointsOnMap([{ id: 'berlin', latitude: 52.52, longitude: 13.405, title: 'Berlin', color: '#3987e5' }], 'map');
+setCommunityMapClustering({ clustering: false }, 'map');
 ```
 
 `loadParticipantsOnMap` по-прежнему принимает участников в прежнем формате.
@@ -425,12 +450,14 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 | `Map:Projection` | `EqualEarth` | Проекция 2D-карты: `EqualEarth` или `Equirectangular`. |
 | `Map:CentralMeridian` | `0` | Центральный меридиан 2D-карты в градусах, от −180 до 180. |
 | `Map:DefaultLatitude`, `Map:DefaultLongitude`, `Map:DefaultZoom` | см. ниже | Начальный вид 2D-карты; `DefaultZoom = 1` — мир целиком. |
+| `Map:ClusterPoints` | `true` | Сливать близкие маркеры 2D-карты в группы (см. «Группы близких точек»). |
+| `Map:ClusterRadius` | `24` | Расстояние между центрами маркеров в пикселях (0–200), ближе которого они сливаются. |
 
 Без секции `Map` карта открывается на широте 20 и центральном меридиане с зумом 2. Если
 секция `Map` задана, укажите в ней центр и зум явно: иначе действуют значения класса
 `MapConfiguration` — Москва и `DefaultZoom = 10`. Параметры `CommunityMapComponent`
-(`Projection`, `CentralMeridian`, `Zoom`, `CenterLatitude`, `CenterLongitude`) важнее
-настроек.
+(`Projection`, `CentralMeridian`, `Zoom`, `CenterLatitude`, `CenterLongitude`,
+`ClusterPoints`, `ClusterRadius`) важнее настроек.
 
 В `ZealousMindedPeopleGeoOptions` есть ещё `EnableParticipantValidation`,
 `EnableRateLimiting`, `MaxParticipantsPerHour`, `DefaultCulture` и `Map:MapTheme`, но

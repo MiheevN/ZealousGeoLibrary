@@ -7,8 +7,10 @@
         Карта рисуется на Canvas без внешних картографических API. По умолчанию —
         равновеликая проекция Equal Earth, прежняя прямоугольная доступна опцией.
         Точки окрашены по категориям, легенда над картой скрывает и показывает их.
-        Набор данных меняется на лету, а при смене проекции или меридиана компонент
-        создаётся заново.
+        Близкие маркеры сливаются в группы со счётчиком: клик приближает группу,
+        а точки с одинаковыми координатами раскрываются веером.
+        Набор данных и группировка меняются на лету, а при смене проекции или
+        меридиана компонент создаётся заново.
     </Description>
     <Meta>
         <span class="chip">Точек: @_points.Count</span>
@@ -40,6 +42,16 @@
     </div>
 
     <div class="field">
+        <span class="field-label">Группировка</span>
+        <div class="segmented" role="group" aria-label="Группировка">
+            <button type="button" class="@Active(_clusterPoints)" aria-pressed="@_clusterPoints"
+                    @onclick="() => _clusterPoints = true">Вкл</button>
+            <button type="button" class="@Active(!_clusterPoints)" aria-pressed="@(!_clusterPoints)"
+                    @onclick="() => _clusterPoints = false">Выкл</button>
+        </div>
+    </div>
+
+    <div class="field">
         <span class="field-label">Набор данных</span>
         <div class="segmented" role="group" aria-label="Набор данных">
             @foreach (var set in DemoDataSets.All)
@@ -58,6 +70,7 @@
                        ListTitle="Точки"
                        Projection="_projection"
                        CentralMeridian="_centralMeridian"
+                       ClusterPoints="_clusterPoints"
                        Zoom="1"
                        Height="620px"
                        ShowParticipantsList="true" />
@@ -79,6 +92,7 @@
 
     private MapProjection _projection = MapProjection.EqualEarth;
     private int _centralMeridian;
+    private bool _clusterPoints = true;
     private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.FindByKey("tech-hubs")!;
     private List<GeoPoint> _points = DemoDataSets.TechHubs();
 
