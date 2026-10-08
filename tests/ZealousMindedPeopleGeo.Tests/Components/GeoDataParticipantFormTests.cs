@@ -85,12 +85,53 @@ public class GeoDataParticipantFormTests : BunitContext
         Assert.Contains("Visible to everyone", cut.Find("#email-hint").TextContent);
     }
 
+    [Fact]
+    public async Task OnSubmitting_Rejection_ShowsReasonKeepsFieldsAndSavesNothing()
+    {
+        Participant? checkedParticipant = null;
+        var cut = RenderForm(participant =>
+        {
+            checkedParticipant = participant;
+            return Task.FromResult<string?>("Too many points, try again in an hour");
+        });
+
+        Fill(cut, name: "Anna Petrova", email: "", address: "Berlin, Alexanderplatz 1");
+        await cut.Find("form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal("Too many points, try again in an hour", cut.Find("[role=alert]").TextContent.Trim()));
+        Assert.Empty(await Container.GetPointsAsync());
+        Assert.Equal("Anna Petrova", cut.Find("#name").GetAttribute("value"));
+        Assert.NotNull(checkedParticipant);
+        Assert.Equal("Anna Petrova", checkedParticipant.Name);
+        Assert.Equal(52.5219, checkedParticipant.Latitude);
+        Assert.Equal(13.4132, checkedParticipant.Longitude);
+    }
+
+    [Fact]
+    public async Task OnSubmitting_Approval_SavesPoint()
+    {
+        var calls = 0;
+        var cut = RenderForm(_ =>
+        {
+            calls++;
+            return Task.FromResult<string?>(null);
+        });
+
+        Fill(cut, name: "Anna Petrova", email: "", address: "Berlin, Alexanderplatz 1");
+        await cut.Find("form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("Point added successfully", cut.Find("[role=alert]").TextContent));
+        Assert.Equal(1, calls);
+        Assert.Single(await Container.GetPointsAsync());
+    }
+
     private IGeoDataContainer Container => _containers.GetOrCreateContainer(ContainerId);
 
-    private IRenderedComponent<GeoDataParticipantForm> RenderForm() =>
+    private IRenderedComponent<GeoDataParticipantForm> RenderForm(Func<Participant, Task<string?>>? onSubmitting = null) =>
         Render<GeoDataParticipantForm>(p => p
             .Add(c => c.DataContainerId, ContainerId)
-            .Add(c => c.AutoGeocode, false));
+            .Add(c => c.AutoGeocode, false)
+            .Add(c => c.OnSubmitting, onSubmitting));
 
     private static void Fill(IRenderedComponent<GeoDataParticipantForm> cut, string name, string email, string address)
     {
