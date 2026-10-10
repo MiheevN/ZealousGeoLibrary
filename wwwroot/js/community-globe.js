@@ -1,6 +1,4 @@
 // wwwroot/js/community-globe.js
-//import * as THREE from './libs/three.module.js';
-//import { OrbitControls } from './libs/OrbitControls.js';
 import { DEFAULT_LABEL_PIXEL_HEIGHT, calculateLabelScaleForCamera } from './label-scale.js';
 import { layoutLabels, labelTextRect } from './label-layout.js';
 

@@ -8,6 +8,8 @@
 ## [Unreleased] - 2024-12-XX
 
 ### Удалено
+- **Код, которым никто не пользовался:** папка `Interfaces/` (`IDataSource`, `IDataSourceManager`, `IGeocodingServiceSimple` и их модели — набросок, у которого не было ни одной реализации), классы `GlobePointData`, `PointAnimation`, `GlobeCountryData`, `GlobeEvent`, `GlobePerformanceConfig`, три `.bak`-файла, `js/test-globe.js`, `js/globe-initializer.js` и `js/libs/three.core.min.js` (глобус грузит `three.core.js`)
+
 - **Настройки, которые ничего не делали:** `EnableParticipantValidation`, `EnableRateLimiting`, `MaxParticipantsPerHour`, `DefaultCulture` и `Map:MapTheme`. Библиотека их не читала, а `EnableRateLimiting = true` создавал впечатление встроенной защиты. Ограничения — задача приложения (см. `OnSubmitting`), язык сообщений берётся из `CurrentUICulture`. Эти ключи в `appsettings.json` просто игнорируются; код, который их присваивает, надо поправить
 
 - **Устранены дубликаты функциональности (Issue #4)**
