@@ -117,8 +117,7 @@ namespace ZealousMindedPeopleGeo.Services
             {
                 DefaultLatitude = 55.7558, // Москва
                 DefaultLongitude = 37.6176, // Москва
-                DefaultZoom = 10,
-                MapTheme = "default"
+                DefaultZoom = 10
             };
         }
 

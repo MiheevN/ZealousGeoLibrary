@@ -121,6 +121,13 @@
     /// </summary>
     [Parameter] public EventCallback<Participant> OnParticipantAdded { get; set; }
 
+    /// <summary>
+    /// Проверка приложения перед сохранением: вход в систему, капча, ограничение частоты.
+    /// Вызывается с готовым участником (адрес уже найден); <c>null</c> — сохранить,
+    /// строка — не сохранять и показать её пользователю. Сама форма никого не ограничивает.
+    /// </summary>
+    [Parameter] public Func<Participant, Task<string?>>? OnSubmitting { get; set; }
+
     private ParticipantRegistrationModel _model = new();
     private bool _isSubmitting = false;
     private bool _isGeocoding = false;
@@ -169,7 +176,16 @@
                 RegisteredAt = DateTime.UtcNow
             };
 
-            // 3. Сохранение в контейнер гео-данных
+            // 3. Проверка приложения: отказ оставляет поля как есть
+            if (OnSubmitting is not null && await OnSubmitting(participant) is { } rejection)
+            {
+                _statusMessage = rejection;
+                _statusClass = "alert-warning";
+                Logger.LogInformation("Participant '{Name}' rejected by the host: {Reason}", participant.Name, rejection);
+                return;
+            }
+
+            // 4. Сохранение в контейнер гео-данных
             var container = ContainerManager.GetOrCreateContainer(DataContainerId);
             var saveResult = await container.AddParticipantAsync(participant);
 
@@ -183,7 +199,7 @@
 
             Logger.LogInformation("Participant '{Name}' saved to container '{ContainerId}'", participant.Name, DataContainerId);
 
-            // 4. Добавление на глобус (если указан)
+            // 5. Добавление на глобус (если указан)
             if (!string.IsNullOrEmpty(GlobeId) && !string.IsNullOrEmpty(EffectiveGlobeContainerId))
             {
                 var globeResult = await GlobeMediator.AddParticipantAsync(EffectiveGlobeContainerId, participant);
@@ -203,17 +219,17 @@
                 }
             }
 
-            // 5. Успех
+            // 6. Успех
             _statusMessage = "Point added successfully!";
             _statusClass = "alert-success";
 
-            // 6. Callback
+            // 7. Callback
             if (OnParticipantAdded.HasDelegate)
             {
                 await OnParticipantAdded.InvokeAsync(participant);
             }
 
-            // 7. Очистка полей: сообщение об успехе остаётся на экране
+            // 8. Очистка полей: сообщение об успехе остаётся на экране
             ResetFields();
         }
         catch (Exception ex)

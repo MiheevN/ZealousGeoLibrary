@@ -465,9 +465,7 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 (`Projection`, `CentralMeridian`, `Zoom`, `CenterLatitude`, `CenterLongitude`,
 `ClusterPoints`, `ClusterRadius`) важнее настроек.
 
-В `ZealousMindedPeopleGeoOptions` есть ещё `EnableParticipantValidation`,
-`EnableRateLimiting`, `MaxParticipantsPerHour`, `DefaultCulture` и `Map:MapTheme`, но
-библиотека их пока не читает. Глобус настраивается параметрами компонентов и панелью
+Глобус настраивается параметрами компонентов и панелью
 настроек (см. «Настройки глобуса»), длительность кэша — в коде (см. «Кэширование»).
 
 ### Ключи и секреты
@@ -990,6 +988,38 @@ var result = await ContainerManager.LoadToGlobeAsync(
 Обязательны имя и адрес. Email можно не указывать; указанный адрес виден всем в подсказке
 и карточке точки на карте, о чём форма предупреждает под полем.
 
+#### Кто может добавлять точки
+
+Библиотека не ограничивает добавление точек: контейнеры, база и загрузка JSON принимают
+сколько угодно точек — например, сервер может заполнить карту при запуске. Решать, кто и
+как часто добавляет точки, должно приложение. Для формы на открытой странице для этого
+есть `OnSubmitting`: форма вызывает его с готовым участником (адрес уже найден) перед
+сохранением. `null` — сохранить, строка — не сохранять и показать её пользователю; поля
+формы при отказе остаются заполненными.
+
+```razor
+<GeoDataParticipantForm DataContainerId="community" OnSubmitting="CheckAsync" />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? Auth { get; set; }
+
+    private async Task<string?> CheckAsync(Participant participant)
+    {
+        var user = Auth is null ? null : (await Auth).User;
+        if (user?.Identity?.IsAuthenticated != true)
+            return "Войдите, чтобы добавить точку";
+
+        return Limiter.TryAdd(user.Identity.Name!) ? null : "Не больше 5 точек в час";
+    }
+}
+```
+
+`Limiter` здесь — ваш сервис; подойдёт и
+[`System.Threading.RateLimiting`](https://learn.microsoft.com/dotnet/api/system.threading.ratelimiting).
+Если точки приходят через ваш HTTP API, ограничивайте сам эндпоинт —
+[middleware ограничения частоты](https://learn.microsoft.com/aspnet/core/performance/rate-limit)
+ASP.NET Core.
+
 ### Подписка на изменения данных
 
 ```csharp
@@ -1187,8 +1217,9 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 
 1. **API ключи** - Храните ключи Google вне репозитория (см. «Конфигурация» → «Ключи и секреты»)
 2. **Валидация** - Всегда используйте встроенную валидацию данных
-3. **CORS** - Настройте политику CORS для защиты от CSRF атак
-4. **HTTPS** - Используйте HTTPS для всех запросов
+3. **Доступ и частота** - Библиотека не ограничивает, кто и сколько точек добавляет; для формы на открытой странице задайте `OnSubmitting` (см. «Кто может добавлять точки»)
+4. **CORS** - Настройте политику CORS для защиты от CSRF атак
+5. **HTTPS** - Используйте HTTPS для всех запросов
 
 ## 🛠️ Разработка
 

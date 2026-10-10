@@ -19,14 +19,6 @@ namespace ZealousMindedPeopleGeo.Models
 
         public bool EnableGeocoding { get; set; } = true;
 
-        public bool EnableParticipantValidation { get; set; } = true;
-
-        public bool EnableRateLimiting { get; set; } = true;
-
-        public int MaxParticipantsPerHour { get; set; } = 100;
-
-        public string? DefaultCulture { get; set; } = "en-US";
-
         public MapConfiguration? Map { get; set; }
     }
 
@@ -38,7 +30,6 @@ namespace ZealousMindedPeopleGeo.Models
         public double DefaultLatitude { get; set; } = 55.7558; // Москва
         public double DefaultLongitude { get; set; } = 37.6176; // Москва
         public int DefaultZoom { get; set; } = 10;
-        public string MapTheme { get; set; } = "default";
 
         /// <summary>
         /// Проекция 2D-карты. По умолчанию — равновеликая Equal Earth.
