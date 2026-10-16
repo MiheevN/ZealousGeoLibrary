@@ -278,8 +278,7 @@ Blazor Web App).
 прячется.
 
 Значения по умолчанию для всех карт задаются в `ZealousMindedPeopleGeoOptions.Map`.
-Центр и зум стоит указать явно: у `MapConfiguration` они по умолчанию равны
-Москве и `DefaultZoom = 10`.
+Не заданные центр и зум показывают мир целиком.
 
 ```csharp
 builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
@@ -459,13 +458,14 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 | `GoogleServiceAccountKey` | пусто | Содержимое JSON-ключа сервисного аккаунта Google (сам JSON, не путь к файлу). Обязателен вместе с `GoogleSheetId`. |
 | `Map:Projection` | `EqualEarth` | Проекция 2D-карты: `EqualEarth` или `Equirectangular`. |
 | `Map:CentralMeridian` | `0` | Центральный меридиан 2D-карты в градусах, от −180 до 180. |
-| `Map:DefaultLatitude`, `Map:DefaultLongitude`, `Map:DefaultZoom` | см. ниже | Начальный вид 2D-карты; `DefaultZoom = 1` — мир целиком. |
+| `Map:DefaultLatitude` | `20` | Широта начального центра 2D-карты. |
+| `Map:DefaultLongitude` | `Map:CentralMeridian` | Долгота начального центра 2D-карты. |
+| `Map:DefaultZoom` | `2` | Начальное приближение 2D-карты; `1` — мир целиком. |
 | `Map:ClusterPoints` | `true` | Сливать близкие маркеры 2D-карты в группы (см. «Группы близких точек»). |
 | `Map:ClusterRadius` | `24` | Расстояние между центрами маркеров в пикселях (0–200), ближе которого они сливаются. |
 
-Без секции `Map` карта открывается на широте 20 и центральном меридиане с зумом 2. Если
-секция `Map` задана, укажите в ней центр и зум явно: иначе действуют значения класса
-`MapConfiguration` — Москва и `DefaultZoom = 10`. Параметры `CommunityMapComponent`
+Не заданные ключи берут значения по умолчанию из таблицы, есть секция `Map` или нет: без
+центра и зума карта открывается на весь мир. Параметры `CommunityMapComponent`
 (`Projection`, `CentralMeridian`, `Zoom`, `CenterLatitude`, `CenterLongitude`,
 `ClusterPoints`, `ClusterRadius`) важнее настроек.
 

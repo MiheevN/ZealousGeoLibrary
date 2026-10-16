@@ -99,6 +99,19 @@ public class CommunityMapComponentTests : BunitContext
     }
 
     [Fact]
+    public void MapSectionWithoutView_StillShowsWholeWorld()
+    {
+        // Раньше значения класса MapConfiguration переносили такую карту на Москву с зумом 10.
+        _options.Map = new MapConfiguration { CentralMeridian = 150 };
+
+        var init = WaitForInitialization(RenderMap(p => p.Add(c => c.MapId, "map-meridian-only")));
+
+        Assert.Equal(20.0, init.Arguments[1]);
+        Assert.Equal(150.0, init.Arguments[2]);
+        Assert.Equal(2.0, init.Arguments[3]);
+    }
+
+    [Fact]
     public void Clustering_ComesFromSettings()
     {
         _options.Map = new MapConfiguration { ClusterPoints = false, ClusterRadius = 60 };
