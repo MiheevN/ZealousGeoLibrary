@@ -240,12 +240,13 @@ public class CommunityMapComponentTests : BunitContext
     [Fact]
     public void ShowParticipantsList_False_LeavesOnlyCount()
     {
+        using var english = new CultureScope("en");
         var cut = RenderMap(p => p.Add(c => c.ShowParticipantsList, false));
         WaitForInitialization(cut);
 
         Assert.Empty(cut.FindAll(".participants-toggle"));
         Assert.Empty(cut.FindAll(".participants-panel"));
-        Assert.Contains("Total Participants: 0", cut.Find(".participants-count").TextContent);
+        Assert.Contains("Points: 0", cut.Find(".participants-count").TextContent);
     }
 
     [Fact]
@@ -296,6 +297,7 @@ public class CommunityMapComponentTests : BunitContext
     [Fact]
     public void Points_AreSentWithCategoryColors_AndListed()
     {
+        using var english = new CultureScope("en");
         var points = new[]
         {
             Point("berlin", "office"), Point("tokyo", "event"), Point("rome", "office"), Point("oslo")
@@ -313,12 +315,13 @@ public class CommunityMapComponentTests : BunitContext
             sent.Select(p => p.GetProperty("color").GetString()));
         Assert.Equal("40", sent[0].GetProperty("properties").GetProperty("staff").GetString());
         Assert.Equal(new[] { "B", "🎤", "R", "O" }, cut.FindAll(".participant-avatar").Select(a => a.TextContent.Trim()));
-        Assert.Equal("Members", cut.Find(".participants-toggle").FirstChild!.TextContent.Trim());
+        Assert.Equal("Points", cut.Find(".participants-toggle").FirstChild!.TextContent.Trim());
     }
 
     [Fact]
     public void Legend_ListsCategories_AndFilterKeepsColors()
     {
+        using var english = new CultureScope("en");
         var points = new[] { Point("a", "office"), Point("b", "event"), Point("c", "event") };
         var cut = Render<CommunityMapComponent>(p => p.Add(c => c.Points, points));
         WaitForInitialization(cut);
@@ -520,6 +523,22 @@ public class CommunityMapComponentTests : BunitContext
     };
 
     // Настройки карты передаются в JS анонимным объектом { projection, centralMeridian, clustering, … }.
+    [Fact]
+    public void RussianUi_TranslatesMarkupAndSendsTextsToScript()
+    {
+        using var russian = new CultureScope("ru");
+        var cut = RenderMap(p => p.Add(c => c.MapId, "map-ru"));
+        var init = WaitForInitialization(cut);
+
+        Assert.Equal("Карта сообщества", cut.Find("h3").TextContent);
+        Assert.Equal("Точки", cut.Find(".participants-toggle").FirstChild!.TextContent.Trim());
+        Assert.Equal("Скрыть список", cut.Find(".participants-toggle").GetAttribute("title"));
+        Assert.Equal("ru", Option(init, "locale"));
+        var texts = Assert.IsType<Dictionary<string, string>>(Option(init, "texts"));
+        Assert.Equal("Приблизить", texts["zoomIn"]);
+        Assert.Equal("{0} точек", texts["clusterMany"]);
+    }
+
     private static object? Option(JSRuntimeInvocation init, string name) => Value(init.Arguments[5]!, name);
 
     private static object? Value(object options, string name) =>

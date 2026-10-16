@@ -7,6 +7,7 @@
 @using ZealousMindedPeopleGeo.Services
 @using ZealousMindedPeopleGeo.Services.Repositories
 @using ZealousMindedPeopleGeo.Models
+@using ZealousMindedPeopleGeo.Resources
 @using ZealousMindedPeopleGeo.Services.GeoDataContainer
 @inject IJSRuntime JSRuntime
 @inject ILogger<CommunityMapComponent> Logger
@@ -17,15 +18,15 @@
 
 <div class="community-map-container">
     <div class="map-header">
-        <h3>@Title</h3>
+        <h3>@(Title ?? Ui.MapTitle)</h3>
         @if (ShowParticipantsList)
         {
             <button type="button" class="participants-toggle"
                     aria-controls="@ParticipantsPanelId"
                     aria-expanded="@(_participantsListOpen ? "true" : "false")"
-                    title="@(_participantsListOpen ? "Hide list" : "Show list")"
+                    title="@(_participantsListOpen ? Ui.MapHideList : Ui.MapShowList)"
                     @onclick="ToggleParticipantsList">
-                @ListTitle
+                @EffectiveListTitle
                 <span class="participants-toggle-count">@VisiblePoints.Count()</span>
                 <span class="participants-toggle-icon" aria-hidden="true"></span>
             </button>
@@ -33,7 +34,7 @@
         else
         {
             <div class="participants-count">
-                Total Participants: @_points.Count
+                @Ui.MapTotal(_points.Count)
             </div>
         }
     </div>
@@ -41,13 +42,13 @@
     @if (ShowLegend && _palette.HasCategories)
     {
         @* Легенда — и фильтр: цвет подписан, поэтому категория не различается одним цветом. *@
-        <div class="map-legend" role="group" aria-label="Categories">
+        <div class="map-legend" role="group" aria-label="@Ui.MapCategories">
             @foreach (var category in _palette.Categories)
             {
                 var name = category.Name;
                 <button type="button" class="map-legend-item"
                         aria-pressed="@(IsCategoryVisible(name) ? "true" : "false")"
-                        title="@(IsCategoryVisible(name) ? "Hide" : "Show") @CategoryTitle(name)"
+                        title="@(IsCategoryVisible(name) ? Ui.MapHideCategory(CategoryTitle(name)) : Ui.MapShowCategory(CategoryTitle(name)))"
                         @onclick="() => ToggleCategoryAsync(name)">
                     <span class="map-legend-swatch" style="background: @category.Color"></span>
                     <span class="map-legend-name">@CategoryTitle(name)</span>
@@ -63,7 +64,7 @@
 
         @if (ShowParticipantsList)
         {
-            <aside id="@ParticipantsPanelId" class="participants-panel" aria-label="@ListTitle"
+            <aside id="@ParticipantsPanelId" class="participants-panel" aria-label="@EffectiveListTitle"
                    hidden="@(!_participantsListOpen)">
                 <div class="participants-list">
                     @foreach (var point in VisiblePoints)
@@ -93,7 +94,7 @@
                     @if (!_isLoading && !VisiblePoints.Any())
                     {
                         <p class="participants-empty">
-                            @(_points.Count == 0 ? "Nothing on the map yet" : "All categories are hidden")
+                            @(_points.Count == 0 ? Ui.MapEmpty : Ui.MapAllHidden)
                         </p>
                     }
                 </div>
@@ -105,7 +106,7 @@
     {
         <div class="map-loading-overlay">
             <div class="loading-spinner"></div>
-            <div>Загрузка карты...</div>
+            <div>@Ui.MapLoading</div>
         </div>
     }
 
@@ -116,7 +117,7 @@
             <div class="participant-modal" role="dialog" aria-label="@_selectedPoint.Title" @onclick:stopPropagation="true">
                 <div class="modal-header">
                     <h4>@_selectedPoint.Title</h4>
-                    <button class="close-btn" aria-label="Close" @onclick="CloseParticipantModal">&times;</button>
+                    <button class="close-btn" aria-label="@Ui.Close" @onclick="CloseParticipantModal">&times;</button>
                 </div>
                 <div class="modal-body">
                     @if (PointTemplate is not null)
@@ -141,7 +142,7 @@
                             {
                                 <p><strong>@label:</strong> @value</p>
                             }
-                            <p><strong>Coordinates:</strong> @_selectedPoint.Latitude.ToString("F6", CultureInfo.InvariantCulture), @_selectedPoint.Longitude.ToString("F6", CultureInfo.InvariantCulture)</p>
+                            <p><strong>@Ui.Coordinates:</strong> @_selectedPoint.Latitude.ToString("F6", CultureInfo.InvariantCulture), @_selectedPoint.Longitude.ToString("F6", CultureInfo.InvariantCulture)</p>
                             @if (url is not null)
                             {
                                 <p><a href="@url" target="_blank" rel="noopener noreferrer">@url</a></p>
@@ -151,7 +152,7 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="CloseParticipantModal">
-                        Close
+                        @Ui.Close
                     </button>
                 </div>
             </div>

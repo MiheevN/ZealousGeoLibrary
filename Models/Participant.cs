@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ZealousMindedPeopleGeo.Resources;
 using ZealousMindedPeopleGeo.Validation;
 
 namespace ZealousMindedPeopleGeo.Models;
@@ -10,42 +11,42 @@ public class Participant
 {
     public Guid Id { get; init; } = Guid.NewGuid();
 
-    [Required(ErrorMessage = "Имя обязательно для заполнения")]
-    [StringLength(100, ErrorMessage = "Имя не может превышать 100 символов")]
+    [Required(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationNameRequired))]
+    [StringLength(100, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationNameTooLong))]
     public string Name { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Адрес обязателен для заполнения")]
-    [StringLength(200, ErrorMessage = "Адрес не может превышать 200 символов")]
+    [Required(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationAddressRequired))]
+    [StringLength(200, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationAddressTooLong))]
     public string Address { get; set; } = string.Empty;
 
     /// <summary>
     /// Email участника, необязательный: пустая строка — не указан. Указанный email
     /// виден всем в подсказке и карточке точки на карте.
     /// </summary>
-    [OptionalEmailAddress(ErrorMessage = "Некорректный адрес электронной почты")]
-    [StringLength(254, ErrorMessage = "Email не может превышать 254 символа")]
+    [OptionalEmailAddress(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationEmailInvalid))]
+    [StringLength(254, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationEmailTooLong))]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Местоположение обязательно для заполнения")]
-    [StringLength(200, ErrorMessage = "Местоположение не может превышать 200 символов")]
+    [Required(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationLocationRequired))]
+    [StringLength(200, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationLocationTooLong))]
     public string Location { get; set; } = string.Empty;
 
-    [Range(-90, 90, ErrorMessage = "Широта должна быть в диапазоне от -90 до 90")]
+    [Range(-90, 90, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationLatitudeRange))]
     public double? Latitude { get; set; }
 
-    [Range(-180, 180, ErrorMessage = "Долгота должна быть в диапазоне от -180 до 180")]
+    [Range(-180, 180, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationLongitudeRange))]
     public double? Longitude { get; set; }
 
-    [StringLength(100, ErrorMessage = "Город не может превышать 100 символов")]
+    [StringLength(100, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationCityTooLong))]
     public string? City { get; set; }
 
-    [StringLength(100, ErrorMessage = "Страна не может превышать 100 символов")]
+    [StringLength(100, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationCountryTooLong))]
     public string? Country { get; set; }
 
-    [StringLength(200, ErrorMessage = "Социальные сети не могут превышать 200 символов")]
+    [StringLength(200, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationSocialMediaTooLong))]
     public string? SocialMedia { get; set; }
 
-    [StringLength(500, ErrorMessage = "Сообщение не может превышать 500 символов")]
+    [StringLength(500, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationMessageTooLong))]
     public string? Message { get; set; }
 
     public string? LifeGoals { get; set; }
@@ -62,16 +63,16 @@ public class Participant
 /// </summary>
 public class SocialContacts
 {
-    [Url(ErrorMessage = "Некорректный URL Discord")]
+    [Url(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationUrlInvalid))]
     public string? Discord { get; set; }
 
-    [Url(ErrorMessage = "Некорректный URL Telegram")]
+    [Url(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationUrlInvalid))]
     public string? Telegram { get; set; }
 
-    [Url(ErrorMessage = "Некорректный URL VK")]
+    [Url(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationUrlInvalid))]
     public string? Vk { get; set; }
 
-    [Url(ErrorMessage = "Некорректный URL сайта")]
+    [Url(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationUrlInvalid))]
     public string? Website { get; set; }
 }
 
@@ -80,22 +81,22 @@ public class SocialContacts
 /// </summary>
 public class ParticipantRegistrationModel
 {
-    [Required(ErrorMessage = "Имя обязательно для заполнения")]
-    [StringLength(100, ErrorMessage = "Имя не может превышать 100 символов")]
+    [Required(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationNameRequired))]
+    [StringLength(100, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationNameTooLong))]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Необязательный email: пустая строка — не указан.</summary>
-    [OptionalEmailAddress(ErrorMessage = "Некорректный адрес электронной почты")]
-    [StringLength(254, ErrorMessage = "Email не может превышать 254 символа")]
+    [OptionalEmailAddress(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationEmailInvalid))]
+    [StringLength(254, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationEmailTooLong))]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Адрес обязателен для заполнения")]
-    [StringLength(200, ErrorMessage = "Адрес не может превышать 200 символов")]
+    [Required(ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationAddressRequired))]
+    [StringLength(200, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationAddressTooLong))]
     public string Address { get; set; } = string.Empty;
 
-    [StringLength(200, ErrorMessage = "Социальные сети не могут превышать 200 символов")]
+    [StringLength(200, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationSocialMediaTooLong))]
     public string? SocialMedia { get; set; }
 
-    [StringLength(500, ErrorMessage = "Сообщение не может превышать 500 символов")]
+    [StringLength(500, ErrorMessageResourceType = typeof(Ui), ErrorMessageResourceName = nameof(Ui.ValidationMessageTooLong))]
     public string? Message { get; set; }
 }

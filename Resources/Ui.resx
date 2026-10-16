@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Coordinates" xml:space="preserve">
+    <value>Coordinates</value>
+  </data>
+  <data name="FormTitle" xml:space="preserve">
+    <value>Add a point</value>
+  </data>
+  <data name="FormSubmit" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="FormSaving" xml:space="preserve">
+    <value>Saving...</value>
+  </data>
+  <data name="FormClear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="FormName" xml:space="preserve">
+    <value>Name *</value>
+  </data>
+  <data name="FormNamePlaceholder" xml:space="preserve">
+    <value>Your name</value>
+  </data>
+  <data name="FormEmail" xml:space="preserve">
+    <value>Email (optional)</value>
+  </data>
+  <data name="FormEmailHint" xml:space="preserve">
+    <value>Visible to everyone on the map</value>
+  </data>
+  <data name="FormAddress" xml:space="preserve">
+    <value>Address *</value>
+  </data>
+  <data name="FormAddressPlaceholder" xml:space="preserve">
+    <value>Full address</value>
+  </data>
+  <data name="FormGeocoding" xml:space="preserve">
+    <value>Looking up the address...</value>
+  </data>
+  <data name="FormSocialMedia" xml:space="preserve">
+    <value>Social media (optional)</value>
+  </data>
+  <data name="FormSocialMediaPlaceholder" xml:space="preserve">
+    <value>Links to your profiles</value>
+  </data>
+  <data name="FormMessage" xml:space="preserve">
+    <value>Message (optional)</value>
+  </data>
+  <data name="FormMessagePlaceholder" xml:space="preserve">
+    <value>Share your thoughts or goals</value>
+  </data>
+  <data name="FormLocationFound" xml:space="preserve">
+    <value>Location found</value>
+  </data>
+  <data name="FormFoundAddress" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="FormSaved" xml:space="preserve">
+    <value>Point added successfully!</value>
+  </data>
+  <data name="FormSaveFailed" xml:space="preserve">
+    <value>Failed to save the point</value>
+  </data>
+  <data name="FormError" xml:space="preserve">
+    <value>Something went wrong. Please try again.</value>
+  </data>
+  <data name="FormEnterAddress" xml:space="preserve">
+    <value>Please enter an address</value>
+  </data>
+  <data name="FormAddressNotFound" xml:space="preserve">
+    <value>Could not find the address: {0}</value>
+    <comment>{0} — ответ сервиса геокодирования</comment>
+  </data>
+  <data name="FormGeocodingFailed" xml:space="preserve">
+    <value>Could not look up the address. Please try again.</value>
+  </data>
+  <data name="ValidationNameRequired" xml:space="preserve">
+    <value>Name is required</value>
+  </data>
+  <data name="ValidationNameTooLong" xml:space="preserve">
+    <value>Name must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationAddressRequired" xml:space="preserve">
+    <value>Address is required</value>
+  </data>
+  <data name="ValidationAddressTooLong" xml:space="preserve">
+    <value>Address must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationEmailInvalid" xml:space="preserve">
+    <value>Email address is not valid</value>
+  </data>
+  <data name="ValidationEmailTooLong" xml:space="preserve">
+    <value>Email must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationLocationRequired" xml:space="preserve">
+    <value>Location is required</value>
+  </data>
+  <data name="ValidationLocationTooLong" xml:space="preserve">
+    <value>Location must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationLatitudeRange" xml:space="preserve">
+    <value>Latitude must be between {1} and {2}</value>
+    <comment>{1}, {2} — границы</comment>
+  </data>
+  <data name="ValidationLongitudeRange" xml:space="preserve">
+    <value>Longitude must be between {1} and {2}</value>
+    <comment>{1}, {2} — границы</comment>
+  </data>
+  <data name="ValidationCityTooLong" xml:space="preserve">
+    <value>City must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationCountryTooLong" xml:space="preserve">
+    <value>Country must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationSocialMediaTooLong" xml:space="preserve">
+    <value>Social media must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationMessageTooLong" xml:space="preserve">
+    <value>Message must be at most {1} characters</value>
+    <comment>{1} — предел длины</comment>
+  </data>
+  <data name="ValidationUrlInvalid" xml:space="preserve">
+    <value>{0}: link is not valid</value>
+    <comment>{0} — поле: Discord, Telegram, Vk, Website</comment>
+  </data>
+  <data name="MapTitle" xml:space="preserve">
+    <value>Community map</value>
+  </data>
+  <data name="MapListTitle" xml:space="preserve">
+    <value>Points</value>
+  </data>
+  <data name="MapShowList" xml:space="preserve">
+    <value>Show list</value>
+  </data>
+  <data name="MapHideList" xml:space="preserve">
+    <value>Hide list</value>
+  </data>
+  <data name="MapTotal" xml:space="preserve">
+    <value>Points: {0}</value>
+    <comment>{0} — число точек</comment>
+  </data>
+  <data name="MapCategories" xml:space="preserve">
+    <value>Categories</value>
+  </data>
+  <data name="MapShowCategory" xml:space="preserve">
+    <value>Show: {0}</value>
+    <comment>{0} — категория</comment>
+  </data>
+  <data name="MapHideCategory" xml:space="preserve">
+    <value>Hide: {0}</value>
+    <comment>{0} — категория</comment>
+  </data>
+  <data name="MapNoCategory" xml:space="preserve">
+    <value>No category</value>
+  </data>
+  <data name="MapEmpty" xml:space="preserve">
+    <value>Nothing on the map yet</value>
+  </data>
+  <data name="MapAllHidden" xml:space="preserve">
+    <value>All categories are hidden</value>
+  </data>
+  <data name="MapLoading" xml:space="preserve">
+    <value>Loading the map...</value>
+  </data>
+  <data name="MapCanvasLabel" xml:space="preserve">
+    <value>Map with points</value>
+    <comment>Подпись холста для экранного диктора</comment>
+  </data>
+  <data name="MapZoomIn" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="MapZoomOut" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="MapResetView" xml:space="preserve">
+    <value>Reset view</value>
+  </data>
+  <data name="MapPointFallback" xml:space="preserve">
+    <value>Point</value>
+    <comment>Заголовок точки без названия</comment>
+  </data>
+  <data name="MapClusterExpand" xml:space="preserve">
+    <value>Click to expand</value>
+  </data>
+  <data name="MapClusterZoom" xml:space="preserve">
+    <value>Click to zoom in</value>
+  </data>
+  <data name="MapClusterMore" xml:space="preserve">
+    <value>and {0} more</value>
+    <comment>{0} — сколько точек группы не показано</comment>
+  </data>
+  <data name="MapClusterOne" xml:space="preserve">
+    <value>{0} point</value>
+    <comment>Заголовок группы, форма числа one (Intl.PluralRules)</comment>
+  </data>
+  <data name="MapClusterFew" xml:space="preserve">
+    <value>{0} points</value>
+    <comment>Форма few: в русском 2–4</comment>
+  </data>
+  <data name="MapClusterMany" xml:space="preserve">
+    <value>{0} points</value>
+    <comment>Форма many: в русском 5–20</comment>
+  </data>
+  <data name="MapClusterOther" xml:space="preserve">
+    <value>{0} points</value>
+    <comment>Форма other: дробные числа</comment>
+  </data>
+  <data name="PropertyCategory" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="PropertyDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="PropertyAddress" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="PropertyEmail" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="PropertyLocation" xml:space="preserve">
+    <value>Location</value>
+  </data>
+  <data name="PropertyCity" xml:space="preserve">
+    <value>City</value>
+  </data>
+  <data name="PropertyCountry" xml:space="preserve">
+    <value>Country</value>
+  </data>
+  <data name="PropertySocialMedia" xml:space="preserve">
+    <value>Social media</value>
+  </data>
+  <data name="PropertyLifeGoals" xml:space="preserve">
+    <value>Life goals</value>
+  </data>
+  <data name="PropertySkills" xml:space="preserve">
+    <value>Skills</value>
+  </data>
+  <data name="PropertyWebsite" xml:space="preserve">
+    <value>Website</value>
+  </data>
+  <data name="PropertyRegisteredAt" xml:space="preserve">
+    <value>Registered</value>
+  </data>
+</root>

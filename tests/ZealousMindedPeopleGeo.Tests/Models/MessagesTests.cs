@@ -18,8 +18,8 @@ public sealed partial class MessagesTests
     // Языки, на которые переведены Resources/Messages.resx.
     private static readonly string[] Translations = { "ru" };
 
-    private static readonly ResourceManager Resources =
-        new("ZealousMindedPeopleGeo.Resources.Messages", typeof(GeoPoint).Assembly);
+    // Сообщения библиотеки и надписи компонентов.
+    public static TheoryData<string> ResourceNames => new() { "Messages", "Ui" };
 
     private const string MixedGeoJson = """
         {
@@ -35,15 +35,17 @@ public sealed partial class MessagesTests
         }
         """;
 
-    [Fact]
-    public void EveryTranslation_HasTheSameKeysAndPlaceholdersAsEnglish()
+    [Theory]
+    [MemberData(nameof(ResourceNames))]
+    public void EveryTranslation_HasTheSameKeysAndPlaceholdersAsEnglish(string resourceName)
     {
-        var english = Entries(CultureInfo.InvariantCulture);
+        var resources = new ResourceManager($"ZealousMindedPeopleGeo.Resources.{resourceName}", typeof(GeoPoint).Assembly);
+        var english = Entries(resources, CultureInfo.InvariantCulture);
         Assert.NotEmpty(english);
 
         foreach (var language in Translations)
         {
-            var translated = Entries(CultureInfo.GetCultureInfo(language));
+            var translated = Entries(resources, CultureInfo.GetCultureInfo(language));
             Assert.Equal(english.Keys.Order(), translated.Keys.Order());
             foreach (var (key, text) in english)
             {
@@ -136,9 +138,9 @@ public sealed partial class MessagesTests
         Assert.Equal($"У участника «Анна» ({participant.Id}) нет координат", added.ErrorMessage);
     }
 
-    private static Dictionary<string, string> Entries(CultureInfo culture)
+    private static Dictionary<string, string> Entries(ResourceManager resources, CultureInfo culture)
     {
-        var set = Resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
+        var set = resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
         Assert.True(set is not null, $"нет ресурсов для «{culture.Name}»");
         return set.Cast<DictionaryEntry>().ToDictionary(e => (string)e.Key, e => (string)e.Value!);
     }

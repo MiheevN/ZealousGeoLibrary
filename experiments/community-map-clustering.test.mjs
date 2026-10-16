@@ -18,7 +18,7 @@ async function loadMapModule() {
     const exportFooter = `
 export {
     clusterMarkers, clusterBadgeRadius, spiderOffsets, getMarkerGroups, clusterExpansion, expandCluster,
-    renderClusterTooltip, pluralizePoints, formatClusterCount, clusterColorShares, normalizeClusterOptions,
+    renderClusterTooltip, resolveTexts, clusterTitle, formatClusterCount, clusterColorShares, normalizeClusterOptions,
     markerColor, drawMarkers, findTargetAt, resolveProjection, getView, setCenter, projectPoint,
     POINT_RADIUS, POINT_HOVER_RADIUS, CLUSTER_GAP, CLUSTER_MAX_RADIUS, DEFAULT_CLUSTER_RADIUS,
     SPIDER_FOOT_SPACING, MAX_ZOOM, ZOOM_STEP, DEFAULT_MARKER_COLOR
@@ -296,12 +296,26 @@ test('drawn markers become click targets; an open fan replaces its badge with it
     assert.equal(state.spider, null);
 });
 
-test('group tooltip lists escaped titles, counts the rest and says what a click does', () => {
+// Русские надписи — те же, что компонент Blazor берёт из Resources/Ui.ru.resx.
+async function russianTexts() {
+    const resx = await readFile(new URL('../Resources/Ui.ru.resx', import.meta.url), 'utf8');
+    const value = (key) => resx.match(new RegExp(`<data name="Map${key}"[^>]*>\\s*<value>([^<]*)</value>`))[1];
+    return map.resolveTexts({
+        locale: 'ru',
+        texts: {
+            clusterExpand: value('ClusterExpand'), clusterZoom: value('ClusterZoom'), clusterMore: value('ClusterMore'),
+            clusterOne: value('ClusterOne'), clusterFew: value('ClusterFew'), clusterMany: value('ClusterMany'), clusterOther: value('ClusterOther')
+        }
+    });
+}
+
+test('group tooltip lists escaped titles, counts the rest and says what a click does', async () => {
     const points = Array.from({ length: 11 }, (_, index) =>
         point(`p${index}`, 0, 0, { title: index === 0 ? '<img src=x onerror=alert(1)>' : `Точка ${index}`, color: index === 1 ? 'red;background:url(x)' : '#3987e5' }));
     const group = { key: 'all', count: 11, members: points.map((_, index) => index) };
+    const ru = await russianTexts();
 
-    const zoom = map.renderClusterTooltip(group, points, 'zoom');
+    const zoom = map.renderClusterTooltip(group, points, 'zoom', ru);
     assert.match(zoom, /11 точек/);
     assert.doesNotMatch(zoom, /<img/);
     assert.match(zoom, /&lt;img src=x onerror=alert\(1\)&gt;/);
@@ -310,14 +324,24 @@ test('group tooltip lists escaped titles, counts the rest and says what a click 
     assert.doesNotMatch(zoom, /Точка 8/, 'показываются первые восемь');
     assert.match(zoom, /и ещё 3/);
     assert.match(zoom, /приблизить/);
-    assert.match(map.renderClusterTooltip(group, points, 'spider'), /раскрыть/);
+    assert.match(map.renderClusterTooltip(group, points, 'spider', ru), /раскрыть/);
+
+    // Без переданных надписей — английские.
+    const english = map.renderClusterTooltip(group, points, 'zoom');
+    assert.match(english, /11 points/);
+    assert.match(english, /and 3 more/);
+    assert.match(english, /Click to zoom in/);
 });
 
-test('Russian plural, compact counts, colour shares and options', () => {
-    const plural = (count) => `${count} ${map.pluralizePoints(count)}`;
-    assert.deepEqual([1, 2, 4, 5, 11, 14, 21, 22, 25, 101, 112].map(plural), [
+test('plural forms follow the language, compact counts, colour shares and options', async () => {
+    const ru = await russianTexts();
+    assert.deepEqual([1, 2, 4, 5, 11, 14, 21, 22, 25, 101, 112].map((count) => map.clusterTitle(ru, count)), [
         '1 точка', '2 точки', '4 точки', '5 точек', '11 точек', '14 точек', '21 точка', '22 точки', '25 точек', '101 точка', '112 точек'
     ]);
+    const en = map.resolveTexts({ locale: 'en' });
+    assert.deepEqual([1, 2, 21].map((count) => map.clusterTitle(en, count)), ['1 point', '2 points', '21 points']);
+    // Неизвестный язык не ломает карту.
+    assert.equal(map.clusterTitle(map.resolveTexts({ locale: 'not a locale!' }), 3), '3 points');
 
     assert.deepEqual([7, 999, 1000, 1234, 9999, 12345].map(map.formatClusterCount), ['7', '999', '1k', '1.2k', '9.9k', '12k']);
 
