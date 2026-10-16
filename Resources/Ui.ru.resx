@@ -240,4 +240,433 @@
   <data name="PropertyRegisteredAt" xml:space="preserve">
     <value>Регистрация</value>
   </data>
+  <data name="GlobeLoading" xml:space="preserve">
+    <value>Загрузка глобуса</value>
+  </data>
+  <data name="GlobeRetry" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="GlobeBadSize" xml:space="preserve">
+    <value>Некорректные размеры контейнера: Width={0}, Height={1}</value>
+  </data>
+  <data name="GlobeInitFailed" xml:space="preserve">
+    <value>Ошибка инициализации: {0}</value>
+  </data>
+  <data name="GlobeAddPointsFailed" xml:space="preserve">
+    <value>Ошибка добавления точек: {0}</value>
+  </data>
+  <data name="GlobeLoadPointsFailed" xml:space="preserve">
+    <value>Ошибка загрузки точек: {0}</value>
+  </data>
+  <data name="GlobeRotation" xml:space="preserve">
+    <value>Вращение</value>
+  </data>
+  <data name="GlobeToggleRotation" xml:space="preserve">
+    <value>Включить или выключить вращение</value>
+  </data>
+  <data name="GlobePointCount" xml:space="preserve">
+    <value>Точки</value>
+  </data>
+  <data name="GlobeDetail" xml:space="preserve">
+    <value>Детализация</value>
+  </data>
+  <data name="GlobeDetailLow" xml:space="preserve">
+    <value>Низкая</value>
+  </data>
+  <data name="GlobeDetailMedium" xml:space="preserve">
+    <value>Средняя</value>
+  </data>
+  <data name="GlobeDetailHigh" xml:space="preserve">
+    <value>Высокая</value>
+  </data>
+  <data name="GlobeDetailUltra" xml:space="preserve">
+    <value>Ультра</value>
+  </data>
+  <data name="GlobeCenterOnLocation" xml:space="preserve">
+    <value>Вернуться к текущей позиции</value>
+  </data>
+  <data name="GlobeNoLocation" xml:space="preserve">
+    <value>Текущая позиция не установлена</value>
+  </data>
+  <data name="ManagerTitle" xml:space="preserve">
+    <value>Управление участниками</value>
+  </data>
+  <data name="ManagerName" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="ManagerNamePlaceholder" xml:space="preserve">
+    <value>Введите имя</value>
+  </data>
+  <data name="ManagerLatitude" xml:space="preserve">
+    <value>Широта</value>
+  </data>
+  <data name="ManagerLongitude" xml:space="preserve">
+    <value>Долгота</value>
+  </data>
+  <data name="ManagerAdding" xml:space="preserve">
+    <value>Добавление...</value>
+  </data>
+  <data name="ManagerAdd" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="ManagerClear" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="ManagerCenter" xml:space="preserve">
+    <value>Центрировать</value>
+  </data>
+  <data name="ManagerQuickAdd" xml:space="preserve">
+    <value>Быстрое добавление</value>
+  </data>
+  <data name="ManagerMoscow" xml:space="preserve">
+    <value>Москва</value>
+  </data>
+  <data name="ManagerSaintPetersburg" xml:space="preserve">
+    <value>Санкт-Петербург</value>
+  </data>
+  <data name="ManagerNovosibirsk" xml:space="preserve">
+    <value>Новосибирск</value>
+  </data>
+  <data name="ManagerYekaterinburg" xml:space="preserve">
+    <value>Екатеринбург</value>
+  </data>
+  <data name="ManagerKazan" xml:space="preserve">
+    <value>Казань</value>
+  </data>
+  <data name="ManagerKrasnodar" xml:space="preserve">
+    <value>Краснодар</value>
+  </data>
+  <data name="ManagerRandom" xml:space="preserve">
+    <value>Случайный</value>
+  </data>
+  <data name="ManagerRandomName" xml:space="preserve">
+    <value>Участник {0}</value>
+  </data>
+  <data name="ManagerCentered" xml:space="preserve">
+    <value>Центрировано на координатах формы</value>
+  </data>
+  <data name="ManagerCenterFailed" xml:space="preserve">
+    <value>Ошибка центрирования: {0}</value>
+  </data>
+  <data name="ManagerEnterName" xml:space="preserve">
+    <value>Введите имя участника</value>
+  </data>
+  <data name="ManagerEnterCoordinates" xml:space="preserve">
+    <value>Введите координаты</value>
+  </data>
+  <data name="ManagerLatitudeRange" xml:space="preserve">
+    <value>Широта должна быть от -90 до 90</value>
+  </data>
+  <data name="ManagerLongitudeRange" xml:space="preserve">
+    <value>Долгота должна быть от -180 до 180</value>
+  </data>
+  <data name="ManagerAdded" xml:space="preserve">
+    <value>Участник {0} добавлен</value>
+  </data>
+  <data name="ManagerError" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Настройки глобуса</value>
+  </data>
+  <data name="SettingsApply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="SettingsSave" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="SettingsLoad" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="SettingsReset" xml:space="preserve">
+    <value>Сброс</value>
+  </data>
+  <data name="SettingsSize" xml:space="preserve">
+    <value>Размеры</value>
+  </data>
+  <data name="SettingsWidth" xml:space="preserve">
+    <value>Ширина: {0} px</value>
+  </data>
+  <data name="SettingsHeight" xml:space="preserve">
+    <value>Высота: {0} px</value>
+  </data>
+  <data name="SettingsMarkers" xml:space="preserve">
+    <value>Метки точек</value>
+  </data>
+  <data name="SettingsMarkerSize" xml:space="preserve">
+    <value>Размер метки: {0}</value>
+  </data>
+  <data name="SettingsMarkerOffset" xml:space="preserve">
+    <value>Отступ от поверхности: {0}</value>
+  </data>
+  <data name="SettingsMarkerColor" xml:space="preserve">
+    <value>Цвет метки</value>
+  </data>
+  <data name="SettingsMarkerOpacity" xml:space="preserve">
+    <value>Прозрачность метки: {0}</value>
+  </data>
+  <data name="SettingsMarkerEdgeColor" xml:space="preserve">
+    <value>Цвет граней метки</value>
+  </data>
+  <data name="SettingsRippleInterval" xml:space="preserve">
+    <value>Интервал волн: {0} мс</value>
+  </data>
+  <data name="SettingsRippleDuration" xml:space="preserve">
+    <value>Длительность волны: {0} мс</value>
+  </data>
+  <data name="SettingsAutoRotate" xml:space="preserve">
+    <value>Автоматическое вращение</value>
+  </data>
+  <data name="SettingsRotateSpeed" xml:space="preserve">
+    <value>Скорость вращения: {0}</value>
+  </data>
+  <data name="SettingsLighting" xml:space="preserve">
+    <value>Освещение</value>
+  </data>
+  <data name="SettingsSunFollowsCamera" xml:space="preserve">
+    <value>Свет со стороны камеры</value>
+  </data>
+  <data name="SettingsSunIntensity" xml:space="preserve">
+    <value>Яркость солнца: {0}</value>
+  </data>
+  <data name="SettingsSunDistance" xml:space="preserve">
+    <value>Дистанция солнца: {0}</value>
+  </data>
+  <data name="SettingsSunColor" xml:space="preserve">
+    <value>Цвет солнца</value>
+  </data>
+  <data name="SettingsAmbientIntensity" xml:space="preserve">
+    <value>Яркость окружения: {0}</value>
+  </data>
+  <data name="SettingsAmbientColor" xml:space="preserve">
+    <value>Цвет окружения</value>
+  </data>
+  <data name="SettingsHemisphereIntensity" xml:space="preserve">
+    <value>Мягкий небесный свет: {0}</value>
+  </data>
+  <data name="SettingsAtmosphereClouds" xml:space="preserve">
+    <value>Атмосфера и облака</value>
+  </data>
+  <data name="SettingsEnableAtmosphere" xml:space="preserve">
+    <value>Включить атмосферу</value>
+  </data>
+  <data name="SettingsAtmosphereColor" xml:space="preserve">
+    <value>Цвет атмосферы</value>
+  </data>
+  <data name="SettingsAtmosphereOpacity" xml:space="preserve">
+    <value>Прозрачность атмосферы: {0}</value>
+  </data>
+  <data name="SettingsEnableClouds" xml:space="preserve">
+    <value>Включить облака</value>
+  </data>
+  <data name="SettingsCloudsOpacity" xml:space="preserve">
+    <value>Прозрачность облаков: {0}</value>
+  </data>
+  <data name="SettingsCloudsSpeed" xml:space="preserve">
+    <value>Скорость облаков: {0}</value>
+  </data>
+  <data name="SettingsCamera" xml:space="preserve">
+    <value>Камера</value>
+  </data>
+  <data name="SettingsEnableZoom" xml:space="preserve">
+    <value>Разрешить масштабирование</value>
+  </data>
+  <data name="SettingsMinZoom" xml:space="preserve">
+    <value>Минимальное приближение: {0}</value>
+  </data>
+  <data name="SettingsMaxZoom" xml:space="preserve">
+    <value>Максимальное приближение: {0}</value>
+  </data>
+  <data name="SettingsColors" xml:space="preserve">
+    <value>Цвета</value>
+  </data>
+  <data name="SettingsBackground" xml:space="preserve">
+    <value>Цвет фона</value>
+  </data>
+  <data name="SettingsJson" xml:space="preserve">
+    <value>JSON-конфигурация</value>
+  </data>
+  <data name="PwaLoading" xml:space="preserve">
+    <value>Загрузка...</value>
+  </data>
+  <data name="PwaInstallTitle" xml:space="preserve">
+    <value>Установите приложение</value>
+  </data>
+  <data name="PwaInstallText" xml:space="preserve">
+    <value>Получите быстрый доступ к географии сообщества прямо с рабочего стола</value>
+  </data>
+  <data name="PwaInstall" xml:space="preserve">
+    <value>Установить</value>
+  </data>
+  <data name="PwaLater" xml:space="preserve">
+    <value>Позже</value>
+  </data>
+  <data name="PwaInfoTitle" xml:space="preserve">
+    <value>Состояние PWA</value>
+  </data>
+  <data name="PwaStatus" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="PwaInstalled" xml:space="preserve">
+    <value>Установлено</value>
+  </data>
+  <data name="PwaNotInstalled" xml:space="preserve">
+    <value>Не установлено</value>
+  </data>
+  <data name="PwaCache" xml:space="preserve">
+    <value>Кэш</value>
+  </data>
+  <data name="PwaCacheSummary" xml:space="preserve">
+    <value>{0} (кэшей: {1})</value>
+  </data>
+  <data name="PwaInstallApp" xml:space="preserve">
+    <value>Установить приложение</value>
+  </data>
+  <data name="PwaCheckUpdates" xml:space="preserve">
+    <value>Проверить обновления</value>
+  </data>
+  <data name="PwaClearCache" xml:space="preserve">
+    <value>Очистить кэш</value>
+  </data>
+  <data name="PwaShowCacheDetails" xml:space="preserve">
+    <value>Информация о кэше</value>
+  </data>
+  <data name="PwaCacheDetails" xml:space="preserve">
+    <value>Детали кэша</value>
+  </data>
+  <data name="PwaCacheItems" xml:space="preserve">
+    <value>элементов: {0}</value>
+  </data>
+  <data name="PwaNotificationTest" xml:space="preserve">
+    <value>Тест уведомлений</value>
+  </data>
+  <data name="PwaNotificationTitle" xml:space="preserve">
+    <value>Заголовок</value>
+  </data>
+  <data name="PwaNotificationTitlePlaceholder" xml:space="preserve">
+    <value>Заголовок уведомления</value>
+  </data>
+  <data name="PwaNotificationBody" xml:space="preserve">
+    <value>Сообщение</value>
+  </data>
+  <data name="PwaNotificationBodyPlaceholder" xml:space="preserve">
+    <value>Текст уведомления</value>
+  </data>
+  <data name="PwaSendNotification" xml:space="preserve">
+    <value>Отправить уведомление</value>
+  </data>
+  <data name="PwaCancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="PwaDefaultNotificationTitle" xml:space="preserve">
+    <value>Тест</value>
+  </data>
+  <data name="PwaDefaultNotificationBody" xml:space="preserve">
+    <value>Это тестовое уведомление PWA</value>
+  </data>
+  <data name="PwaUpdateConfirm" xml:space="preserve">
+    <value>Доступно обновление приложения. Обновить сейчас?</value>
+  </data>
+  <data name="ShowcaseTitle" xml:space="preserve">
+    <value>ZealousMindedPeopleGeo — витрина возможностей</value>
+  </data>
+  <data name="ShowcaseSubtitle" xml:space="preserve">
+    <value>Все компоненты библиотеки на одной странице. Каждое представление настроено собственным независимым набором данных, поэтому изменения в одном инстансе не влияют на другие.</value>
+  </data>
+  <data name="ShowcaseTabGlobe1" xml:space="preserve">
+    <value>3D глобус №1</value>
+  </data>
+  <data name="ShowcaseTabGlobe2" xml:space="preserve">
+    <value>3D глобус №2</value>
+  </data>
+  <data name="ShowcaseTabMap" xml:space="preserve">
+    <value>2D карта</value>
+  </data>
+  <data name="ShowcaseTabControls" xml:space="preserve">
+    <value>Управление</value>
+  </data>
+  <data name="ShowcaseTabForm" xml:space="preserve">
+    <value>Форма</value>
+  </data>
+  <data name="ShowcaseTabData" xml:space="preserve">
+    <value>Данные</value>
+  </data>
+  <data name="ShowcaseGlobe1Title" xml:space="preserve">
+    <value>3D глобус №1 — Города России</value>
+  </data>
+  <data name="ShowcaseGlobe1Note" xml:space="preserve">
+    <value>Источник данных: изолированный контейнер</value>
+  </data>
+  <data name="ShowcasePointCount" xml:space="preserve">
+    <value>(точек: {0}).</value>
+  </data>
+  <data name="ShowcaseGlobe2Title" xml:space="preserve">
+    <value>3D глобус №2 — Столицы мира</value>
+  </data>
+  <data name="ShowcaseGlobe2Note" xml:space="preserve">
+    <value>Отдельный глобус с другим контейнером</value>
+  </data>
+  <data name="ShowcaseGlobe2Independent" xml:space="preserve">
+    <value>Данные полностью независимы от глобуса №1.</value>
+  </data>
+  <data name="ShowcaseMapTitle" xml:space="preserve">
+    <value>2D карта — Технологические хабы</value>
+  </data>
+  <data name="ShowcaseMapNote" xml:space="preserve">
+    <value>Карта получает явный список точек ({0}) с категориями, не затрагивая общий репозиторий и глобусы.</value>
+  </data>
+  <data name="ShowcaseControlsTitle" xml:space="preserve">
+    <value>Управление и настройки глобуса</value>
+  </data>
+  <data name="ShowcaseControlsNote" xml:space="preserve">
+    <value>Эти панели управляют глобусом</value>
+  </data>
+  <data name="ShowcaseControlsTab" xml:space="preserve">
+    <value>(вкладка «3D глобус №1»).</value>
+  </data>
+  <data name="ShowcaseFormTitle" xml:space="preserve">
+    <value>Форма добавления участника</value>
+  </data>
+  <data name="ShowcaseFormNote" xml:space="preserve">
+    <value>Форма пишет в собственный демонстрационный контейнер</value>
+  </data>
+  <data name="ShowcaseFormNoteEnd" xml:space="preserve">
+    <value>и отображает точку на отдельном глобусе ниже.</value>
+  </data>
+  <data name="ShowcaseFormHeading" xml:space="preserve">
+    <value>Добавить участника</value>
+  </data>
+  <data name="ShowcaseFormAdded" xml:space="preserve">
+    <value>Добавлен участник «{0}» ({1:F4}, {2:F4}).</value>
+  </data>
+  <data name="ShowcasePwaTitle" xml:space="preserve">
+    <value>PWA — установка и оффлайн</value>
+  </data>
+  <data name="ShowcasePwaNote" xml:space="preserve">
+    <value>Компонент управления Progressive Web App: установка, обновление кэша и уведомления. Предложение установить появляется само, когда браузер готов установить сайт; панель состояния открывается вызовом</value>
+  </data>
+  <data name="ShowcasePwaShowStatus" xml:space="preserve">
+    <value>Показать состояние PWA</value>
+  </data>
+  <data name="ShowcaseDataTitle" xml:space="preserve">
+    <value>Контейнеры данных и экспорт</value>
+  </data>
+  <data name="ShowcaseDataNote" xml:space="preserve">
+    <value>Каждое представление использует собственный именованный контейнер. Это и обеспечивает изоляцию данных между инстансами.</value>
+  </data>
+  <data name="ShowcaseContainer" xml:space="preserve">
+    <value>Контейнер</value>
+  </data>
+  <data name="ShowcasePurpose" xml:space="preserve">
+    <value>Назначение</value>
+  </data>
+  <data name="ShowcasePoints" xml:space="preserve">
+    <value>Точек</value>
+  </data>
+  <data name="ShowcaseFormContainer" xml:space="preserve">
+    <value>Форма регистрации участника</value>
+  </data>
+  <data name="ShowcaseExport" xml:space="preserve">
+    <value>Экспортировать в JSON</value>
+  </data>
 </root>

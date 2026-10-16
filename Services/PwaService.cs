@@ -1,5 +1,6 @@
 using Microsoft.JSInterop;
 using Microsoft.Extensions.Logging;
+using ZealousMindedPeopleGeo.Resources;
 
 namespace ZealousMindedPeopleGeo.Services;
 
@@ -47,7 +48,7 @@ public class PwaService : IPwaService, IAsyncDisposable
         try
         {
             var module = await GetModuleAsync();
-            await module.InvokeVoidAsync("registerServiceWorker", ServiceWorkerPath);
+            await module.InvokeVoidAsync("registerServiceWorker", ServiceWorkerPath, Ui.PwaUpdateConfirm);
 
             _isInitialized = true;
             _logger.LogInformation("PWA service initialized successfully");

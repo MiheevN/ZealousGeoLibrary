@@ -24,10 +24,13 @@ function createDocument(elements = []) {
 // pwa.js — ES-модуль для браузера: перед загрузкой подменяем window, navigator, document и fetch.
 async function loadPwaModule({ document = createDocument(), swAllowedHeader = null } = {}) {
     const registrations = [];
+    const confirmations = [];
+    const swListeners = {};
     const info = [];
     const errors = [];
     Object.assign(globalThis, {
-        window: { addEventListener() { }, matchMedia: () => ({ matches: false }) },
+        window: { addEventListener() { }, matchMedia: () => ({ matches: false }), location: { reload() { } } },
+        confirm: (message) => { confirmations.push(message); return false; },
         document,
         fetch: async (url, init) => ({
             ok: true,
@@ -41,7 +44,7 @@ async function loadPwaModule({ document = createDocument(), swAllowedHeader = nu
         value: {
             serviceWorker: {
                 controller: null,
-                addEventListener() { },
+                addEventListener(type, handler) { swListeners[type] = handler; },
                 register: async (url, options) => {
                     registrations.push({ url, options });
                     return { scope: `${ORIGIN}${options.scope}`, addEventListener() { }, update: async () => { } };
@@ -61,6 +64,8 @@ async function loadPwaModule({ document = createDocument(), swAllowedHeader = nu
         module,
         document,
         registrations,
+        confirmations,
+        swListeners,
         info,
         errors,
         restore: () => Object.assign(console, originalConsole)
@@ -127,5 +132,20 @@ test('header narrower than the app root does not register the worker', async () 
         assert.deepEqual(pwa.registrations, []);
     } finally {
         pwa.restore();
+    }
+});
+
+test('update prompt uses the text passed by PwaService, English otherwise', async () => {
+    for (const [message, expected] of [['Доступно обновление. Обновить?', 'Доступно обновление. Обновить?'],
+        [undefined, 'An app update is available. Update now?']]) {
+        const pwa = await loadPwaModule({ swAllowedHeader: '/' });
+        try {
+            assert.equal(await pwa.module.registerServiceWorker(SCRIPT, message), true);
+            pwa.swListeners.message({ data: { type: 'SW_UPDATE_READY' } });
+
+            assert.deepEqual(pwa.confirmations, [expected]);
+        } finally {
+            pwa.restore();
+        }
     }
 });

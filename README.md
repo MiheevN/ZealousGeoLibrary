@@ -1194,8 +1194,9 @@ else
 
 ### Язык сообщений
 
-Надписи `GeoDataParticipantForm` и `CommunityMapComponent` (вместе с кнопками и подсказками
-самой карты), сообщения проверки полей формы, причины пропуска при импорте
+Надписи всех компонентов — формы, 2D-карты (вместе с кнопками и подсказками внутри неё),
+глобуса и его панелей, `PwaManagerComponent` (и вопроса об обновлении приложения),
+`LibraryShowcaseComponent`, — сообщения проверки полей формы, причины пропуска при импорте
 (`GeoJsonReadResult.Skipped`, `ErrorMessage` загрузки JSON), ошибки `GeoPoint.Validate()` и
 `JsonException` из `GeoPointGeoJson.Read` выходят на языке `CultureInfo.CurrentUICulture`, а
 числа в сообщениях форматируются по `CultureInfo.CurrentCulture`. Переводы есть на
@@ -1229,8 +1230,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 Новый язык — два файла с теми же ключами, что у английских: `Resources/Messages.<код>.resx`
 (сообщения) и `Resources/Ui.<код>.resx` (надписи компонентов). Тест `MessagesTests` сверяет
 ключи и подстановки `{0}` каждого перевода с английским, если добавить код языка в его
-список `Translations`. Глобус, `PwaManagerComponent` и `LibraryShowcaseComponent` пока не
-переводятся.
+список `Translations`.
 
 ## 🔒 Безопасность
 

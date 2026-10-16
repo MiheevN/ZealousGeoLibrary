@@ -1,3 +1,4 @@
+@using ZealousMindedPeopleGeo.Resources
 @using ZealousMindedPeopleGeo.Models
 @using ZealousMindedPeopleGeo.Services.Mapping
 @using ZealousMindedPeopleGeo.Services.Repositories
@@ -8,7 +9,7 @@
 
 <div class="participant-management-panel rounded p-3 text-white">
     <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2" @onclick="TogglePanel" style="cursor: pointer;">
-        <h5 class="mb-0">👤 Управление участниками</h5>
+        <h5 class="mb-0">👤 @Ui.ManagerTitle</h5>
         <button class="btn btn-sm btn-outline-light">@(_isCollapsed ? "▼" : "▲")</button>
     </div>
 
@@ -16,15 +17,15 @@
     {
         <div class="row g-3 mb-3">
             <div class="col-md-4">
-                <label class="form-label">Имя:</label>
-                <InputText @bind-Value="_newParticipant.Name" placeholder="Введите имя" class="form-control" />
+                <label class="form-label">@Ui.ManagerName:</label>
+                <InputText @bind-Value="_newParticipant.Name" placeholder="@Ui.ManagerNamePlaceholder" class="form-control" />
             </div>
             <div class="col-md-4">
-                <label class="form-label">Широта:</label>
+                <label class="form-label">@Ui.ManagerLatitude:</label>
                 <InputNumber @bind-Value="_newParticipant.Latitude" placeholder="55.7558" step="0.0001" class="form-control" />
             </div>
             <div class="col-md-4">
-                <label class="form-label">Долгота:</label>
+                <label class="form-label">@Ui.ManagerLongitude:</label>
                 <InputNumber @bind-Value="_newParticipant.Longitude" placeholder="37.6173" step="0.0001" class="form-control" />
             </div>
         </div>
@@ -33,28 +34,28 @@
             <button class="btn btn-success" @onclick="AddParticipantAsync" disabled="@_isAddingParticipant">
                 @if (_isAddingParticipant)
                 {
-                    <span>⏳ Добавление...</span>
+                    <span>⏳ @Ui.ManagerAdding</span>
                 }
                 else
                 {
 
-                    <span>✅ Добавить</span>
+                    <span>✅ @Ui.ManagerAdd</span>
                 }
             </button>
-            <button class="btn btn-secondary" @onclick="ClearForm">🗑️ Очистить</button>
-            <button class="btn btn-info" @onclick="CenterOnFormCoordinates">🎯 Центрировать</button>
+            <button class="btn btn-secondary" @onclick="ClearForm">🗑️ @Ui.ManagerClear</button>
+            <button class="btn btn-info" @onclick="CenterOnFormCoordinates">🎯 @Ui.ManagerCenter</button>
         </div>
 
         <div class="border-top pt-3 mt-3">
-            <h6 class="text-white mb-2">⚡ Быстрое добавление:</h6>
+            <h6 class="text-white mb-2">⚡ @Ui.ManagerQuickAdd:</h6>
             <div class="d-flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Москва", 55.7558, 37.6173))">🏛️ Москва</button>
-                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("СПб", 59.9343, 30.3351))">🏛️ СПб</button>
-                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Новосибирск", 55.0084, 82.9357))">🏛️ Новосибирск</button>
-                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Екатеринбург", 56.8389, 60.6057))">🏛️ Екатеринбург</button>
-                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Казань", 55.7961, 49.1064))">🏛️ Казань</button>
-                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync("Краснодар", 45.0355, 38.9753))">🏛️ Краснодар</button>
-                <button class="btn btn-sm btn-outline-info" @onclick="AddRandomParticipantAsync">🎲 Случайный</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync(Ui.ManagerMoscow, 55.7558, 37.6173))">🏛️ @Ui.ManagerMoscow</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync(Ui.ManagerSaintPetersburg, 59.9343, 30.3351))">🏛️ @Ui.ManagerSaintPetersburg</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync(Ui.ManagerNovosibirsk, 55.0084, 82.9357))">🏛️ @Ui.ManagerNovosibirsk</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync(Ui.ManagerYekaterinburg, 56.8389, 60.6057))">🏛️ @Ui.ManagerYekaterinburg</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync(Ui.ManagerKazan, 55.7961, 49.1064))">🏛️ @Ui.ManagerKazan</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="@(() => AddQuickParticipantAsync(Ui.ManagerKrasnodar, 45.0355, 38.9753))">🏛️ @Ui.ManagerKrasnodar</button>
+                <button class="btn btn-sm btn-outline-info" @onclick="AddRandomParticipantAsync">🎲 @Ui.ManagerRandom</button>
             </div>
         </div>
     }
@@ -117,11 +118,11 @@
 
         if (result.Success)
         {
-            ShowMessage("✅ Центрировано на координатах формы", false);
+            ShowMessage(Ui.ManagerCentered, false);
         }
         else
         {
-            ShowMessage($"❌ Ошибка центрирования: {result.ErrorMessage}", true);
+            ShowMessage(Ui.ManagerCenterFailed(result.ErrorMessage), true);
         }
     }
 
@@ -138,25 +139,25 @@
         {
             if (string.IsNullOrWhiteSpace(_newParticipant.Name))
             {
-                ShowMessage("❌ Введите имя участника", true);
+                ShowMessage(Ui.ManagerEnterName, true);
                 return;
             }
 
             if (!_newParticipant.Latitude.HasValue || !_newParticipant.Longitude.HasValue)
             {
-                ShowMessage("❌ Введите координаты", true);
+                ShowMessage(Ui.ManagerEnterCoordinates, true);
                 return;
             }
 
             if (_newParticipant.Latitude < -90 || _newParticipant.Latitude > 90)
             {
-                ShowMessage("❌ Широта должна быть от -90 до 90", true);
+                ShowMessage(Ui.ManagerLatitudeRange, true);
                 return;
             }
 
             if (_newParticipant.Longitude < -180 || _newParticipant.Longitude > 180)
             {
-                ShowMessage("❌ Долгота должна быть от -180 до 180", true);
+                ShowMessage(Ui.ManagerLongitudeRange, true);
                 return;
             }
 
@@ -165,10 +166,10 @@
                 Id = Guid.NewGuid(),
                 Name = _newParticipant.Name,
                 Address = $"{_newParticipant.Latitude.Value:F4}, {_newParticipant.Longitude.Value:F4}",
-                Email = "user@example.com",
+                Email = string.Empty,
                 Location = _newParticipant.Name,
                 City = _newParticipant.City ?? _newParticipant.Name,
-                Country = _newParticipant.Country ?? "Россия",
+                Country = _newParticipant.Country,
                 Latitude = _newParticipant.Latitude.Value,
                 Longitude = _newParticipant.Longitude.Value,
                 RegisteredAt = DateTime.UtcNow
@@ -186,12 +187,12 @@
                 s.ParticipantCount = participantsList.Count;
             });
 
-            ShowMessage($"✅ Участник {participant.Name} добавлен", false);
+            ShowMessage(Ui.ManagerAdded(participant.Name), false);
             ClearForm();
         }
         catch (Exception ex)
         {
-            ShowMessage($"❌ Ошибка: {ex.Message}", true);
+            ShowMessage(Ui.ManagerError(ex.Message), true);
         }
         finally
         {
@@ -213,7 +214,7 @@
         var random = new Random();
         var latitude = random.NextDouble() * 180 - 90;
         var longitude = random.NextDouble() * 360 - 180;
-        await AddQuickParticipantAsync($"Участник {random.Next(1000, 9999)}", latitude, longitude);
+        await AddQuickParticipantAsync(Ui.ManagerRandomName(random.Next(1000, 9999)), latitude, longitude);
     }
 
     private void ShowMessage(string message, bool isError)
