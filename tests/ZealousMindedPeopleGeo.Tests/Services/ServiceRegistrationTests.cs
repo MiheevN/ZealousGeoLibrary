@@ -36,7 +36,6 @@ public class ServiceRegistrationTests
         typeof(IParticipantService),
         typeof(IGeoDataContainerManager),
         typeof(IGeocodingService),
-        typeof(IMapService),
         typeof(ICachingService),
         typeof(IPwaService),
         typeof(IThreeJsGlobeService),

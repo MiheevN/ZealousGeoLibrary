@@ -8,8 +8,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZealousMindedPeopleGeo.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZealousMindedPeopleGeo.Showcase", "hosts\ZealousMindedPeopleGeo.Showcase\ZealousMindedPeopleGeo.Showcase.csproj", "{D57A1E84-2C6B-4F90-A183-6B4E9C0D7152}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataIsolationTest", "experiments\data-isolation-test\DataIsolationTest.csproj", "{A0E6C3D9-71B4-4E25-9F88-2C5D8A1B6047}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +26,5 @@ Global
 		{D57A1E84-2C6B-4F90-A183-6B4E9C0D7152}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D57A1E84-2C6B-4F90-A183-6B4E9C0D7152}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D57A1E84-2C6B-4F90-A183-6B4E9C0D7152}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A0E6C3D9-71B4-4E25-9F88-2C5D8A1B6047}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A0E6C3D9-71B4-4E25-9F88-2C5D8A1B6047}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A0E6C3D9-71B4-4E25-9F88-2C5D8A1B6047}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A0E6C3D9-71B4-4E25-9F88-2C5D8A1B6047}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

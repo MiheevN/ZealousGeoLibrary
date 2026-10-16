@@ -268,36 +268,3 @@ public class GeoPointGeoJsonTests
         $"{point.Id}|{point.Latitude:R}|{point.Longitude:R}|{point.Title}|{point.Description}|{point.Category}|{point.Color}|{point.Icon}|{point.Url}|"
         + string.Join(";", point.Properties.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}"));
 }
-
-/// <summary>
-/// Прежняя модель GeoJSON для участников (<see cref="GeoJsonFeatureCollection"/>).
-/// </summary>
-public class LegacyParticipantGeoJsonTests
-{
-    [Fact]
-    public void FromParticipants_SurvivesJsonRoundTrip()
-    {
-        var participant = TestData.CreateParticipant("Anna", 59.9343, 30.3351);
-        var json = JsonSerializer.Serialize(GeoJsonFeatureCollection.FromParticipants(new[] { participant }));
-
-        var parsed = JsonSerializer.Deserialize<GeoJsonFeatureCollection>(json)!;
-
-        // После разбора координаты — JsonElement, а не double[]: раньше участников не находилось.
-        var feature = Assert.Single(parsed.Features);
-        Assert.True(feature.IsValidParticipantPoint());
-        var read = Assert.Single(parsed.ToParticipants());
-        Assert.Equal((participant.Id, participant.Name, 59.9343, 30.3351), (read.Id, read.Name, read.Latitude!.Value, read.Longitude!.Value));
-    }
-
-    [Fact]
-    public void IsValidParticipantPoint_RejectsOutOfRangeAndNonPoints()
-    {
-        static GeoJsonFeature Parse(string geometry) =>
-            JsonSerializer.Deserialize<GeoJsonFeature>($$"""{ "type": "Feature", "geometry": {{geometry}} }""")!;
-
-        Assert.False(Parse("""{ "type": "Point", "coordinates": [10, 95] }""").IsValidParticipantPoint());
-        Assert.False(Parse("""{ "type": "LineString", "coordinates": [[0, 0], [1, 1]] }""").IsValidParticipantPoint());
-        Assert.False(Parse("""{ "type": "Point", "coordinates": ["a", "b"] }""").IsValidParticipantPoint());
-        Assert.True(Parse("""{ "type": "Point", "coordinates": [10, 50] }""").IsValidParticipantPoint());
-    }
-}

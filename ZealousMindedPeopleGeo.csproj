@@ -24,7 +24,7 @@
       • Гибкие источники данных (In-Memory, Google Sheets, JSON)
       • Полная PWA поддержка с оффлайн функциональностью
       • Локализация (русский/английский)
-      • Комплексная валидация данных с FluentValidation
+      • Импорт и экспорт GeoJSON
       • Интеллектуальное кэширование через MemoryCache
       • Интеграционные тесты и автоматизация
 
@@ -65,7 +65,7 @@
       - Гибкие репозитории данных (In-Memory, Google Sheets, JSON файлы)
       - Полная поддержка PWA с сервис-воркером и манифестом
       - Локализация на русский и английский языки
-      - Комплексная валидация данных с FluentValidation
+      - Импорт и экспорт GeoJSON
       - Интеллектуальное кэширование через MemoryCache
       - Компоненты для быстрого старта разработки
       - Интеграционные тесты и скрипты автоматизации
@@ -99,7 +99,6 @@
 
   <!-- Ссылки на пакеты -->
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.10" />

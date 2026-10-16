@@ -8,6 +8,14 @@
 ## [Unreleased] - 2024-12-XX
 
 ### Удалено
+- **Неработающие и неиспользуемые части:**
+  - `ValidationService`, `LocalizationService` и валидаторы FluentValidation (`ParticipantValidator` и др.) вместе с зависимостью от пакета FluentValidation. `ValidationService` не регистрировался, поэтому пример из README не работал; ввод формы проверяют атрибуты моделей, точки — `GeoPoint.Validate()`
+  - `IMapService` и `GoogleMapsServiceAdapter` — регистрировались, но ими никто не пользовался
+  - `IGeoJsonService`, `FileGeoJsonService` и прежняя модель GeoJSON (`GeoJsonFeatureCollection` и др.). Для GeoJSON есть `GeoPointGeoJson`
+  - Правила сервис-воркера для `/api/participants`, `/api/geocoding`, `/api/healthcheck`: такие запросы и так шли по Network First
+  - CSS для класса `.participant-registration`, которого нет ни в одном компоненте
+  - Скриншоты `docs/screenshots`, HTML-черновики в `experiments/` и `examples/`, проект `experiments/data-isolation-test` (его проверки покрывают тесты контейнеров и демо-наборов)
+
 - **Код, которым никто не пользовался:** папка `Interfaces/` (`IDataSource`, `IDataSourceManager`, `IGeocodingServiceSimple` и их модели — набросок, у которого не было ни одной реализации), классы `GlobePointData`, `PointAnimation`, `GlobeCountryData`, `GlobeEvent`, `GlobePerformanceConfig`, три `.bak`-файла, `js/test-globe.js`, `js/globe-initializer.js` и `js/libs/three.core.min.js` (глобус грузит `three.core.js`)
 
 - **Настройки, которые ничего не делали:** `EnableParticipantValidation`, `EnableRateLimiting`, `MaxParticipantsPerHour`, `DefaultCulture` и `Map:MapTheme`. Библиотека их не читала, а `EnableRateLimiting = true` создавал впечатление встроенной защиты. Ограничения — задача приложения (см. `OnSubmitting`), язык сообщений берётся из `CurrentUICulture`. Эти ключи в `appsettings.json` просто игнорируются; код, который их присваивает, надо поправить

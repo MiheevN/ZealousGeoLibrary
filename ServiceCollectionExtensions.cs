@@ -90,12 +90,10 @@ namespace ZealousMindedPeopleGeo
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("ZealousMindedPeopleGeo/1.0");
             });
             services.TryAddScoped<IGeocodingService, GoogleMapsGeocodingService>();
-            services.TryAddScoped<IMapService, GoogleMapsServiceAdapter>();
             services.TryAddScoped<IGoogleSheetsService, GoogleSheetsService>();
             services.TryAddScoped<IParticipantRepository>(CreateParticipantRepository);
             services.TryAddScoped<IParticipantService, ParticipantService>();
             services.TryAddScoped<ICachingService, CachingService>();
-            services.TryAddScoped<IGeoJsonService, FileGeoJsonService>();
             services.TryAddScoped<IPwaService, PwaService>();
 
             // 3D глобус и именованные контейнеры гео-данных (в памяти, если приложение
