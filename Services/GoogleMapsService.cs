@@ -113,12 +113,7 @@ namespace ZealousMindedPeopleGeo.Services
 
         public MapConfiguration GetMapConfiguration()
         {
-            return _options.Map ?? new MapConfiguration
-            {
-                DefaultLatitude = 55.7558, // Москва
-                DefaultLongitude = 37.6176, // Москва
-                DefaultZoom = 10
-            };
+            return _options.Map ?? new MapConfiguration();
         }
 
         public async Task<bool> CheckConnectionAsync()

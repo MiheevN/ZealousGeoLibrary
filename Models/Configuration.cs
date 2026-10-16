@@ -27,9 +27,20 @@ namespace ZealousMindedPeopleGeo.Models
     /// </summary>
     public class MapConfiguration
     {
-        public double DefaultLatitude { get; set; } = 55.7558; // Москва
-        public double DefaultLongitude { get; set; } = 37.6176; // Москва
-        public int DefaultZoom { get; set; } = 10;
+        /// <summary>
+        /// Широта начального центра 2D-карты. Не задана — 20: мир целиком, без полярных пустот.
+        /// </summary>
+        public double? DefaultLatitude { get; set; }
+
+        /// <summary>
+        /// Долгота начального центра 2D-карты. Не задана — совпадает с <see cref="CentralMeridian"/>.
+        /// </summary>
+        public double? DefaultLongitude { get; set; }
+
+        /// <summary>
+        /// Начальное приближение 2D-карты: 1 — мир целиком. Не задано — 2.
+        /// </summary>
+        public int? DefaultZoom { get; set; }
 
         /// <summary>
         /// Проекция 2D-карты. По умолчанию — равновеликая Equal Earth.
