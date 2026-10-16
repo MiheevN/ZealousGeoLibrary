@@ -62,7 +62,7 @@ node --test experiments/*.test.mjs
   в результатах операций и событиях `OnDataChanged`;
 - `Components/` — Razor-компоненты через [bUnit](https://bunit.dev): какие параметры
   уходят в JavaScript и что видит пользователь;
-- `Validation/` — правила `ParticipantValidator` и связанных валидаторов;
+- `Validation/` — атрибуты, которыми форма проверяет ввод участника;
 - `Models/` — демонстрационные наборы, в том числе что они проходят валидацию;
 - `Services/` — регистрация сервисов и `PwaService`.
 
@@ -692,23 +692,22 @@ public interface IThreeJsGlobeService
 
 ## ✅ Валидация
 
-Комплексная валидация данных с использованием FluentValidation:
+Точку проверяет `GeoPoint.Validate()`: `null`, если всё в порядке, иначе текст ошибки
+(см. «Язык сообщений»). Контейнеры вызывают её сами — `AddPointAsync` и `UpdatePointAsync`
+не сохраняют некорректную точку и возвращают ошибку в `ErrorMessage`, а `AddPointsAsync`
+пропускает такие точки.
 
 ```csharp
-// Валидация участника
-var result = await ValidationService.ValidateParticipantAsync(participant);
-if (!result.IsValid)
+var error = point.Validate(); // широта −90…90, долгота −180…180, Id и длины полей
+if (error is not null)
 {
-    var errors = result.Errors.Select(e => e.ErrorMessage);
-    // Обработка ошибок
+    // показать пользователю
 }
-
-// Валидация координат
-var isValid = await ValidationService.AreCoordinatesValidAsync(latitude, longitude);
-
-// Валидация адреса
-var isValid = await ValidationService.IsAddressValidForGeocodingAsync(address);
 ```
+
+`GeoDataParticipantForm` проверяет ввод атрибутами `ParticipantRegistrationModel`
+(`DataAnnotationsValidator`): имя и адрес обязательны, email необязателен, но если указан —
+должен быть похож на адрес.
 
 ## 📦 Именованные контейнеры гео-данных
 
@@ -1216,7 +1215,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 Рекомендации по безопасности:
 
 1. **API ключи** - Храните ключи Google вне репозитория (см. «Конфигурация» → «Ключи и секреты»)
-2. **Валидация** - Всегда используйте встроенную валидацию данных
+2. **Валидация** - Контейнеры не сохраняют точки, которые не проходят `GeoPoint.Validate()` (см. «Валидация»)
 3. **Доступ и частота** - Библиотека не ограничивает, кто и сколько точек добавляет; для формы на открытой странице задайте `OnSubmitting` (см. «Кто может добавлять точки»)
 4. **CORS** - Настройте политику CORS для защиты от CSRF атак
 5. **HTTPS** - Используйте HTTPS для всех запросов
@@ -1294,7 +1293,6 @@ dotnet build ZealousMindedPeopleGeo.csproj
 - **Three.js** - Библиотека для 3D графики
 - **Google Maps API** - Картографические сервисы
 - **OpenStreetMap** - Бесплатные географические данные
-- **FluentValidation** - Библиотека валидации
 - **ASP.NET Core** - Платформа веб-разработки
 
 ---

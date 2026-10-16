@@ -28,13 +28,6 @@ const STATIC_ASSETS = [
     '/_content/ZealousMindedPeopleGeo/manifest.json'
 ];
 
-// API endpoints для кэширования
-const API_CACHE_PATTERNS = [
-    /\/api\/participants/,
-    /\/api\/geocoding/,
-    /\/api\/healthcheck/
-];
-
 // Установка сервис-воркера
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing Service Worker', SW_VERSION);
@@ -112,12 +105,6 @@ self.addEventListener('fetch', (event) => {
     // а пока fetch-событие не завершено, новая версия не активируется даже после skipWaiting.
     if (url.pathname.startsWith('/_blazor') ||
         request.headers.get('Accept') === 'text/event-stream') {
-        return;
-    }
-
-    // Стратегия для API запросов (Network First)
-    if (API_CACHE_PATTERNS.some(pattern => pattern.test(request.url))) {
-        event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE_NAME));
         return;
     }
 

@@ -35,8 +35,6 @@
 .globe-settings-panel *,
 .participant-management-panel,
 .participant-management-panel *,
-.participant-registration,
-.participant-registration *,
 .geodata-participant-form,
 .geodata-participant-form *,
 .pwa-manager,
@@ -50,7 +48,6 @@
 .globe-controls,
 .globe-settings-panel,
 .participant-management-panel,
-.participant-registration,
 .geodata-participant-form,
 .pwa-manager {
     color-scheme: dark;
