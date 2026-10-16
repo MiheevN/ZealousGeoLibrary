@@ -55,6 +55,10 @@ node --test experiments/*.test.mjs
 
 `node --test experiments/` без маски на Node 22 не работает: Node принимает папку за модуль.
 
+Оба набора запускает GitHub Actions (`.github/workflows/ci.yml`) на каждый PR и push в
+`master`; .NET-тесты — дважды, второй раз с русской локалью системы (`LANG=ru_RU.UTF-8`),
+потому что сообщения библиотеки зависят от языка.
+
 Что проверяют .NET-тесты (`tests/ZealousMindedPeopleGeo.Tests`):
 
 - `GeoData/` — общий контракт хранилищ гео-данных. Одни и те же тесты прогоняются
