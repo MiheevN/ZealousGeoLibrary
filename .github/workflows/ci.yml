@@ -1,0 +1,48 @@
+# Сборка и тесты на каждый PR и push в master.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore
+        run: dotnet restore ZealousMindedPeopleGeo.sln
+
+      - name: Build
+        run: dotnet build ZealousMindedPeopleGeo.sln --no-restore --configuration Release
+
+      - name: .NET tests
+        run: dotnet test tests/ZealousMindedPeopleGeo.Tests --no-build --configuration Release
+
+      # Сообщения библиотеки зависят от языка: тесты должны проходить и на русской системе.
+      - name: .NET tests (ru-RU)
+        run: dotnet test tests/ZealousMindedPeopleGeo.Tests --no-build --configuration Release
+        env:
+          LANG: ru_RU.UTF-8
+          LC_ALL: ru_RU.UTF-8
+
+      - name: JavaScript tests
+        run: node --test experiments/*.test.mjs
