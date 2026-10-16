@@ -1,3 +1,4 @@
+@using ZealousMindedPeopleGeo.Resources
 @using ZealousMindedPeopleGeo.Services.Mapping
 @inject GlobeStateService GlobeStateService
 @inject IGlobeMediator GlobeMediator
@@ -5,30 +6,33 @@
 
 <div class="globe-controls d-flex gap-3 align-items-center p-2 rounded text-white">
     <div class="d-flex align-items-center gap-2">
-        <small>Вращение:</small>
+        <small>@Ui.GlobeRotation:</small>
         <button class="btn btn-sm @(State.IsAutoRotating ? "btn-info" : "btn-outline-light")"
                 @onclick="ToggleRotation"
+                title="@Ui.GlobeToggleRotation"
+                aria-label="@Ui.GlobeToggleRotation"
+                aria-pressed="@(State.IsAutoRotating ? "true" : "false")"
                 disabled="@(!State.IsInitialized)">
             🔄
         </button>
     </div>
 
     <div class="d-flex align-items-center gap-2">
-        <small>Участники:</small>
+        <small>@Ui.GlobePointCount:</small>
         <span class="badge bg-info">@State.ParticipantCount</span>
     </div>
 
     <div class="d-flex align-items-center gap-2">
-        <small>Детализация:</small>
+        <small>@Ui.GlobeDetail:</small>
         <select class="form-select form-select-sm" 
                 @bind="State.CurrentLod" 
                 @bind:after="OnLodChanged"
                 style="width: auto;"
                 disabled="@(!State.IsInitialized)">
-            <option value="0">Низкая</option>
-            <option value="1">Средняя</option>
-            <option value="2">Высокая</option>
-            <option value="3">Ультра</option>
+            <option value="0">@Ui.GlobeDetailLow</option>
+            <option value="1">@Ui.GlobeDetailMedium</option>
+            <option value="2">@Ui.GlobeDetailHigh</option>
+            <option value="3">@Ui.GlobeDetailUltra</option>
         </select>
     </div>
 
@@ -53,8 +57,8 @@
     private bool HasCurrentLocation => IsValidLatitude(CurrentLatitude) && IsValidLongitude(CurrentLongitude);
     private bool CanCenterOnCurrentLocation => State.IsInitialized && HasCurrentLocation;
     private string CurrentLocationButtonTitle => HasCurrentLocation
-        ? "Вернуться к текущей позиции"
-        : "Текущая позиция не установлена";
+        ? Ui.GlobeCenterOnLocation
+        : Ui.GlobeNoLocation;
     
     protected override void OnInitialized()
     {

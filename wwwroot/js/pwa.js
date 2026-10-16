@@ -2,7 +2,8 @@
 // Функции PWA для PwaService. Модуль подключается через import() из интерактивного
 // рендера, поэтому при пререндеринге он не загружается и не вызывается.
 
-const UPDATE_CONFIRM_MESSAGE = 'Доступно обновление приложения. Обновить сейчас?';
+// Вопрос при новой версии; PwaService передаёт его на языке пользователя.
+let updateConfirmMessage = 'An app update is available. Update now?';
 const MANIFEST = '_content/ZealousMindedPeopleGeo/manifest.json';
 const TOUCH_ICON = '_content/ZealousMindedPeopleGeo/icons/icon-192x192.png';
 const THEME_COLOR = '#0e1013';
@@ -79,7 +80,10 @@ async function isScopeAllowed(scriptUrl, scope) {
     }
 }
 
-export async function registerServiceWorker(scriptUrl) {
+export async function registerServiceWorker(scriptUrl, updateMessage) {
+    if (typeof updateMessage === 'string' && updateMessage) {
+        updateConfirmMessage = updateMessage;
+    }
     ensureManifest();
 
     if (!('serviceWorker' in navigator)) {
@@ -114,7 +118,7 @@ export async function registerServiceWorker(scriptUrl) {
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                         // Новый контент доступен, предлагаем обновление
-                        if (confirm(UPDATE_CONFIRM_MESSAGE)) {
+                        if (confirm(updateConfirmMessage)) {
                             window.location.reload();
                         }
                     }
@@ -127,7 +131,7 @@ export async function registerServiceWorker(scriptUrl) {
             serviceWorkerListenersAttached = true;
             navigator.serviceWorker.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'SW_UPDATE_READY') {
-                    if (confirm(UPDATE_CONFIRM_MESSAGE)) {
+                    if (confirm(updateConfirmMessage)) {
                         window.location.reload();
                     }
                 }

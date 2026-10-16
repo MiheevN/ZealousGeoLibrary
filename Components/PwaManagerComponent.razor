@@ -1,3 +1,4 @@
+@using ZealousMindedPeopleGeo.Resources
 @using Microsoft.AspNetCore.Components
 @using Microsoft.Extensions.Logging
 @using ZealousMindedPeopleGeo.Services
@@ -10,7 +11,7 @@
     {
         <div class="loading-state">
             <div class="loading-spinner"></div>
-            <span>Загрузка...</span>
+            <span>@Ui.PwaLoading</span>
         </div>
     }
     else if (_showInstallPrompt && _installInfo.CanInstall)
@@ -19,15 +20,15 @@
             <div class="install-content">
                 <div class="install-icon">📱</div>
                 <div class="install-text">
-                    <h4>Установите приложение</h4>
-                    <p>Получите быстрый доступ к географии сообщества прямо с рабочего стола</p>
+                    <h4>@Ui.PwaInstallTitle</h4>
+                    <p>@Ui.PwaInstallText</p>
                 </div>
                 <div class="install-actions">
                     <button class="btn btn-primary" @onclick="InstallPwaAsync">
-                        Установить
+                        @Ui.PwaInstall
                     </button>
                     <button class="btn btn-secondary" @onclick="DismissInstallPrompt">
-                        Позже
+                        @Ui.PwaLater
                     </button>
                 </div>
             </div>
@@ -37,24 +38,24 @@
     {
         <div class="pwa-info-panel">
             <div class="pwa-header">
-                <h4>PWA Информация</h4>
-                <button class="close-button" @onclick="() => _showPwaInfo = false">×</button>
+                <h4>@Ui.PwaInfoTitle</h4>
+                <button class="close-button" aria-label="@Ui.Close" @onclick="() => _showPwaInfo = false">×</button>
             </div>
             <div class="pwa-content">
                 <div class="pwa-status">
                     <div class="status-item">
-                        <span class="status-label">Статус:</span>
+                        <span class="status-label">@Ui.PwaStatus:</span>
                         <span class="status-value @(_installInfo.IsInstalled ? "installed" : "not-installed")">
-                            @(_installInfo.IsInstalled ? "Установлено" : "Не установлено")
+                            @(_installInfo.IsInstalled ? Ui.PwaInstalled : Ui.PwaNotInstalled)
                         </span>
                     </div>
 
                     @if (_cacheInfo != null)
                     {
                         <div class="status-item">
-                            <span class="status-label">Кэш:</span>
+                            <span class="status-label">@Ui.PwaCache:</span>
                             <span class="status-value">
-                                @(FormatBytes(_cacheInfo.TotalSize)) (@_cacheInfo.CacheCount кэшей)
+                                @Ui.PwaCacheSummary(FormatBytes(_cacheInfo.TotalSize), _cacheInfo.CacheCount)
                             </span>
                         </div>
                     }
@@ -64,27 +65,27 @@
                     @if (_installInfo.CanInstall)
                     {
                         <button class="btn btn-primary" @onclick="InstallPwaAsync">
-                            Установить приложение
+                            @Ui.PwaInstallApp
                         </button>
                     }
 
                     <button class="btn btn-secondary" @onclick="UpdateServiceWorkerAsync">
-                        Проверить обновления
+                        @Ui.PwaCheckUpdates
                     </button>
 
                     <button class="btn btn-outline-secondary" @onclick="ClearCacheAsync">
-                        Очистить кэш
+                        @Ui.PwaClearCache
                     </button>
 
                     <button class="btn btn-outline-primary" @onclick="ShowCacheInfoAsync">
-                        Информация о кэше
+                        @Ui.PwaShowCacheDetails
                     </button>
                 </div>
 
                 @if (_showCacheDetails && _cacheInfo != null)
                 {
                     <div class="cache-details">
-                        <h5>Детали кэша</h5>
+                        <h5>@Ui.PwaCacheDetails</h5>
                         <div class="cache-list">
                             @foreach (var cache in _cacheInfo.Caches)
                             {
@@ -92,7 +93,7 @@
                                     <div class="cache-name">@cache.Name</div>
                                     <div class="cache-stats">
                                         <span>@FormatBytes(cache.Size)</span>
-                                        <span>@cache.ItemCount элементов</span>
+                                        <span>@Ui.PwaCacheItems(cache.ItemCount)</span>
                                     </div>
                                 </div>
                             }
@@ -106,21 +107,21 @@
     @if (_showNotificationTest)
     {
         <div class="notification-test">
-            <h5>Тест уведомлений</h5>
+            <h5>@Ui.PwaNotificationTest</h5>
             <div class="form-group">
-                <label>Заголовок:</label>
-                <input type="text" class="form-control" @bind="_notificationTitle" placeholder="Заголовок уведомления" />
+                <label>@Ui.PwaNotificationTitle:</label>
+                <input type="text" class="form-control" @bind="_notificationTitle" placeholder="@Ui.PwaNotificationTitlePlaceholder" />
             </div>
             <div class="form-group">
-                <label>Сообщение:</label>
-                <input type="text" class="form-control" @bind="_notificationBody" placeholder="Текст уведомления" />
+                <label>@Ui.PwaNotificationBody:</label>
+                <input type="text" class="form-control" @bind="_notificationBody" placeholder="@Ui.PwaNotificationBodyPlaceholder" />
             </div>
             <div class="notification-actions">
                 <button class="btn btn-primary" @onclick="SendTestNotificationAsync" disabled="@string.IsNullOrWhiteSpace(_notificationTitle)">
-                    Отправить уведомление
+                    @Ui.PwaSendNotification
                 </button>
                 <button class="btn btn-secondary" @onclick="() => _showNotificationTest = false">
-                    Отмена
+                    @Ui.PwaCancel
                 </button>
             </div>
         </div>
@@ -139,8 +140,8 @@
     private bool _showPwaInfo = false;
     private bool _showCacheDetails = false;
     private bool _showNotificationTest = false;
-    private string _notificationTitle = "Тест";
-    private string _notificationBody = "Это тестовое уведомление PWA";
+    private string _notificationTitle = Ui.PwaDefaultNotificationTitle;
+    private string _notificationBody = Ui.PwaDefaultNotificationBody;
 
     private System.Timers.Timer? _updateTimer;
 

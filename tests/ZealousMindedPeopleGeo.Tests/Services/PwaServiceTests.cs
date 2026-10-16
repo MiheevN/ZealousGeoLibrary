@@ -43,6 +43,20 @@ public class PwaServiceTests
         Assert.Equal("Заголовок с 'кавычками'", module.Args["sendNotification"]?[0]);
     }
 
+    [Theory]
+    [InlineData("en", "An app update is available. Update now?")]
+    [InlineData("ru", "Доступно обновление приложения. Обновить сейчас?")]
+    public async Task Initialize_PassesUpdatePromptInUiLanguage(string language, string prompt)
+    {
+        using var culture = new CultureScope(language);
+        var module = new FakeModule();
+        await using var service = new PwaService(new FakeJsRuntime(module), NullLogger<PwaService>.Instance);
+
+        await service.InitializeAsync();
+
+        Assert.Equal(prompt, module.Args["registerServiceWorker"]?[1]);
+    }
+
     private sealed class FakeJsRuntime(FakeModule module) : IJSRuntime
     {
         public List<string> Identifiers { get; } = new();

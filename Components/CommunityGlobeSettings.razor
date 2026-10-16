@@ -1,15 +1,16 @@
+@using ZealousMindedPeopleGeo.Resources
 @using System.Text.Json
 @using System.Globalization
 @inject IJSRuntime JSRuntime
 
 <div class="globe-settings-panel">
     <div class="settings-header">
-        <h5 class="mb-0">Настройки глобуса</h5>
+        <h5 class="mb-0">@Ui.SettingsTitle</h5>
         <div class="settings-actions">
-            <button class="btn btn-sm btn-warning" @onclick="ApplySettingsAsync">✓ Применить</button>
-            <button class="btn btn-sm btn-success" @onclick="SaveSettingsAsync">💾 Сохранить</button>
-            <button class="btn btn-sm btn-primary" @onclick="LoadSettingsAsync">📂 Загрузить</button>
-            <button class="btn btn-sm btn-secondary" @onclick="ResetToDefaults">🔄 Сброс</button>
+            <button class="btn btn-sm btn-warning" @onclick="ApplySettingsAsync">✓ @Ui.SettingsApply</button>
+            <button class="btn btn-sm btn-success" @onclick="SaveSettingsAsync">💾 @Ui.SettingsSave</button>
+            <button class="btn btn-sm btn-primary" @onclick="LoadSettingsAsync">📂 @Ui.SettingsLoad</button>
+            <button class="btn btn-sm btn-secondary" @onclick="ResetToDefaults">🔄 @Ui.SettingsReset</button>
         </div>
     </div>
     <div class="settings-body">
@@ -19,17 +20,17 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("sizeSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("sizeSettings") ? "true" : "false")' aria-controls="sizeSettings" @onclick='() => ToggleSection("sizeSettings")'>
-                        📐 Размеры
+                        📐 @Ui.SettingsSize
                     </button>
                 </h2>
                 <div id="sizeSettings" class="accordion-collapse collapse @(IsOpen("sizeSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2">
-                            <label class="form-label">Ширина: @Settings.Width px</label>
+                            <label class="form-label">@Ui.SettingsWidth(Settings.Width)</label>
                             <input type="range" class="form-range" min="400" max="2000" step="50" @bind="Settings.Width" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Высота: @Settings.Height px</label>
+                            <label class="form-label">@Ui.SettingsHeight(Settings.Height)</label>
                             <input type="range" class="form-range" min="300" max="1500" step="50" @bind="Settings.Height" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                     </div>
@@ -40,37 +41,37 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("pointSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("pointSettings") ? "true" : "false")' aria-controls="pointSettings" @onclick='() => ToggleSection("pointSettings")'>
-                        📍 Точки участников
+                        📍 @Ui.SettingsMarkers
                     </button>
                 </h2>
                 <div id="pointSettings" class="accordion-collapse collapse @(IsOpen("pointSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2">
-                            <label class="form-label">Размер метки: @Settings.ParticipantPointSize</label>
+                            <label class="form-label">@Ui.SettingsMarkerSize(Settings.ParticipantPointSize)</label>
                             <input type="range" class="form-range" min="0.04" max="2.0" step="0.04" @bind="Settings.ParticipantPointSize" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Отступ от поверхности: @Settings.ParticipantPointOffset</label>
+                            <label class="form-label">@Ui.SettingsMarkerOffset(Settings.ParticipantPointOffset)</label>
                             <input type="range" class="form-range" min="0.01" max="0.2" step="0.01" @bind="Settings.ParticipantPointOffset" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет метки</label>
+                            <label class="form-label">@Ui.SettingsMarkerColor</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.ParticipantPointColor" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Прозрачность метки: @Settings.ParticipantMarkerOpacity</label>
+                            <label class="form-label">@Ui.SettingsMarkerOpacity(Settings.ParticipantMarkerOpacity)</label>
                             <input type="range" class="form-range" min="0.1" max="1.0" step="0.05" @bind="Settings.ParticipantMarkerOpacity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет граней метки</label>
+                            <label class="form-label">@Ui.SettingsMarkerEdgeColor</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.HighlightedPointColor" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Интервал волн: @Settings.ParticipantMarkerRippleIntervalMs мс</label>
+                            <label class="form-label">@Ui.SettingsRippleInterval(Settings.ParticipantMarkerRippleIntervalMs)</label>
                             <input type="range" class="form-range" min="500" max="5000" step="100" @bind="Settings.ParticipantMarkerRippleIntervalMs" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Длительность волны: @Settings.ParticipantMarkerRippleDurationMs мс</label>
+                            <label class="form-label">@Ui.SettingsRippleDuration(Settings.ParticipantMarkerRippleDurationMs)</label>
                             <input type="range" class="form-range" min="100" max="2000" step="50" @bind="Settings.ParticipantMarkerRippleDurationMs" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" @bind:after="ApplySettingsAsync" />
                         </div>
                     </div>
@@ -81,17 +82,17 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("rotationSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("rotationSettings") ? "true" : "false")' aria-controls="rotationSettings" @onclick='() => ToggleSection("rotationSettings")'>
-                        🔄 Вращение
+                        🔄 @Ui.GlobeRotation
                     </button>
                 </h2>
                 <div id="rotationSettings" class="accordion-collapse collapse @(IsOpen("rotationSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="autoRotate" @bind="Settings.AutoRotate" />
-                            <label class="form-check-label" for="autoRotate">Автоматическое вращение</label>
+                            <label class="form-check-label" for="autoRotate">@Ui.SettingsAutoRotate</label>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Скорость вращения: @Settings.AutoRotateSpeed</label>
+                            <label class="form-label">@Ui.SettingsRotateSpeed(Settings.AutoRotateSpeed)</label>
                             <input type="range" class="form-range" min="0.1" max="2.0" step="0.1" @bind="Settings.AutoRotateSpeed" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
@@ -102,37 +103,37 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("lightSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("lightSettings") ? "true" : "false")' aria-controls="lightSettings" @onclick='() => ToggleSection("lightSettings")'>
-                        💡 Освещение
+                        💡 @Ui.SettingsLighting
                     </button>
                 </h2>
                 <div id="lightSettings" class="accordion-collapse collapse @(IsOpen("lightSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="sunLightFollowCamera" @bind="Settings.SunLightFollowCamera" />
-                            <label class="form-check-label" for="sunLightFollowCamera">Свет со стороны камеры</label>
+                            <label class="form-check-label" for="sunLightFollowCamera">@Ui.SettingsSunFollowsCamera</label>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Яркость солнца: @Settings.SunLightIntensity</label>
+                            <label class="form-label">@Ui.SettingsSunIntensity(Settings.SunLightIntensity)</label>
                             <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.SunLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Дистанция солнца: @Settings.SunLightDistance</label>
+                            <label class="form-label">@Ui.SettingsSunDistance(Settings.SunLightDistance)</label>
                             <input type="range" class="form-range" min="2.0" max="12.0" step="0.5" @bind="Settings.SunLightDistance" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет солнца</label>
+                            <label class="form-label">@Ui.SettingsSunColor</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.SunLightColor" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Яркость окружения: @Settings.AmbientLightIntensity</label>
+                            <label class="form-label">@Ui.SettingsAmbientIntensity(Settings.AmbientLightIntensity)</label>
                             <input type="range" class="form-range" min="0.1" max="5.0" step="0.1" @bind="Settings.AmbientLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет окружения</label>
+                            <label class="form-label">@Ui.SettingsAmbientColor</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.AmbientLightColor" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Мягкий небесный свет: @Settings.HemisphereLightIntensity</label>
+                            <label class="form-label">@Ui.SettingsHemisphereIntensity(Settings.HemisphereLightIntensity)</label>
                             <input type="range" class="form-range" min="0.0" max="3.0" step="0.1" @bind="Settings.HemisphereLightIntensity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
@@ -143,33 +144,33 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("atmosphereSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("atmosphereSettings") ? "true" : "false")' aria-controls="atmosphereSettings" @onclick='() => ToggleSection("atmosphereSettings")'>
-                        🌫️ Атмосфера и облака
+                        🌫️ @Ui.SettingsAtmosphereClouds
                     </button>
                 </h2>
                 <div id="atmosphereSettings" class="accordion-collapse collapse @(IsOpen("atmosphereSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableAtmosphere" @bind="Settings.EnableAtmosphereGlow" />
-                            <label class="form-check-label" for="enableAtmosphere">Включить атмосферу</label>
+                            <label class="form-check-label" for="enableAtmosphere">@Ui.SettingsEnableAtmosphere</label>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Цвет атмосферы</label>
+                            <label class="form-label">@Ui.SettingsAtmosphereColor</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.AtmosphereColor" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Прозрачность атмосферы: @Settings.AtmosphereOpacity</label>
+                            <label class="form-label">@Ui.SettingsAtmosphereOpacity(Settings.AtmosphereOpacity)</label>
                             <input type="range" class="form-range" min="0.0" max="1.0" step="0.05" @bind="Settings.AtmosphereOpacity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableClouds" @bind="Settings.EnableClouds" />
-                            <label class="form-check-label" for="enableClouds">Включить облака</label>
+                            <label class="form-check-label" for="enableClouds">@Ui.SettingsEnableClouds</label>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Прозрачность облаков: @Settings.CloudsOpacity</label>
+                            <label class="form-label">@Ui.SettingsCloudsOpacity(Settings.CloudsOpacity)</label>
                             <input type="range" class="form-range" min="0.0" max="1.0" step="0.05" @bind="Settings.CloudsOpacity" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Скорость облаков: @Settings.CloudsSpeed</label>
+                            <label class="form-label">@Ui.SettingsCloudsSpeed(Settings.CloudsSpeed)</label>
                             <input type="range" class="form-range" min="0.0" max="0.1" step="0.01" @bind="Settings.CloudsSpeed" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
@@ -180,21 +181,21 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("cameraSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("cameraSettings") ? "true" : "false")' aria-controls="cameraSettings" @onclick='() => ToggleSection("cameraSettings")'>
-                        📷 Камера
+                        📷 @Ui.SettingsCamera
                     </button>
                 </h2>
                 <div id="cameraSettings" class="accordion-collapse collapse @(IsOpen("cameraSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableZoom" @bind="Settings.EnableZoom" />
-                            <label class="form-check-label" for="enableZoom">Разрешить масштабирование</label>
+                            <label class="form-check-label" for="enableZoom">@Ui.SettingsEnableZoom</label>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Минимальное приближение: @Settings.MinZoom</label>
+                            <label class="form-label">@Ui.SettingsMinZoom(Settings.MinZoom)</label>
                             <input type="range" class="form-range" min="1.02" max="2.0" step="0.01" @bind="Settings.MinZoom" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Максимальное приближение: @Settings.MaxZoom</label>
+                            <label class="form-label">@Ui.SettingsMaxZoom(Settings.MaxZoom)</label>
                             <input type="range" class="form-range" min="2.0" max="10.0" step="0.5" @bind="Settings.MaxZoom" @bind:event="oninput" @bind:culture="CultureInfo.InvariantCulture" />
                         </div>
                     </div>
@@ -205,13 +206,13 @@
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button @(IsOpen("colorSettings") ? null : "collapsed")" type="button" aria-expanded='@(IsOpen("colorSettings") ? "true" : "false")' aria-controls="colorSettings" @onclick='() => ToggleSection("colorSettings")'>
-                        🎨 Цвета
+                        🎨 @Ui.SettingsColors
                     </button>
                 </h2>
                 <div id="colorSettings" class="accordion-collapse collapse @(IsOpen("colorSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2">
-                            <label class="form-label">Цвет фона</label>
+                            <label class="form-label">@Ui.SettingsBackground</label>
                             <input type="color" class="form-control form-control-color" @bind="Settings.BackgroundColor" />
                         </div>
                     </div>
@@ -221,7 +222,7 @@
 
         <!-- JSON Preview -->
         <div class="mt-3">
-            <label class="form-label">JSON конфигурация:</label>
+            <label class="form-label">@Ui.SettingsJson:</label>
             <textarea class="form-control font-monospace" rows="8" readonly>@JsonPreview</textarea>
         </div>
     </div>

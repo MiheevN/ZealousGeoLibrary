@@ -41,6 +41,19 @@ public class CommunityGlobeSettingsTests : BunitContext
         Assert.Empty(cut.FindAll("[data-bs-toggle], [data-bs-target], [data-bs-parent]"));
     }
 
+    [Theory]
+    [InlineData("en", "Globe settings", "Width: 800 px", "Apply")]
+    [InlineData("ru", "Настройки глобуса", "Ширина: 800 px", "Применить")]
+    public void Labels_FollowUiLanguage(string language, string title, string width, string apply)
+    {
+        using var culture = new CultureScope(language);
+        var cut = Render<CommunityGlobeSettings>();
+
+        Assert.Equal(title, cut.Find("h5").TextContent);
+        Assert.Contains(cut.FindAll("label"), label => label.TextContent == width);
+        Assert.Contains(apply, cut.Find("button.btn-warning").TextContent);
+    }
+
     private static string[] OpenSections(IRenderedComponent<CommunityGlobeSettings> cut) =>
         cut.FindAll(".accordion-collapse.show").Select(section => section.Id!).ToArray();
 }
