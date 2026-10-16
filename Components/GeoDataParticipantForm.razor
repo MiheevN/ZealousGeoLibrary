@@ -5,6 +5,7 @@
 @using ZealousMindedPeopleGeo.Services.GeoDataContainer
 @using ZealousMindedPeopleGeo.Services.Mapping
 @using ZealousMindedPeopleGeo.Models
+@using ZealousMindedPeopleGeo.Resources
 @inject IGeoDataContainerManager ContainerManager
 @inject IGlobeMediator GlobeMediator
 @inject GlobeStateService GlobeStateService
@@ -12,53 +13,53 @@
 @inject ILogger<GeoDataParticipantForm> Logger
 
 <div class="geodata-participant-form">
-    <h3>@Title</h3>
+    <h3>@(Title ?? Ui.FormTitle)</h3>
 
     <EditForm Model="@_model" OnValidSubmit="@HandleSubmitAsync">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
         <div class="form-group mb-3">
-            <label for="name">Name *</label>
-            <InputText id="name" @bind-Value="_model.Name" class="form-control" placeholder="Your name" />
+            <label for="name">@Ui.FormName</label>
+            <InputText id="name" @bind-Value="_model.Name" class="form-control" placeholder="@Ui.FormNamePlaceholder" />
             <ValidationMessage For="@(() => _model.Name)" />
         </div>
 
         <div class="form-group mb-3">
-            <label for="email">Email (optional)</label>
+            <label for="email">@Ui.FormEmail</label>
             <InputText id="email" @bind-Value="_model.Email" class="form-control" placeholder="your@email.com" aria-describedby="email-hint" />
-            <small id="email-hint" class="geodata-hint">Visible to everyone on the map</small>
+            <small id="email-hint" class="geodata-hint">@Ui.FormEmailHint</small>
             <ValidationMessage For="@(() => _model.Email)" />
         </div>
 
         <div class="form-group mb-3">
-            <label for="address">Address *</label>
-            <InputText id="address" @bind-Value="_model.Address" class="form-control" placeholder="Enter your full address" />
+            <label for="address">@Ui.FormAddress</label>
+            <InputText id="address" @bind-Value="_model.Address" class="form-control" placeholder="@Ui.FormAddressPlaceholder" />
             <ValidationMessage For="@(() => _model.Address)" />
             @if (_isGeocoding)
             {
-                <small class="geodata-hint">Finding your location...</small>
+                <small class="geodata-hint">@Ui.FormGeocoding</small>
             }
         </div>
 
         <div class="form-group mb-3">
-            <label for="socialMedia">Social Media (optional)</label>
-            <InputText id="socialMedia" @bind-Value="_model.SocialMedia" class="form-control" placeholder="Your social media links" />
+            <label for="socialMedia">@Ui.FormSocialMedia</label>
+            <InputText id="socialMedia" @bind-Value="_model.SocialMedia" class="form-control" placeholder="@Ui.FormSocialMediaPlaceholder" />
         </div>
 
         <div class="form-group mb-3">
-            <label for="message">Message (optional)</label>
-            <InputTextArea id="message" @bind-Value="_model.Message" class="form-control" rows="3" placeholder="Share your thoughts or goals" />
+            <label for="message">@Ui.FormMessage</label>
+            <InputTextArea id="message" @bind-Value="_model.Message" class="form-control" rows="3" placeholder="@Ui.FormMessagePlaceholder" />
         </div>
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
-                @(_isSubmitting ? "Saving..." : SubmitButtonText)
+                @(_isSubmitting ? Ui.FormSaving : SubmitButtonText ?? Ui.FormSubmit)
             </button>
 
             @if (ShowClearButton)
             {
-                <button type="button" class="btn btn-secondary" @onclick="ClearForm">Clear</button>
+                <button type="button" class="btn btn-secondary" @onclick="ClearForm">@Ui.FormClear</button>
             }
         </div>
     </EditForm>
@@ -73,9 +74,9 @@
     @if (_geocodingResult != null && _geocodingResult.Success)
     {
         <div class="location-preview">
-            <h5>Location Found</h5>
-            <p class="mb-1"><strong>Address:</strong> @_geocodingResult.FormattedAddress</p>
-            <p class="mb-0"><strong>Coordinates:</strong> @_geocodingResult.Latitude.ToString("F6"), @_geocodingResult.Longitude.ToString("F6")</p>
+            <h5>@Ui.FormLocationFound</h5>
+            <p class="mb-1"><strong>@Ui.FormFoundAddress:</strong> @_geocodingResult.FormattedAddress</p>
+            <p class="mb-0"><strong>@Ui.Coordinates:</strong> @_geocodingResult.Latitude.ToString("F6"), @_geocodingResult.Longitude.ToString("F6")</p>
         </div>
     }
 </div>
@@ -97,14 +98,14 @@
     [Parameter] public string? GlobeContainerId { get; set; }
 
     /// <summary>
-    /// Заголовок формы
+    /// Заголовок формы. Не задан — «Add a point» на языке пользователя.
     /// </summary>
-    [Parameter] public string Title { get; set; } = "Add New Point";
+    [Parameter] public string? Title { get; set; }
 
     /// <summary>
-    /// Текст кнопки отправки
+    /// Текст кнопки отправки. Не задан — «Add» на языке пользователя.
     /// </summary>
-    [Parameter] public string SubmitButtonText { get; set; } = "Add Point";
+    [Parameter] public string? SubmitButtonText { get; set; }
 
     /// <summary>
     /// Показывать кнопку очистки
@@ -191,7 +192,7 @@
 
             if (!saveResult.Success)
             {
-                _statusMessage = saveResult.ErrorMessage ?? "Failed to save participant";
+                _statusMessage = saveResult.ErrorMessage ?? Ui.FormSaveFailed;
                 _statusClass = "alert-danger";
                 Logger.LogError("Failed to save participant to container '{ContainerId}': {Error}", DataContainerId, saveResult.ErrorMessage);
                 return;
@@ -220,7 +221,7 @@
             }
 
             // 6. Успех
-            _statusMessage = "Point added successfully!";
+            _statusMessage = Ui.FormSaved;
             _statusClass = "alert-success";
 
             // 7. Callback
@@ -235,7 +236,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error adding participant");
-            _statusMessage = "An error occurred. Please try again.";
+            _statusMessage = Ui.FormError;
             _statusClass = "alert-danger";
         }
         finally
@@ -254,7 +255,7 @@
 
         if (string.IsNullOrWhiteSpace(_model.Address))
         {
-            _statusMessage = "Please enter an address";
+            _statusMessage = Ui.FormEnterAddress;
             _statusClass = "alert-warning";
             return false;
         }
@@ -268,7 +269,7 @@
 
             if (!_geocodingResult.Success)
             {
-                _statusMessage = $"Could not find location for address: {_geocodingResult.ErrorMessage}";
+                _statusMessage = Ui.FormAddressNotFound(_geocodingResult.ErrorMessage);
                 _statusClass = "alert-warning";
                 return false;
             }
@@ -278,7 +279,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Geocoding failed for address: {Address}", _model.Address);
-            _statusMessage = "Failed to geocode address. Please try again.";
+            _statusMessage = Ui.FormGeocodingFailed;
             _statusClass = "alert-danger";
             return false;
         }

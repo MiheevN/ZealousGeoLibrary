@@ -5,6 +5,7 @@ using Microsoft.JSInterop;
 using System.Globalization;
 using System.Text.Json;
 using ZealousMindedPeopleGeo.Models;
+using ZealousMindedPeopleGeo.Resources;
 using ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
 namespace ZealousMindedPeopleGeo.Components;
@@ -20,11 +21,16 @@ public partial class CommunityMapComponent : IAsyncDisposable
     [Parameter] public string MapId { get; set; } = "map";
     [Parameter] public string Height { get; set; } = "500px";
 
-    /// <summary>Заголовок в шапке карты.</summary>
-    [Parameter] public string Title { get; set; } = "Community Map";
+    /// <summary>Заголовок в шапке карты. Не задан — «Community map» на языке пользователя.</summary>
+    [Parameter] public string? Title { get; set; }
 
-    /// <summary>Подпись кнопки, которая открывает и закрывает список точек.</summary>
-    [Parameter] public string ListTitle { get; set; } = "Members";
+    /// <summary>
+    /// Подпись кнопки, которая открывает и закрывает список точек. Не задана — «Points»
+    /// на языке пользователя.
+    /// </summary>
+    [Parameter] public string? ListTitle { get; set; }
+
+    private string EffectiveListTitle => ListTitle ?? Ui.MapListTitle;
 
     /// <summary>Показывать ли список точек рядом с картой.</summary>
     [Parameter] public bool ShowParticipantsList { get; set; } = true;
@@ -237,7 +243,10 @@ public partial class CommunityMapComponent : IAsyncDisposable
                     centralMeridian,
                     clustering = _appliedClustering.Enabled,
                     clusterRadius = _appliedClustering.Radius,
-                    dotNetHelper = _dotNetRef
+                    dotNetHelper = _dotNetRef,
+                    // Надписи карты (кнопки, подсказки) — на языке пользователя, как и разметка.
+                    locale = CultureInfo.CurrentUICulture.Name,
+                    texts = Ui.MapScriptTexts()
                 });
 
             await PushPointsAsync();
@@ -473,7 +482,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
             ? uri.ToString()
             : null;
 
-    private static string CategoryTitle(string category) => category.Length == 0 ? "No category" : category;
+    private static string CategoryTitle(string category) => category.Length == 0 ? Ui.MapNoCategory : category;
 
     private static string Truncate(string? text, int length) =>
         string.IsNullOrEmpty(text) || text.Length <= length ? text ?? string.Empty : text[..length].TrimEnd() + "…";
@@ -507,28 +516,30 @@ public partial class CommunityMapComponent : IAsyncDisposable
                 var date = DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
                     ? parsed.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture)
                     : value;
-                yield return ("Registration Date", date);
+                yield return (Ui.PropertyRegisteredAt, date);
                 continue;
             }
 
-            yield return (PropertyLabels.TryGetValue(key, out var label) ? label : key, value);
+            yield return (PropertyLabel(key), value);
         }
     }
 
-    private static readonly Dictionary<string, string> PropertyLabels = new(StringComparer.Ordinal)
+    // Подписи полей участника на языке пользователя; названия сервисов не переводятся.
+    private static string PropertyLabel(string key) => key switch
     {
-        [ParticipantPointProperties.Address] = "Address",
-        [ParticipantPointProperties.Email] = "Email",
-        [ParticipantPointProperties.Location] = "Location",
-        [ParticipantPointProperties.City] = "City",
-        [ParticipantPointProperties.Country] = "Country",
-        [ParticipantPointProperties.SocialMedia] = "Social Media",
-        [ParticipantPointProperties.LifeGoals] = "Life Goals",
-        [ParticipantPointProperties.Skills] = "Skills",
-        [ParticipantPointProperties.Discord] = "Discord",
-        [ParticipantPointProperties.Telegram] = "Telegram",
-        [ParticipantPointProperties.Vk] = "VK",
-        [ParticipantPointProperties.Website] = "Website"
+        ParticipantPointProperties.Address => Ui.PropertyAddress,
+        ParticipantPointProperties.Email => Ui.PropertyEmail,
+        ParticipantPointProperties.Location => Ui.PropertyLocation,
+        ParticipantPointProperties.City => Ui.PropertyCity,
+        ParticipantPointProperties.Country => Ui.PropertyCountry,
+        ParticipantPointProperties.SocialMedia => Ui.PropertySocialMedia,
+        ParticipantPointProperties.LifeGoals => Ui.PropertyLifeGoals,
+        ParticipantPointProperties.Skills => Ui.PropertySkills,
+        ParticipantPointProperties.Discord => "Discord",
+        ParticipantPointProperties.Telegram => "Telegram",
+        ParticipantPointProperties.Vk => "VK",
+        ParticipantPointProperties.Website => Ui.PropertyWebsite,
+        _ => key
     };
 
     public async ValueTask DisposeAsync()

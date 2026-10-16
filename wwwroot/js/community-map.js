@@ -73,20 +73,50 @@ const SPIDER_CIRCLE_MAX = 8;
 const SPIDER_FOOT_SPACING = 26;
 const SPIDER_MIN_LEG = 30;
 const SPIDER_SPIRAL_START = 24;
-// Подписи свойств участника в подсказке (ключи ParticipantPointProperties).
-const PROPERTY_LABELS = {
-    email: '📧 Email:',
-    address: '📍 Адрес:',
-    location: '🌍 Местоположение:',
-    socialMedia: '🔗 Соцсети:',
-    skills: '🛠 Навыки:',
-    lifeGoals: '🎯 Цели:',
-    discord: 'Discord:',
-    telegram: 'Telegram:',
-    vk: 'VK:',
-    website: 'Сайт:',
-    registeredAt: '📅 Регистрация:'
+// Надписи карты. Компонент Blazor передаёт их на языке пользователя (options.texts),
+// без Blazor — английские, если не передать свои. {0} — число.
+const DEFAULT_TEXTS = {
+    canvasLabel: 'Map with points',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    resetView: 'Reset view',
+    pointFallback: 'Point',
+    clusterExpand: 'Click to expand',
+    clusterZoom: 'Click to zoom in',
+    clusterMore: 'and {0} more',
+    // Заголовок группы по формам Intl.PluralRules: one, few, many, other.
+    clusterOne: '{0} point',
+    clusterFew: '{0} points',
+    clusterMany: '{0} points',
+    clusterOther: '{0} points',
+    category: 'Category',
+    description: 'Description',
+    coordinates: 'Coordinates',
+    // Подписи свойств участника (ключи ParticipantPointProperties).
+    address: 'Address',
+    email: 'Email',
+    location: 'Location',
+    socialMedia: 'Social media',
+    skills: 'Skills',
+    lifeGoals: 'Life goals',
+    website: 'Website',
+    registeredAt: 'Registered'
 };
+// Значки перед подписями в подсказке точки.
+const PROPERTY_ICONS = {
+    category: '🏷',
+    description: '💬',
+    coordinates: '🗺️',
+    email: '📧',
+    address: '📍',
+    location: '🌍',
+    socialMedia: '🔗',
+    skills: '🛠',
+    lifeGoals: '🎯',
+    registeredAt: '📅'
+};
+// Названия сервисов не переводятся.
+const SERVICE_LABELS = { discord: 'Discord', telegram: 'Telegram', vk: 'VK' };
 // Город и страна выводятся одной строкой «Местоположение».
 const LOCATION_KEYS = ['city', 'country'];
 
@@ -95,7 +125,9 @@ window.setDotNetHelper = (helper) => {
 };
 
 // options: { projection: 'equalEarth' | 'equirectangular', centralMeridian: градусы,
-// clustering: группировать близкие маркеры (по умолчанию true), clusterRadius: пиксели }.
+// clustering: группировать близкие маркеры (по умолчанию true), clusterRadius: пиксели,
+// locale: язык для форм числа ('ru', 'en-US'; по умолчанию — язык браузера),
+// texts: надписи поверх DEFAULT_TEXTS }.
 window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId, options) => {
     // apiKey оставлен в сигнатуре для обратной совместимости и игнорируется:
     // карта работает полностью локально, без обращений к Google Maps.
@@ -117,6 +149,7 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
         projection: options?.projection,
         centralMeridian: numberOrDefault(options?.centralMeridian, 0),
         clustering: normalizeClusterOptions(options),
+        texts: resolveTexts(options),
         // Обработчик кликов этой карты. Общий setDotNetHelper остаётся для прежнего кода,
         // но с ним клик по любой карте страницы уходил последней инициализированной.
         dotNetHelper: options?.dotNetHelper ?? null
@@ -248,10 +281,11 @@ function numberOrDefault(value, fallback) {
 }
 
 function createMapInstance(container, initialState) {
+    const texts = initialState.texts ?? resolveTexts();
     const canvas = document.createElement('canvas');
     canvas.className = 'community-map-canvas';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', 'Карта с точками');
+    canvas.setAttribute('aria-label', texts.canvasLabel);
     container.innerHTML = '';
     container.appendChild(canvas);
 
@@ -260,7 +294,7 @@ function createMapInstance(container, initialState) {
     tooltip.style.display = 'none';
     container.appendChild(tooltip);
 
-    const controls = createZoomControls(container);
+    const controls = createZoomControls(container, texts);
 
     const projection = resolveProjection(initialState.projection);
     const centralMeridian = wrapLng(initialState.centralMeridian);
@@ -275,6 +309,7 @@ function createMapInstance(container, initialState) {
         // Растёт при каждой смене точек: по нему узнаём, что группы устарели.
         pointsVersion: 0,
         clustering: initialState.clustering,
+        texts,
         // Группы маркеров для текущего масштаба и точка, раскрытая веером.
         groupCache: null,
         spider: null,
@@ -526,26 +561,26 @@ function createMapInstance(container, initialState) {
     };
 }
 
-function createZoomControls(container) {
+function createZoomControls(container, texts) {
     const wrapper = document.createElement('div');
     wrapper.className = 'community-map-controls';
 
     const zoomIn = document.createElement('button');
     zoomIn.type = 'button';
     zoomIn.className = 'community-map-control-btn';
-    zoomIn.setAttribute('aria-label', 'Приблизить');
+    zoomIn.setAttribute('aria-label', texts.zoomIn);
     zoomIn.textContent = '+';
 
     const zoomOut = document.createElement('button');
     zoomOut.type = 'button';
     zoomOut.className = 'community-map-control-btn';
-    zoomOut.setAttribute('aria-label', 'Отдалить');
+    zoomOut.setAttribute('aria-label', texts.zoomOut);
     zoomOut.textContent = '−';
 
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'community-map-control-btn';
-    reset.setAttribute('aria-label', 'Сбросить вид');
+    reset.setAttribute('aria-label', texts.resetView);
     reset.textContent = '⌂';
 
     wrapper.appendChild(zoomIn);
@@ -1220,43 +1255,62 @@ function expandCluster(state, group) {
     commitView(state);
 }
 
-function renderClusterTooltip(group, points, mode) {
+function renderClusterTooltip(group, points, mode, texts = resolveTexts()) {
     const shown = group.members.slice(0, CLUSTER_TOOLTIP_TITLES);
     const rows = shown.map((index) => {
         const point = points[index];
         return `
             <li style="display: flex; align-items: center; gap: 8px; margin: 5px 0; color: #b8c2d0; line-height: 1.35;">
                 <span style="flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${markerColor(point)};"></span>
-                <span>${escapeHtml(point.title || 'Точка')}</span>
+                <span>${escapeHtml(point.title || texts.pointFallback)}</span>
             </li>
         `;
     });
     const rest = group.count - shown.length;
-    const hint = mode === 'spider' ? 'Нажмите, чтобы раскрыть' : 'Нажмите, чтобы приблизить';
+    const hint = mode === 'spider' ? texts.clusterExpand : texts.clusterZoom;
 
     return `
         <div class="zgl-info-window" style="background: #171a1f; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38); color: #f4f7fb; font-family: Arial, sans-serif; max-width: 320px; padding: 12px;">
-            <h4 style="margin: 0 0 8px 0; color: #24dce7; font-size: 16px;">${group.count} ${pluralizePoints(group.count)}</h4>
+            <h4 style="margin: 0 0 8px 0; color: #24dce7; font-size: 16px;">${escapeHtml(clusterTitle(texts, group.count))}</h4>
             <ul style="list-style: none; margin: 0; padding: 0;">${rows.join('')}</ul>
-            ${rest > 0 ? `<p style="margin: 6px 0 0 0; color: #b8c2d0;">и ещё ${rest}</p>` : ''}
+            ${rest > 0 ? `<p style="margin: 6px 0 0 0; color: #b8c2d0;">${escapeHtml(formatText(texts.clusterMore, rest))}</p>` : ''}
             <p style="margin: 10px 0 0 0; color: #8a94a6; font-size: 12px;">${hint}</p>
         </div>
     `;
 }
 
-function pluralizePoints(count) {
-    const tens = count % 100;
-    const units = count % 10;
-    if (tens >= 11 && tens <= 14) {
-        return 'точек';
+// Надписи: DEFAULT_TEXTS, поверх — переданные; язык — для форм числа.
+function resolveTexts(options) {
+    const texts = { ...DEFAULT_TEXTS };
+    const custom = options?.texts;
+    if (custom && typeof custom === 'object') {
+        Object.keys(custom).forEach((key) => {
+            if (typeof custom[key] === 'string') {
+                texts[key] = custom[key];
+            }
+        });
     }
-    if (units === 1) {
-        return 'точка';
+    texts.plural = pluralRules(options?.locale);
+    return texts;
+}
+
+function pluralRules(locale) {
+    try {
+        return new Intl.PluralRules(locale || undefined);
+    } catch {
+        // Неизвестный язык — правила языка браузера.
+        return new Intl.PluralRules();
     }
-    if (units >= 2 && units <= 4) {
-        return 'точки';
-    }
-    return 'точек';
+}
+
+// «5 точек»: форма числа по правилам языка (one, few, many; остальное — other).
+function clusterTitle(texts, count) {
+    const forms = { one: texts.clusterOne, few: texts.clusterFew, many: texts.clusterMany };
+    return formatText(forms[texts.plural.select(count)] ?? texts.clusterOther, count);
+}
+
+function formatText(template, value) {
+    return String(template).replaceAll('{0}', String(value));
 }
 
 // --- Отрисовка ------------------------------------------------------------
@@ -1597,8 +1651,8 @@ function updateHover(state, event) {
     }
     if (target) {
         const html = target.type === 'cluster'
-            ? renderClusterTooltip(target.group, state.points, clusterExpansion(state, target.group).mode)
-            : renderPointTooltip(state.points[target.pointIndex]);
+            ? renderClusterTooltip(target.group, state.points, clusterExpansion(state, target.group).mode, state.texts)
+            : renderPointTooltip(state.points[target.pointIndex], state.texts);
         showTooltip(state, html, pointer);
         state.canvas.style.cursor = 'pointer';
     } else {
@@ -1648,8 +1702,13 @@ function hideTooltip(state) {
     state.tooltip.style.display = 'none';
 }
 
-function renderPointTooltip(point) {
+function renderPointTooltip(point, texts = resolveTexts()) {
     const rows = [];
+    const label = (key) => {
+        const icon = PROPERTY_ICONS[key];
+        const text = SERVICE_LABELS[key] ?? texts[key] ?? key;
+        return `${icon ? `${icon} ` : ''}${text}:`;
+    };
     const addRow = (label, value) => {
         if (value !== null && value !== undefined && value !== '') {
             rows.push(`
@@ -1663,10 +1722,10 @@ function renderPointTooltip(point) {
 
     const properties = point.properties || {};
     if (point.category) {
-        addRow('🏷 Категория:', point.category);
+        addRow(label('category'), point.category);
     }
     if (point.description) {
-        addRow('💬 Описание:', point.description);
+        addRow(label('description'), point.description);
     }
 
     const location = LOCATION_KEYS.map((key) => properties[key]).filter(Boolean).join(', ');
@@ -1678,16 +1737,16 @@ function renderPointTooltip(point) {
         if (key === 'location' && location) {
             return; // вместо «location» — город и страна
         }
-        addRow(PROPERTY_LABELS[key] || `${key}:`, value);
+        addRow(label(key), value);
     });
     if (location) {
-        addRow(PROPERTY_LABELS.location, location);
+        addRow(label('location'), location);
     }
-    addRow('🗺️ Координаты:', `${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`);
+    addRow(label('coordinates'), `${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`);
 
     return `
         <div class="zgl-info-window" style="background: #171a1f; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38); color: #f4f7fb; font-family: Arial, sans-serif; max-width: 320px; padding: 12px;">
-            <h4 style="margin: 0 0 10px 0; color: #24dce7; font-size: 16px;">${escapeHtml(point.title || 'Точка')}</h4>
+            <h4 style="margin: 0 0 10px 0; color: #24dce7; font-size: 16px;">${escapeHtml(point.title || texts.pointFallback)}</h4>
             ${rows.join('')}
         </div>
     `;

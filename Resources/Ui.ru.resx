@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Coordinates" xml:space="preserve">
+    <value>Координаты</value>
+  </data>
+  <data name="FormTitle" xml:space="preserve">
+    <value>Добавить точку</value>
+  </data>
+  <data name="FormSubmit" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="FormSaving" xml:space="preserve">
+    <value>Сохранение...</value>
+  </data>
+  <data name="FormClear" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="FormName" xml:space="preserve">
+    <value>Имя *</value>
+  </data>
+  <data name="FormNamePlaceholder" xml:space="preserve">
+    <value>Ваше имя</value>
+  </data>
+  <data name="FormEmail" xml:space="preserve">
+    <value>Email (необязательно)</value>
+  </data>
+  <data name="FormEmailHint" xml:space="preserve">
+    <value>Виден всем на карте</value>
+  </data>
+  <data name="FormAddress" xml:space="preserve">
+    <value>Адрес *</value>
+  </data>
+  <data name="FormAddressPlaceholder" xml:space="preserve">
+    <value>Полный адрес</value>
+  </data>
+  <data name="FormGeocoding" xml:space="preserve">
+    <value>Ищем адрес...</value>
+  </data>
+  <data name="FormSocialMedia" xml:space="preserve">
+    <value>Соцсети (необязательно)</value>
+  </data>
+  <data name="FormSocialMediaPlaceholder" xml:space="preserve">
+    <value>Ссылки на ваши профили</value>
+  </data>
+  <data name="FormMessage" xml:space="preserve">
+    <value>Сообщение (необязательно)</value>
+  </data>
+  <data name="FormMessagePlaceholder" xml:space="preserve">
+    <value>Поделитесь мыслями или целями</value>
+  </data>
+  <data name="FormLocationFound" xml:space="preserve">
+    <value>Место найдено</value>
+  </data>
+  <data name="FormFoundAddress" xml:space="preserve">
+    <value>Адрес</value>
+  </data>
+  <data name="FormSaved" xml:space="preserve">
+    <value>Точка добавлена!</value>
+  </data>
+  <data name="FormSaveFailed" xml:space="preserve">
+    <value>Не удалось сохранить точку</value>
+  </data>
+  <data name="FormError" xml:space="preserve">
+    <value>Что-то пошло не так. Попробуйте ещё раз.</value>
+  </data>
+  <data name="FormEnterAddress" xml:space="preserve">
+    <value>Укажите адрес</value>
+  </data>
+  <data name="FormAddressNotFound" xml:space="preserve">
+    <value>Адрес не найден: {0}</value>
+  </data>
+  <data name="FormGeocodingFailed" xml:space="preserve">
+    <value>Не удалось найти адрес. Попробуйте ещё раз.</value>
+  </data>
+  <data name="ValidationNameRequired" xml:space="preserve">
+    <value>Укажите имя</value>
+  </data>
+  <data name="ValidationNameTooLong" xml:space="preserve">
+    <value>Имя — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationAddressRequired" xml:space="preserve">
+    <value>Укажите адрес</value>
+  </data>
+  <data name="ValidationAddressTooLong" xml:space="preserve">
+    <value>Адрес — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationEmailInvalid" xml:space="preserve">
+    <value>Некорректный адрес электронной почты</value>
+  </data>
+  <data name="ValidationEmailTooLong" xml:space="preserve">
+    <value>Email — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationLocationRequired" xml:space="preserve">
+    <value>Укажите местоположение</value>
+  </data>
+  <data name="ValidationLocationTooLong" xml:space="preserve">
+    <value>Местоположение — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationLatitudeRange" xml:space="preserve">
+    <value>Широта — от {1} до {2}</value>
+  </data>
+  <data name="ValidationLongitudeRange" xml:space="preserve">
+    <value>Долгота — от {1} до {2}</value>
+  </data>
+  <data name="ValidationCityTooLong" xml:space="preserve">
+    <value>Город — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationCountryTooLong" xml:space="preserve">
+    <value>Страна — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationSocialMediaTooLong" xml:space="preserve">
+    <value>Соцсети — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationMessageTooLong" xml:space="preserve">
+    <value>Сообщение — не длиннее {1} символов</value>
+  </data>
+  <data name="ValidationUrlInvalid" xml:space="preserve">
+    <value>{0}: некорректная ссылка</value>
+  </data>
+  <data name="MapTitle" xml:space="preserve">
+    <value>Карта сообщества</value>
+  </data>
+  <data name="MapListTitle" xml:space="preserve">
+    <value>Точки</value>
+  </data>
+  <data name="MapShowList" xml:space="preserve">
+    <value>Показать список</value>
+  </data>
+  <data name="MapHideList" xml:space="preserve">
+    <value>Скрыть список</value>
+  </data>
+  <data name="MapTotal" xml:space="preserve">
+    <value>Точек: {0}</value>
+  </data>
+  <data name="MapCategories" xml:space="preserve">
+    <value>Категории</value>
+  </data>
+  <data name="MapShowCategory" xml:space="preserve">
+    <value>Показать: {0}</value>
+  </data>
+  <data name="MapHideCategory" xml:space="preserve">
+    <value>Скрыть: {0}</value>
+  </data>
+  <data name="MapNoCategory" xml:space="preserve">
+    <value>Без категории</value>
+  </data>
+  <data name="MapEmpty" xml:space="preserve">
+    <value>На карте пока ничего нет</value>
+  </data>
+  <data name="MapAllHidden" xml:space="preserve">
+    <value>Все категории скрыты</value>
+  </data>
+  <data name="MapLoading" xml:space="preserve">
+    <value>Загрузка карты...</value>
+  </data>
+  <data name="MapCanvasLabel" xml:space="preserve">
+    <value>Карта с точками</value>
+  </data>
+  <data name="MapZoomIn" xml:space="preserve">
+    <value>Приблизить</value>
+  </data>
+  <data name="MapZoomOut" xml:space="preserve">
+    <value>Отдалить</value>
+  </data>
+  <data name="MapResetView" xml:space="preserve">
+    <value>Сбросить вид</value>
+  </data>
+  <data name="MapPointFallback" xml:space="preserve">
+    <value>Точка</value>
+  </data>
+  <data name="MapClusterExpand" xml:space="preserve">
+    <value>Нажмите, чтобы раскрыть</value>
+  </data>
+  <data name="MapClusterZoom" xml:space="preserve">
+    <value>Нажмите, чтобы приблизить</value>
+  </data>
+  <data name="MapClusterMore" xml:space="preserve">
+    <value>и ещё {0}</value>
+  </data>
+  <data name="MapClusterOne" xml:space="preserve">
+    <value>{0} точка</value>
+  </data>
+  <data name="MapClusterFew" xml:space="preserve">
+    <value>{0} точки</value>
+  </data>
+  <data name="MapClusterMany" xml:space="preserve">
+    <value>{0} точек</value>
+  </data>
+  <data name="MapClusterOther" xml:space="preserve">
+    <value>{0} точки</value>
+  </data>
+  <data name="PropertyCategory" xml:space="preserve">
+    <value>Категория</value>
+  </data>
+  <data name="PropertyDescription" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="PropertyAddress" xml:space="preserve">
+    <value>Адрес</value>
+  </data>
+  <data name="PropertyEmail" xml:space="preserve">
+    <value>Эл. почта</value>
+  </data>
+  <data name="PropertyLocation" xml:space="preserve">
+    <value>Местоположение</value>
+  </data>
+  <data name="PropertyCity" xml:space="preserve">
+    <value>Город</value>
+  </data>
+  <data name="PropertyCountry" xml:space="preserve">
+    <value>Страна</value>
+  </data>
+  <data name="PropertySocialMedia" xml:space="preserve">
+    <value>Соцсети</value>
+  </data>
+  <data name="PropertyLifeGoals" xml:space="preserve">
+    <value>Цели</value>
+  </data>
+  <data name="PropertySkills" xml:space="preserve">
+    <value>Навыки</value>
+  </data>
+  <data name="PropertyWebsite" xml:space="preserve">
+    <value>Сайт</value>
+  </data>
+  <data name="PropertyRegisteredAt" xml:space="preserve">
+    <value>Регистрация</value>
+  </data>
+</root>

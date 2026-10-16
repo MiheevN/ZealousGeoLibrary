@@ -36,6 +36,7 @@ public class GeoDataParticipantFormTests : BunitContext
     [InlineData("   ")]
     public async Task Submit_WithoutEmail_SavesPointWithoutEmail(string email)
     {
+        using var english = new CultureScope("en");
         var cut = RenderForm();
 
         Fill(cut, name: "Anna Petrova", email: email, address: "Berlin, Alexanderplatz 1");
@@ -53,6 +54,7 @@ public class GeoDataParticipantFormTests : BunitContext
     [Fact]
     public async Task Submit_WithEmail_SavesItTrimmed()
     {
+        using var english = new CultureScope("en");
         var cut = RenderForm();
 
         Fill(cut, name: "Anna Petrova", email: "  anna@example.com ", address: "Berlin, Alexanderplatz 1");
@@ -65,12 +67,13 @@ public class GeoDataParticipantFormTests : BunitContext
     [Fact]
     public async Task Submit_WithMalformedEmail_ShowsErrorAndSavesNothing()
     {
+        using var english = new CultureScope("en");
         var cut = RenderForm();
 
         Fill(cut, name: "Anna Petrova", email: "not-an-email", address: "Berlin, Alexanderplatz 1");
         await cut.Find("form").SubmitAsync();
 
-        Assert.Contains(cut.FindAll(".validation-message"), m => m.TextContent.Contains("электронной почты"));
+        Assert.Contains(cut.FindAll(".validation-message"), m => m.TextContent.Contains("Email address is not valid"));
         Assert.Empty(await Container.GetPointsAsync());
         Assert.Equal(0, _geocoder.Calls);
     }
@@ -78,6 +81,7 @@ public class GeoDataParticipantFormTests : BunitContext
     [Fact]
     public void EmailField_SaysItIsOptionalAndPublic()
     {
+        using var english = new CultureScope("en");
         var cut = RenderForm();
 
         Assert.Contains("optional", cut.Find("label[for=email]").TextContent);
@@ -88,6 +92,7 @@ public class GeoDataParticipantFormTests : BunitContext
     [Fact]
     public async Task OnSubmitting_Rejection_ShowsReasonKeepsFieldsAndSavesNothing()
     {
+        using var english = new CultureScope("en");
         Participant? checkedParticipant = null;
         var cut = RenderForm(participant =>
         {
@@ -110,6 +115,7 @@ public class GeoDataParticipantFormTests : BunitContext
     [Fact]
     public async Task OnSubmitting_Approval_SavesPoint()
     {
+        using var english = new CultureScope("en");
         var calls = 0;
         var cut = RenderForm(_ =>
         {
@@ -123,6 +129,38 @@ public class GeoDataParticipantFormTests : BunitContext
         cut.WaitForAssertion(() => Assert.Contains("Point added successfully", cut.Find("[role=alert]").TextContent));
         Assert.Equal(1, calls);
         Assert.Single(await Container.GetPointsAsync());
+    }
+
+    [Fact]
+    public async Task RussianUi_ShowsRussianLabelsAndMessages()
+    {
+        using var russian = new CultureScope("ru");
+        var cut = RenderForm();
+
+        Assert.Equal("Добавить точку", cut.Find("h3").TextContent);
+        Assert.Equal("Email (необязательно)", cut.Find("label[for=email]").TextContent);
+        Assert.Equal("Добавить", cut.Find("button[type=submit]").TextContent.Trim());
+
+        Fill(cut, name: "", email: "not-an-email", address: "Berlin, Alexanderplatz 1");
+        await cut.Find("form").SubmitAsync();
+
+        var errors = cut.FindAll(".validation-message").Select(m => m.TextContent).ToList();
+        Assert.Contains("Укажите имя", errors);
+        Assert.Contains("Некорректный адрес электронной почты", errors);
+    }
+
+    [Fact]
+    public void TitleAndButtonParameters_OverrideTranslations()
+    {
+        using var russian = new CultureScope("ru");
+        var cut = Render<GeoDataParticipantForm>(p => p
+            .Add(c => c.DataContainerId, ContainerId)
+            .Add(c => c.AutoGeocode, false)
+            .Add(c => c.Title, "Новый офис")
+            .Add(c => c.SubmitButtonText, "Сохранить офис"));
+
+        Assert.Equal("Новый офис", cut.Find("h3").TextContent);
+        Assert.Equal("Сохранить офис", cut.Find("button[type=submit]").TextContent.Trim());
     }
 
     private IGeoDataContainer Container => _containers.GetOrCreateContainer(ContainerId);

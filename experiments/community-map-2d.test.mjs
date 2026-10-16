@@ -24,7 +24,7 @@ async function loadMapModule() {
 
     const exportFooter = [
         '',
-        'export { clampZoom, clampLat, wrapLng, viewScale, getView, setCenter, projectToCanvas, canvasToLatLng, zoomAt, commitView, isFinitePair, escapeHtml, buildWorldLandPaths, buildProjectedLand, densifyRing, resolveProjection, equalEarthForward, equalEarthInverse, PROJECTIONS, normalizePoint, participantToPoint, markerLabel, renderPointTooltip, DEFAULT_MARKER_COLOR, isGeoJson, pointsFromGeoJson };',
+        'export { clampZoom, clampLat, wrapLng, viewScale, getView, setCenter, projectToCanvas, canvasToLatLng, zoomAt, commitView, isFinitePair, escapeHtml, buildWorldLandPaths, buildProjectedLand, densifyRing, resolveProjection, equalEarthForward, equalEarthInverse, PROJECTIONS, normalizePoint, participantToPoint, markerLabel, renderPointTooltip, DEFAULT_TEXTS, DEFAULT_MARKER_COLOR, isGeoJson, pointsFromGeoJson };',
         ''
     ].join('\n');
 
@@ -328,7 +328,7 @@ test('Razor component passes projection and central meridian to JS', async () =>
     assert.match(codeBehind, /\[Parameter\] public MapProjection\? Projection/, 'Projection parameter declared');
     assert.match(codeBehind, /\[Parameter\] public double\? CentralMeridian/, 'CentralMeridian parameter declared');
     assert.match(codeBehind,
-        /new\s*\{\s*projection = projection\.ToString\(\),\s*centralMeridian,\s*clustering = _appliedClustering\.Enabled,\s*clusterRadius = _appliedClustering\.Radius,\s*dotNetHelper = _dotNetRef\s*\}/,
+        /new\s*\{\s*projection = projection\.ToString\(\),\s*centralMeridian,\s*clustering = _appliedClustering\.Enabled,\s*clusterRadius = _appliedClustering\.Radius,\s*dotNetHelper = _dotNetRef,[\s\S]*?locale = CultureInfo\.CurrentUICulture\.Name,\s*texts = Ui\.MapScriptTexts\(\)\s*\}/,
         'options object is passed to JS');
     assert.match(configuration, /public MapProjection Projection \{ get; set; \} = MapProjection\.EqualEarth;/, 'Equal Earth is the configured default');
     assert.match(configuration, /enum MapProjection\s*\{[\s\S]*EqualEarth,[\s\S]*Equirectangular/, 'both projections are available');
@@ -393,9 +393,19 @@ test('tooltip escapes everything that comes from data, including property names'
     });
     assert.doesNotMatch(html, /<img|<script|<b>/);
     assert.match(html, /&lt;img/);
-    assert.match(html, /🏷 Категория:/);
+    assert.match(html, /🏷 Category:/);
     assert.match(html, /📧 Email:/);
     assert.match(html, /Berlin, Germany/);
+
+    // Надписи, переданные компонентом, заменяют английские; названия сервисов — как есть.
+    const ru = map.renderPointTooltip({ id: '2', latitude: 1, longitude: 2, title: '', category: 'office',
+        properties: { email: 'a@example.com', telegram: '@anna' } },
+        { ...map.DEFAULT_TEXTS, category: 'Категория', email: 'Эл. почта', coordinates: 'Координаты', pointFallback: 'Точка' });
+    assert.match(ru, /🏷 Категория:/);
+    assert.match(ru, /📧 Эл\. почта:/);
+    assert.match(ru, /🗺️ Координаты:/);
+    assert.match(ru, /Telegram:/);
+    assert.match(ru, />Точка</, 'точка без названия');
 });
 
 test('GeoJSON points are read with the same rules as on the server', async () => {
@@ -471,4 +481,13 @@ test('loadPointsOnMap accepts GeoJSON and rejects other objects', async () => {
     assert.deepEqual([single.id, single.latitude, single.longitude, single.title], ['feature-1', 52.52, 13.405, '']);
 
     assert.match(source, /isGeoJson\(data\)\) \{\s*instance\.setPoints\(pointsFromGeoJson\(data\)\);/, 'loadPointsOnMap читает GeoJSON');
+});
+
+test('component sends exactly the texts the script knows', async () => {
+    const map = await loadMapModule();
+    const ui = await readText('Resources/Ui.cs');
+    const body = ui.slice(ui.indexOf('MapScriptTexts()'));
+    const sent = [...body.slice(0, body.indexOf('};')).matchAll(/\["(\w+)"\]/g)].map((match) => match[1]);
+
+    assert.deepEqual([...sent].sort(), Object.keys(map.DEFAULT_TEXTS).sort());
 });

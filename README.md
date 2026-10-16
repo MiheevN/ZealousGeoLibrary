@@ -203,7 +203,7 @@ Blazor Web App).
 центр по долготе совпадает с центральным меридианом.
 
 Список точек стоит справа от карты, а в узком контейнере (до 640 px) — под ней, и
-карту не перекрывает. Кнопка в шапке («Members», подпись задаёт `ListTitle`) скрывает и
+карту не перекрывает. Кнопка в шапке («Points» / «Точки», подпись задаёт `ListTitle`) скрывает и
 показывает его, карта при этом занимает освободившееся место. `ParticipantsListOpen="false"`
 открывает карту со свёрнутым списком, `ShowParticipantsList="false"` убирает список и
 кнопку совсем.
@@ -300,6 +300,18 @@ builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
 initializeCommunityMap('', 20, 0, 1, 'map', { projection: 'equalEarth', centralMeridian: 150, clusterRadius: 40 });
 loadPointsOnMap([{ id: 'berlin', latitude: 52.52, longitude: 13.405, title: 'Berlin', color: '#3987e5' }], 'map');
 setCommunityMapClustering({ clustering: false }, 'map');
+```
+
+Надписи скрипта (кнопки масштаба, подсказки, «5 points») без Blazor английские. Свои
+передаются в `texts`, а `locale` выбирает формы числа (`Intl.PluralRules`): ключи —
+`DEFAULT_TEXTS` в `community-map.js`, `{0}` — число. Компонент Blazor передаёт их сам на
+языке пользователя.
+
+```js
+initializeCommunityMap('', 20, 0, 1, 'map', {
+    locale: 'ru',
+    texts: { zoomIn: 'Приблизить', clusterOne: '{0} точка', clusterFew: '{0} точки', clusterMany: '{0} точек' }
+});
 ```
 
 `loadPointsOnMap` принимает и GeoJSON (`FeatureCollection` или `Feature`) по тем же
@@ -1182,15 +1194,20 @@ else
 
 ### Язык сообщений
 
-Причины пропуска при импорте (`GeoJsonReadResult.Skipped`, `ErrorMessage` загрузки JSON),
-ошибки `GeoPoint.Validate()` и `JsonException` из `GeoPointGeoJson.Read` выходят на языке
-`CultureInfo.CurrentUICulture`, а числа в них форматируются по `CultureInfo.CurrentCulture`.
-Переводы есть на английский (он же для языков без перевода) и русский:
+Надписи `GeoDataParticipantForm` и `CommunityMapComponent` (вместе с кнопками и подсказками
+самой карты), сообщения проверки полей формы, причины пропуска при импорте
+(`GeoJsonReadResult.Skipped`, `ErrorMessage` загрузки JSON), ошибки `GeoPoint.Validate()` и
+`JsonException` из `GeoPointGeoJson.Read` выходят на языке `CultureInfo.CurrentUICulture`, а
+числа в сообщениях форматируются по `CultureInfo.CurrentCulture`. Переводы есть на
+английский (он же для языков без перевода) и русский:
 
 | `CurrentUICulture` | Сообщение |
 |---|---|
 | `ru`, `ru-RU` | Объект 1 («road»): геометрия LineString — не точка |
 | `en` и остальные | Feature 1 ('road'): geometry LineString is not a point |
+
+Параметры с текстом (`Title`, `ListTitle`, `SubmitButtonText`) по умолчанию тоже берут
+перевод; заданное значение показывается как есть.
 
 Язык выбирает приложение, например middleware локализации ASP.NET Core:
 
@@ -1209,10 +1226,11 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 стоит запомнить в cookie, как это делает `App.razor` витрины. Подробности, в том числе
 для WebAssembly, — в [документации ASP.NET Core](https://learn.microsoft.com/aspnet/core/blazor/globalization-localization).
 
-Новый язык — файл `Resources/Messages.<код>.resx` с теми же ключами, что в `Messages.resx`.
-Тест `MessagesTests` сверяет ключи и подстановки `{0}` каждого перевода с английским, если
-добавить код языка в его список `Translations`. Надписи самих компонентов (карты, формы,
-глобуса) пока не переводятся.
+Новый язык — два файла с теми же ключами, что у английских: `Resources/Messages.<код>.resx`
+(сообщения) и `Resources/Ui.<код>.resx` (надписи компонентов). Тест `MessagesTests` сверяет
+ключи и подстановки `{0}` каждого перевода с английским, если добавить код языка в его
+список `Translations`. Глобус, `PwaManagerComponent` и `LibraryShowcaseComponent` пока не
+переводятся.
 
 ## 🔒 Безопасность
 
@@ -1257,7 +1275,7 @@ ZealousMindedPeopleGeo/
 │   ├── Participant.cs                    # Модель участника
 │   ├── GlobeOptions.cs                   # Настройки глобуса
 │   └── GlobeState.cs                     # Состояние глобуса
-├── Resources/           # Сообщения: Messages.resx (английский) и Messages.ru.resx
+├── Resources/           # Сообщения (Messages*.resx) и надписи компонентов (Ui*.resx): английский и русский
 └── wwwroot/             # Статические ресурсы
     ├── ZealousMindedPeopleGeo.lib.module.js # JS-инициализатор: Blazor загружает его сам, он подключает стили
     ├── js/              # JavaScript модули

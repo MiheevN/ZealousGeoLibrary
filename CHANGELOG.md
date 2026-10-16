@@ -29,6 +29,8 @@
     - `GeoJson.cs`
 
 ### Добавлено
+- **Форма участника и 2D-карта на языке пользователя.** Надписи `GeoDataParticipantForm` и `CommunityMapComponent`, сообщения проверки полей участника и надписи внутри карты (кнопки масштаба, подсказки, «5 точек» с формами числа по `Intl.PluralRules`) — по `CurrentUICulture`, английский и русский. Тексты — в `Resources/Ui.resx` и `Ui.ru.resx`. Раньше карта говорила по-русски, форма — по-английски, а её ошибки — по-русски. Без Blazor надписи карты английские; свои передаются в `initializeCommunityMap(..., { locale, texts })`
+
 - **Проверка на GitHub Actions.** На каждый PR и push в `master` собирается решение и запускаются .NET-тесты (дважды: с обычной и русской локалью) и JS-тесты
 
 - **Проверка приложения перед сохранением в форме.** `GeoDataParticipantForm.OnSubmitting` получает готового участника перед сохранением: `null` — сохранить, строка — отказать с этим сообщением. Так приложение подключает вход, капчу или ограничение частоты; сама библиотека добавление точек не ограничивает
@@ -238,6 +240,8 @@
   - Исправлена ссылка в ServiceCollectionExtensions.cs с NominatimGeocodingService на GoogleMapsGeocodingService
 
 ### Изменено
+- `GeoDataParticipantForm.Title`, `SubmitButtonText`, `CommunityMapComponent.Title` и `ListTitle` стали `string?`: без значения показывается перевод. Подпись списка карты по умолчанию — «Points» / «Точки» вместо «Members», счётчик без списка — «Points: N» вместо «Total Participants: N»
+
 - **Email участника необязателен.** У `Participant` и `ParticipantRegistrationModel` нет `[Required]` у `Email`, а `ParticipantValidator` и `ParticipantRegistrationValidator` проверяют формат только у заполненного адреса (новый атрибут `OptionalEmailAddress`). Форма `GeoDataParticipantForm` подписывает поле «Email (optional)» и предупреждает, что указанный адрес виден всем на карте; пробелы по краям обрезаются
 
 - **Демо-наборы (`DemoDataSets`) возвращают точки** (`List<GeoPoint>`) вместо участников
