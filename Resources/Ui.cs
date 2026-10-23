@@ -68,6 +68,7 @@ internal static class Ui
     public static string MapZoomIn => Text(nameof(MapZoomIn));
     public static string MapZoomOut => Text(nameof(MapZoomOut));
     public static string MapResetView => Text(nameof(MapResetView));
+    public static string MapKeyboardHint => Text(nameof(MapKeyboardHint));
     public static string MapPointFallback => Text(nameof(MapPointFallback));
     public static string MapClusterExpand => Text(nameof(MapClusterExpand));
     public static string MapClusterZoom => Text(nameof(MapClusterZoom));
@@ -242,6 +243,7 @@ internal static class Ui
         ["zoomIn"] = MapZoomIn,
         ["zoomOut"] = MapZoomOut,
         ["resetView"] = MapResetView,
+        ["keyboardHint"] = MapKeyboardHint,
         ["pointFallback"] = MapPointFallback,
         ["clusterExpand"] = MapClusterExpand,
         ["clusterZoom"] = MapClusterZoom,
