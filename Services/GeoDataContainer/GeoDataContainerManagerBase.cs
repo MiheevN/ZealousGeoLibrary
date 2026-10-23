@@ -309,14 +309,20 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     /// <param name="changeType">Тип изменения</param>
     protected void HandleDataChanged(string containerId, GeoDataChangeType changeType)
     {
-        try
+        Logger.LogDebug("Data changed in container '{ContainerId}': {ChangeType}", containerId, changeType);
+
+        // Менеджер общий для всех пользователей: каждый подписчик вызывается отдельно,
+        // чтобы ошибка одного (например, закрытой страницы) не лишила событий остальных.
+        foreach (var subscriber in OnDataChanged?.GetInvocationList() ?? Array.Empty<Delegate>())
         {
-            Logger.LogDebug("Data changed in container '{ContainerId}': {ChangeType}", containerId, changeType);
-            OnDataChanged?.Invoke(containerId, changeType);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error handling data change event for container '{ContainerId}'", containerId);
+            try
+            {
+                ((Action<string, GeoDataChangeType>)subscriber)(containerId, changeType);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error handling data change event for container '{ContainerId}'", containerId);
+            }
         }
     }
 }

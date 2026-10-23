@@ -3,6 +3,7 @@ using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using ZealousMindedPeopleGeo.Components;
 using ZealousMindedPeopleGeo.Services;
+using ZealousMindedPeopleGeo.Services.GeoDataContainer;
 using ZealousMindedPeopleGeo.Services.Mapping;
 using ZealousMindedPeopleGeo.Services.Repositories;
 
@@ -20,6 +21,7 @@ public class GlobePanelsLocalizationTests : BunitContext
         Services.AddSingleton<IPwaService>(new InstallablePwa());
         // Панель участников обращается к хранилищу только при добавлении точки.
         Services.AddSingleton(DispatchProxy.Create<IParticipantRepository, GeoDataParticipantFormTests.UnusedService>());
+        Services.AddSingleton(DispatchProxy.Create<IGeoDataContainerManager, GeoDataParticipantFormTests.UnusedService>());
     }
 
     [Theory]

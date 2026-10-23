@@ -109,21 +109,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             if (_module == null)
                 return new GlobeOperationResult { Success = false, ErrorMessage = "Globe module not initialized" };
 
-            var list = points.Where(p => p is not null && p.Validate() is null).ToList();
-            var palette = GeoPointPalette.For(list, categoryColors);
-
-            // Без категорий и своих цветов маркеры красит глобус по своим настройкам
-            // (participantPointColor), как и раньше.
-            var pointsArray = list.Select(p => new
-            {
-                id = p.Id,
-                name = p.Title,
-                latitude = p.Latitude,
-                longitude = p.Longitude,
-                category = p.Category,
-                markerColor = palette.HasCategories || GeoPointPalette.IsCssColor(p.Color) ? palette.ColorFor(p) : null,
-                location = string.Create(CultureInfo.InvariantCulture, $"{p.Title} ({p.Latitude:F4}, {p.Longitude:F4})")
-            }).ToArray();
+            var pointsArray = ToMarkers(points.Where(p => p is not null && p.Validate() is null).ToList(), categoryColors);
 
             var success = await _module.InvokeAsync<bool>("addParticipants", containerId, (object)pointsArray);
 
@@ -140,6 +126,52 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             _logger.LogError(ex, "❌ Ошибка при добавлении точек в контейнер {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
         }
+    }
+
+    public async ValueTask<GlobeOperationResult> AddParticipantAsync(string containerId, Participant participant, CancellationToken ct = default)
+    {
+        if (participant is null)
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Participant cannot be null" };
+
+        var point = participant.Latitude is not null && participant.Longitude is not null ? participant.ToGeoPoint() : null;
+        if (point is null || point.Validate() is not null)
+            return new GlobeOperationResult { Success = false, ErrorMessage = "Participant has no valid coordinates" };
+
+        try
+        {
+            if (_module == null)
+                return new GlobeOperationResult { Success = false, ErrorMessage = "Globe module not initialized" };
+
+            // addTestParticipant добавляет маркер к уже показанным; addParticipants заменил бы их все.
+            var marker = ToMarkers(new List<GeoPoint> { point }, categoryColors: null)[0];
+            var success = await _module.InvokeAsync<bool>("addTestParticipant", containerId, marker);
+
+            return success
+                ? new GlobeOperationResult { Success = true, ProcessedCount = 1 }
+                : new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found or point already shown" };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Ошибка при добавлении участника {Name} в контейнер {ContainerId}", participant.Name, containerId);
+            return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    // Маркеры для community-globe.js. Без категорий и своих цветов маркеры красит
+    // глобус по своим настройкам (participantPointColor), как и раньше.
+    private static object[] ToMarkers(List<GeoPoint> points, IReadOnlyDictionary<string, string>? categoryColors)
+    {
+        var palette = GeoPointPalette.For(points, categoryColors);
+        return points.Select(p => (object)new
+        {
+            id = p.Id,
+            name = p.Title,
+            latitude = p.Latitude,
+            longitude = p.Longitude,
+            category = p.Category,
+            markerColor = palette.HasCategories || GeoPointPalette.IsCssColor(p.Color) ? palette.ColorFor(p) : null,
+            location = string.Create(CultureInfo.InvariantCulture, $"{p.Title} ({p.Latitude:F4}, {p.Longitude:F4})")
+        }).ToArray();
     }
 
     public async ValueTask<GlobeOperationResult> UpdateParticipantPositionAsync(string containerId, Guid participantId, double latitude, double longitude, CancellationToken ct = default)
