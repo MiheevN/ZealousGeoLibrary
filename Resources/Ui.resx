@@ -196,6 +196,10 @@
   <data name="MapResetView" xml:space="preserve">
     <value>Reset view</value>
   </data>
+  <data name="MapKeyboardHint" xml:space="preserve">
+    <value>Arrow keys move the map, + and − zoom, Home resets the view. N and P select the next and previous marker, Enter opens it, Esc closes it.</value>
+    <comment>Подсказка экранного диктора к карте. N и P — латинские буквы: клавиши работают при любой раскладке</comment>
+  </data>
   <data name="MapPointFallback" xml:space="preserve">
     <value>Point</value>
     <comment>Заголовок точки без названия</comment>

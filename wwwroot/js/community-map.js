@@ -4,7 +4,8 @@
 // (equirectangular). Центральный меридиан настраивается. Карта не зависит
 // от внешних картографических API, поддерживает приближение/отдаление колесом
 // мыши, щипком (двумя пальцами или на тачпаде) или кнопками и перемещение по
-// карте перетаскиванием.
+// карте перетаскиванием. С клавиатуры: стрелки двигают карту, + и − меняют
+// масштаб, Home сбрасывает вид, N и P выбирают маркер, Enter открывает его.
 
 const mapInstances = new Map();
 const containerStates = new WeakMap();
@@ -49,6 +50,8 @@ const WHEEL_STEP_PX = 50;
 const WHEEL_LINE_PX = 20;
 // Щипок на тачпаде браузеры присылают как wheel с ctrlKey, где deltaY ≈ −100·ln(масштаб).
 const PINCH_WHEEL_PX = 100;
+// Стрелка сдвигает карту на эту долю видимой области.
+const KEY_PAN_FRACTION = 0.2;
 
 // Размеры маркеров в CSS-пикселях.
 const POINT_RADIUS = 9;
@@ -80,6 +83,8 @@ const DEFAULT_TEXTS = {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     resetView: 'Reset view',
+    keyboardHint: 'Arrow keys move the map, + and − zoom, Home resets the view. '
+        + 'N and P select the next and previous marker, Enter opens it, Esc closes it.',
     pointFallback: 'Point',
     clusterExpand: 'Click to expand',
     clusterZoom: 'Click to zoom in',
@@ -284,10 +289,26 @@ function createMapInstance(container, initialState) {
     const texts = initialState.texts ?? resolveTexts();
     const canvas = document.createElement('canvas');
     canvas.className = 'community-map-canvas';
-    canvas.setAttribute('role', 'img');
+    // Холст управляется с клавиатуры: он в порядке Tab и сам обрабатывает клавиши.
+    canvas.setAttribute('role', 'application');
     canvas.setAttribute('aria-label', texts.canvasLabel);
+    canvas.tabIndex = 0;
     container.innerHTML = '';
     container.appendChild(canvas);
+
+    // Подсказка про клавиши и объявление выбранного маркера — только для экранного диктора.
+    const hintId = `${container.id || 'map'}-keyboard-hint`;
+    const hint = document.createElement('div');
+    hint.id = hintId;
+    hint.className = 'community-map-sr-only';
+    hint.textContent = texts.keyboardHint;
+    container.appendChild(hint);
+    canvas.setAttribute('aria-describedby', hintId);
+
+    const announcer = document.createElement('div');
+    announcer.className = 'community-map-sr-only';
+    announcer.setAttribute('aria-live', 'polite');
+    container.appendChild(announcer);
 
     const tooltip = document.createElement('div');
     tooltip.className = 'community-map-tooltip';
@@ -304,6 +325,7 @@ function createMapInstance(container, initialState) {
         ctx: canvas.getContext('2d'),
         container,
         tooltip,
+        announcer,
         controls,
         points: [],
         // Растёт при каждой смене точек: по нему узнаём, что группы устарели.
@@ -338,8 +360,9 @@ function createMapInstance(container, initialState) {
         // Нажатые указатели (pointerId → точка на холсте) и щипок двумя из них.
         pointers: new Map(),
         pinch: null,
-        // Ключ маркера под указателем
+        // Ключ маркера под указателем и маркера, выбранного с клавиатуры
         hoveredKey: null,
+        selectedKey: null,
         // Подписки на события
         listeners: []
     };
@@ -388,6 +411,7 @@ function createMapInstance(container, initialState) {
             return;
         }
         const pointer = canvasPoint(event);
+        clearSelection(state);
         state.pointers.set(event.pointerId, pointer);
         canvas.setPointerCapture?.(event.pointerId);
         if (state.pointers.size === 1) {
@@ -479,7 +503,19 @@ function createMapInstance(container, initialState) {
         notifyPointClick(state, state.points[target.pointIndex]);
     };
 
+    const onKeyDown = (event) => {
+        if (handleMapKey(state, event, initialState)) {
+            event.preventDefault();
+        }
+    };
+
     canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('keydown', onKeyDown);
+    canvas.addEventListener('blur', () => {
+        if (clearSelection(state)) {
+            draw();
+        }
+    });
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', endPointer);
@@ -500,9 +536,7 @@ function createMapInstance(container, initialState) {
         draw();
     });
     controls.reset.addEventListener('click', () => {
-        // Возврат к виду, с которым карта была инициализирована.
-        state.zoom = clampZoom(initialState.zoom);
-        setCenter(state, initialState.centerLat, initialState.centerLng);
+        resetView(state, initialState);
         draw();
     });
 
@@ -519,6 +553,7 @@ function createMapInstance(container, initialState) {
             state.pointsVersion += 1;
             state.spider = null;
             state.hoveredKey = null;
+            clearSelection(state);
             hideTooltip(state);
             draw();
         },
@@ -589,6 +624,156 @@ function createZoomControls(container, texts) {
     container.appendChild(wrapper);
 
     return { zoomIn, zoomOut, reset };
+}
+
+// Возврат к виду, с которым карта была инициализирована.
+function resetView(state, initialState) {
+    state.zoom = clampZoom(initialState.zoom);
+    setCenter(state, initialState.centerLat, initialState.centerLng);
+}
+
+// --- Клавиатура -------------------------------------------------------------
+
+// Обрабатывает клавишу на холсте; true — клавиша карты, браузеру её не отдавать.
+function handleMapKey(state, event, initialState) {
+    // Ctrl/Cmd/Alt с клавишей — команды браузера (Ctrl + — масштаб страницы).
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+        return false;
+    }
+    const center = { x: state.width / 2, y: state.height / 2 };
+    const scale = viewScale(state);
+    const panX = (state.width * KEY_PAN_FRACTION) / scale;
+    const panY = (state.height * KEY_PAN_FRACTION) / scale;
+    const pans = {
+        ArrowLeft: [-panX, 0],
+        ArrowRight: [panX, 0],
+        ArrowUp: [0, panY],
+        ArrowDown: [0, -panY]
+    };
+
+    if (pans[event.key]) {
+        const [dx, dy] = pans[event.key];
+        clearSelection(state);
+        state.centerX += dx;
+        state.centerY += dy;
+        commitView(state);
+    } else if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') {
+        clearSelection(state);
+        zoomAt(state, ZOOM_STEP, center);
+    } else if (event.key === '-' || event.key === '_' || event.key === '−' || event.code === 'NumpadSubtract') {
+        clearSelection(state);
+        zoomAt(state, 1 / ZOOM_STEP, center);
+    } else if (event.key === 'Home') {
+        clearSelection(state);
+        state.spider = null;
+        resetView(state, initialState);
+    } else if (event.code === 'KeyN' || event.code === 'KeyP') {
+        // По физической клавише: N и P работают и в русской раскладке.
+        selectNextMarker(state, event.code === 'KeyP' ? -1 : 1);
+        return true;
+    } else if (event.key === 'Enter' || event.key === ' ') {
+        // Пробел без выбранного маркера тоже не прокручивает страницу.
+        return activateSelectedMarker(state) || event.key === ' ';
+    } else if (event.key === 'Escape') {
+        if (!clearSelection(state) && !state.spider) {
+            return false;
+        }
+        state.spider = null;
+    } else {
+        return false;
+    }
+
+    drawScene(state);
+    return true;
+}
+
+// Маркеры, которые видны на холсте, слева направо (при равных x — сверху вниз).
+// Копия мира, повторившая маркер, в список не попадает.
+function visibleMarkers(state) {
+    const seen = new Set();
+    return state.hitTargets
+        .filter((target) => target.x >= 0 && target.x <= state.width && target.y >= 0 && target.y <= state.height)
+        .sort((a, b) => a.x - b.x || a.y - b.y)
+        .filter((target) => !seen.has(target.key) && seen.add(target.key));
+}
+
+// Выбирает следующий (step = 1) или предыдущий (−1) маркер по кругу.
+function selectNextMarker(state, step) {
+    const markers = visibleMarkers(state);
+    if (markers.length === 0) {
+        clearSelection(state);
+        return;
+    }
+    const current = markers.findIndex((target) => target.key === state.selectedKey);
+    const index = current < 0
+        ? (step > 0 ? 0 : markers.length - 1)
+        : (current + step + markers.length) % markers.length;
+    selectMarker(state, markers[index].key);
+}
+
+// Выделяет маркер, показывает его подсказку и сообщает о нём экранному диктору.
+function selectMarker(state, key) {
+    state.selectedKey = key;
+    drawScene(state);
+    const target = visibleMarkers(state).find((item) => item.key === key);
+    if (!target) {
+        clearSelection(state);
+        drawScene(state);
+        return;
+    }
+    showTooltip(state, targetTooltip(state, target), { x: target.x, y: target.y });
+    state.announcer.textContent = markerAnnouncement(state, target);
+}
+
+// Enter на выбранном маркере — как клик по нему. false — ничего не выбрано.
+function activateSelectedMarker(state) {
+    const target = state.hitTargets.find((item) => item.key === state.selectedKey);
+    if (!target) {
+        return false;
+    }
+    if (target.type === 'point') {
+        notifyPointClick(state, state.points[target.pointIndex]);
+        return true;
+    }
+    expandCluster(state, target.group);
+    clearSelection(state);
+    if (state.spider) {
+        // Группа раскрылась веером: выбор переходит на её первую точку.
+        selectMarker(state, `p:${target.group.members[0]}`);
+    } else {
+        drawScene(state);
+    }
+    return true;
+}
+
+// Снимает выбор с клавиатуры; true — что-то было выбрано.
+function clearSelection(state) {
+    if (state.selectedKey === null) {
+        return false;
+    }
+    state.selectedKey = null;
+    state.announcer.textContent = '';
+    hideTooltip(state);
+    return true;
+}
+
+// Короткий текст о маркере для экранного диктора; подробности — в подсказке.
+function markerAnnouncement(state, target) {
+    const { texts } = state;
+    if (target.type === 'cluster') {
+        const titles = target.group.members
+            .slice(0, CLUSTER_TOOLTIP_TITLES)
+            .map((index) => state.points[index].title || texts.pointFallback);
+        return `${clusterTitle(texts, target.group.count)}: ${titles.join(', ')}`;
+    }
+    const point = state.points[target.pointIndex];
+    return [point.title || texts.pointFallback, point.category].filter(Boolean).join(', ');
+}
+
+function targetTooltip(state, target) {
+    return target.type === 'cluster'
+        ? renderClusterTooltip(target.group, state.points, clusterExpansion(state, target.group).mode, state.texts)
+        : renderPointTooltip(state.points[target.pointIndex], state.texts);
 }
 
 function clampZoom(value) {
@@ -1467,7 +1652,7 @@ function drawMarkers(state, view) {
         }
         const single = group.count === 1;
         const key = markerKey(group);
-        const hovered = state.hoveredKey === key;
+        const hovered = state.hoveredKey === key || state.selectedKey === key;
         const radius = single
             ? (hovered ? POINT_HOVER_RADIUS : POINT_RADIUS)
             : clusterBadgeRadius(group.count) + (hovered ? 2 : 0);
@@ -1493,8 +1678,28 @@ function drawMarkers(state, view) {
         drawSpider(state, view, spiderGroup, targets);
     }
 
+    targets
+        .filter((target) => target.key === state.selectedKey)
+        .forEach((target) => drawSelectionRing(ctx, target));
+
     // Последний нарисованный — сверху: проверять попадание с конца.
     state.hitTargets = targets.reverse();
+}
+
+// Кольцо вокруг маркера, выбранного с клавиатуры: светлое с тёмной каймой,
+// заметно на маркере любого цвета.
+function drawSelectionRing(ctx, target) {
+    const radius = target.radius - HIT_SLOP + 4;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, radius, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#0e1013';
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#f4f7fb';
+    ctx.stroke();
+    ctx.restore();
 }
 
 function drawPointMarker(ctx, x, y, radius, point) {
@@ -1584,7 +1789,8 @@ function drawSpider(state, view, group, targets) {
 
             group.members.forEach((pointIndex, index) => {
                 const key = `p:${pointIndex}`;
-                const radius = state.hoveredKey === key ? POINT_HOVER_RADIUS : POINT_RADIUS;
+                const highlighted = state.hoveredKey === key || state.selectedKey === key;
+                const radius = highlighted ? POINT_HOVER_RADIUS : POINT_RADIUS;
                 const x = center.x + offsets[index].x;
                 const y = center.y + offsets[index].y;
                 drawPointMarker(ctx, x, y, radius, state.points[pointIndex]);
@@ -1650,10 +1856,7 @@ function updateHover(state, event) {
         drawScene(state);
     }
     if (target) {
-        const html = target.type === 'cluster'
-            ? renderClusterTooltip(target.group, state.points, clusterExpansion(state, target.group).mode, state.texts)
-            : renderPointTooltip(state.points[target.pointIndex], state.texts);
-        showTooltip(state, html, pointer);
+        showTooltip(state, targetTooltip(state, target), pointer);
         state.canvas.style.cursor = 'pointer';
     } else {
         hideTooltip(state);

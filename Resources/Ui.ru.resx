@@ -180,6 +180,9 @@
   <data name="MapResetView" xml:space="preserve">
     <value>Сбросить вид</value>
   </data>
+  <data name="MapKeyboardHint" xml:space="preserve">
+    <value>Стрелки сдвигают карту, + и − меняют масштаб, Home сбрасывает вид. N и P выбирают следующий и предыдущий маркер, Enter открывает его, Esc закрывает.</value>
+  </data>
   <data name="MapPointFallback" xml:space="preserve">
     <value>Точка</value>
   </data>
