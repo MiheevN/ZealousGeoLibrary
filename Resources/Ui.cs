@@ -106,6 +106,8 @@ internal static class Ui
     public static string GlobeCenterOnLocation => Text(nameof(GlobeCenterOnLocation));
     public static string GlobeNoLocation => Text(nameof(GlobeNoLocation));
     public static string ManagerTitle => Text(nameof(ManagerTitle));
+    public static string ManagerCollapse => Text(nameof(ManagerCollapse));
+    public static string ManagerExpand => Text(nameof(ManagerExpand));
     public static string ManagerName => Text(nameof(ManagerName));
     public static string ManagerNamePlaceholder => Text(nameof(ManagerNamePlaceholder));
     public static string ManagerLatitude => Text(nameof(ManagerLatitude));

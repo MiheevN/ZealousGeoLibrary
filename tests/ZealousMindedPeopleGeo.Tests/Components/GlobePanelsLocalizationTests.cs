@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ZealousMindedPeopleGeo.Components;
 using ZealousMindedPeopleGeo.Services;
 using ZealousMindedPeopleGeo.Services.Mapping;
+using ZealousMindedPeopleGeo.Services.Repositories;
 
 namespace ZealousMindedPeopleGeo.Tests.Components;
 
@@ -17,6 +18,8 @@ public class GlobePanelsLocalizationTests : BunitContext
         Services.AddSingleton(new GlobeStateService());
         Services.AddSingleton(DispatchProxy.Create<IGlobeMediator, GeoDataParticipantFormTests.UnusedService>());
         Services.AddSingleton<IPwaService>(new InstallablePwa());
+        // Панель участников обращается к хранилищу только при добавлении точки.
+        Services.AddSingleton(DispatchProxy.Create<IParticipantRepository, GeoDataParticipantFormTests.UnusedService>());
     }
 
     [Theory]
@@ -31,6 +34,26 @@ public class GlobePanelsLocalizationTests : BunitContext
         Assert.Equal(low, cut.Find("option[value='0']").TextContent);
         Assert.Equal(rotationButton, cut.Find("button[aria-pressed]").GetAttribute("aria-label"));
         Assert.Equal(noLocation, cut.Find("button[title]:not([aria-pressed])").GetAttribute("title"));
+    }
+
+    [Theory]
+    [InlineData("en", "Collapse the panel", "Expand the panel")]
+    [InlineData("ru", "Свернуть панель", "Развернуть панель")]
+    public void ParticipantPanelToggle_SaysWhatItDoes(string language, string collapse, string expand)
+    {
+        using var culture = new CultureScope(language);
+        var cut = Render<CommunityGlobeParticipantManager>();
+
+        var toggle = cut.Find("button[aria-expanded]");
+        Assert.Equal("true", toggle.GetAttribute("aria-expanded"));
+        Assert.Equal(collapse, toggle.GetAttribute("aria-label"));
+
+        toggle.Click();
+
+        toggle = cut.Find("button[aria-expanded]");
+        Assert.Equal("false", toggle.GetAttribute("aria-expanded"));
+        Assert.Equal(expand, toggle.GetAttribute("aria-label"));
+        Assert.Empty(cut.FindAll("input"));
     }
 
     [Theory]
