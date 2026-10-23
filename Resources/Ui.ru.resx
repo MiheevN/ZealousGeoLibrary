@@ -294,6 +294,12 @@
   <data name="ManagerTitle" xml:space="preserve">
     <value>Управление участниками</value>
   </data>
+  <data name="ManagerCollapse" xml:space="preserve">
+    <value>Свернуть панель</value>
+  </data>
+  <data name="ManagerExpand" xml:space="preserve">
+    <value>Развернуть панель</value>
+  </data>
   <data name="ManagerName" xml:space="preserve">
     <value>Имя</value>
   </data>
