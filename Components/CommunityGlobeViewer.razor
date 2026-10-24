@@ -41,6 +41,8 @@
     /// Если задан, участники загружаются из этого изолированного контейнера,
     /// а не из общего <see cref="IParticipantRepository"/>. Это позволяет
     /// нескольким экземплярам глобуса отображать независимые наборы данных.
+    /// Изменения контейнера глобус показывает сразу, у всех, кто его открыл:
+    /// менеджер контейнеров общий для приложения, опроса по таймеру нет.
     /// </summary>
     [Parameter] public string? DataContainerId { get; set; }
 
@@ -60,18 +62,41 @@
     private bool _isInitializing;
     private string? _errorMessage;
     private bool _isRendering;
+    private bool _isDisposed;
 
     protected override void OnInitialized()
     {
         GlobeStateService.OnStateChanged += HandleStateChanged;
+        ContainerManager.OnDataChanged += HandleContainerChanged;
     }
 
     private void HandleStateChanged(string globeId)
     {
         if (globeId == GlobeId)
         {
-            StateHasChanged();
+            _ = InvokeAsync(StateHasChanged);
         }
+    }
+
+    // Контейнер меняют и другие пользователи: событие приходит из чужого потока,
+    // поэтому перерисовка — через InvokeAsync.
+    private void HandleContainerChanged(string containerId, GeoDataChangeType changeType)
+    {
+        if (_isDisposed || string.IsNullOrEmpty(DataContainerId) || containerId != DataContainerId)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_isDisposed || !State.IsInitialized)
+            {
+                return;
+            }
+
+            await LoadParticipantsAsync();
+            StateHasChanged();
+        });
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -229,6 +254,8 @@
 
     public void Dispose()
     {
+        _isDisposed = true;
         GlobeStateService.OnStateChanged -= HandleStateChanged;
+        ContainerManager.OnDataChanged -= HandleContainerChanged;
     }
 }

@@ -2,9 +2,11 @@
 @using ZealousMindedPeopleGeo.Models
 @using ZealousMindedPeopleGeo.Services.Mapping
 @using ZealousMindedPeopleGeo.Services.Repositories
+@using ZealousMindedPeopleGeo.Services.GeoDataContainer
 @inject GlobeStateService GlobeStateService
 @inject IGlobeMediator GlobeMediator
 @inject IParticipantRepository ParticipantRepository
+@inject IGeoDataContainerManager ContainerManager
 @implements IDisposable
 
 <div class="participant-management-panel rounded p-3 text-white">
@@ -79,6 +81,14 @@
 
 @code {
     [Parameter] public string GlobeId { get; set; } = "default";
+
+    /// <summary>
+    /// Контейнер гео-данных, куда панель добавляет точки. Задайте тот же, что у
+    /// <see cref="CommunityGlobeViewer.DataContainerId"/>: глобус (и у других
+    /// пользователей тоже) обновится сам. Не задан — точки идут в
+    /// <see cref="IParticipantRepository"/>, а панель сама перерисовывает глобус.
+    /// </summary>
+    [Parameter] public string? DataContainerId { get; set; }
 
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
@@ -176,17 +186,35 @@
                 RegisteredAt = DateTime.UtcNow
             };
 
-            await ParticipantRepository.AddParticipantAsync(participant);
-
-            var participants = await ParticipantRepository.GetAllParticipantsAsync();
-            var participantsList = participants.ToList();
-            await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
-
-            GlobeStateService.UpdateState(GlobeId, s =>
+            if (!string.IsNullOrEmpty(DataContainerId))
             {
-                s.Participants = participantsList;
-                s.ParticipantCount = participantsList.Count;
-            });
+                // Глобус с этим контейнером перерисуется по событию контейнера.
+                var added = await ContainerManager.GetOrCreateContainer(DataContainerId).AddParticipantAsync(participant);
+                if (!added.Success)
+                {
+                    ShowMessage(Ui.ManagerError(added.ErrorMessage), true);
+                    return;
+                }
+            }
+            else
+            {
+                var saved = await ParticipantRepository.AddParticipantAsync(participant);
+                if (!saved.Success)
+                {
+                    ShowMessage(Ui.ManagerError(saved.ErrorMessage), true);
+                    return;
+                }
+
+                var participants = await ParticipantRepository.GetAllParticipantsAsync();
+                var participantsList = participants.ToList();
+                await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
+
+                GlobeStateService.UpdateState(GlobeId, s =>
+                {
+                    s.Participants = participantsList;
+                    s.ParticipantCount = participantsList.Count;
+                });
+            }
 
             ShowMessage(Ui.ManagerAdded(participant.Name), false);
             ClearForm();

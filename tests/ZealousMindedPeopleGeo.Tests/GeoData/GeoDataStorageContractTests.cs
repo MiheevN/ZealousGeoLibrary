@@ -206,6 +206,19 @@ public abstract partial class GeoDataStorageContractTests : IDisposable
     }
 
     [Fact]
+    public async Task OnDataChanged_FailingSubscriberDoesNotSilenceTheOthers()
+    {
+        // Подписчик закрытой страницы может бросить исключение: остальные пользователи
+        // всё равно должны узнать об изменении.
+        Manager.OnDataChanged += (_, _) => throw new InvalidOperationException("closed page");
+        var events = RecordEvents();
+
+        await Manager.GetOrCreateContainer("events").AddParticipantAsync(CreateParticipant("A"));
+
+        Assert.Equal(new[] { ("events", GeoDataChangeType.Added) }, events);
+    }
+
+    [Fact]
     public async Task OnDataChanged_SilentWhenNothingChanged()
     {
         var container = Manager.GetOrCreateContainer("events");

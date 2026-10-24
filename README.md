@@ -1050,7 +1050,34 @@ var result = await ContainerManager.LoadToGlobeAsync(
 [middleware ограничения частоты](https://learn.microsoft.com/aspnet/core/performance/rate-limit)
 ASP.NET Core.
 
+### Синхронизация между пользователями
+
+Менеджер контейнеров один на всё приложение, поэтому изменения контейнера видят все,
+кто открыл страницу. Опроса по таймеру нет: Blazor Server доставляет обновление
+по уже открытому соединению.
+
+- `CommunityGlobeViewer` и `CommunityMapComponent` с `DataContainerId` перерисовываются
+  сами, как только в контейнер добавили, изменили или удалили точку — неважно, кто:
+  этот пользователь, другой или фоновая служба сервера.
+- Форма `GeoDataParticipantForm` и панель `CommunityGlobeParticipantManager` с
+  `DataContainerId` пишут в контейнер — новая точка появляется у всех.
+- С `AddGeoDataDatabase` то же самое работает поверх базы данных в пределах
+  одного процесса сервера. Несколько серверов за балансировщиком друг о друге не знают:
+  для них нужна общая шина (например, Redis или SignalR backplane), которая вызывает
+  перезагрузку контейнера.
+- Без `DataContainerId` компоненты читают `IParticipantRepository`. Встроенный
+  репозиторий в памяти у каждого пользователя свой, поэтому синхронизировать там нечего.
+
+```razor
+@* Оба пользователя видят точки друг друга сразу *@
+<CommunityGlobeComponent GlobeId="team" DataContainerId="team-points" ShowParticipantManagement="true" />
+<CommunityMapComponent MapId="team-map" DataContainerId="team-points" />
+```
+
 ### Подписка на изменения данных
+
+Событие приходит из потока того, кто изменил данные, поэтому в компоненте обновляйтесь
+через `InvokeAsync`. Исключение в одном подписчике не мешает остальным.
 
 ```csharp
 @inject IGeoDataContainerManager ContainerManager
@@ -1062,7 +1089,7 @@ protected override void OnInitialized()
 
 private void HandleDataChanged(string containerId, GeoDataChangeType changeType)
 {
-    Console.WriteLine($"Container '{containerId}' changed: {changeType}");
+    _ = InvokeAsync(StateHasChanged);
     // GeoDataChangeType: Added, Updated, Removed, Cleared, BulkLoaded
 }
 ```

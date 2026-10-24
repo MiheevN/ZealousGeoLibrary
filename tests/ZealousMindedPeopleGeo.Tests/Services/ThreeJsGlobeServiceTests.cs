@@ -22,6 +22,7 @@ public class ThreeJsGlobeServiceTests : BunitContext
         _module.Setup<bool>("createGlobe", _ => true).SetResult(true);
         _module.Setup<string>("getThreeJsVersion").SetResult("test");
         _module.Setup<bool>("addParticipants", _ => true).SetResult(true);
+        _module.Setup<bool>("addTestParticipant", _ => true).SetResult(true);
         _service = new ThreeJsGlobeService(JSInterop.JSRuntime, NullLogger<ThreeJsGlobeService>.Instance);
     }
 
@@ -75,6 +76,35 @@ public class ThreeJsGlobeServiceTests : BunitContext
         Assert.Equal(anna.Id.ToString(), Field<string>(marker, "id"));
         Assert.Equal("Anna", Field<string>(marker, "name"));
         Assert.Null(Field<string?>(marker, "markerColor"));
+    }
+
+    [Fact]
+    public async Task AddParticipantAsync_AddsToShownPointsInsteadOfReplacingThem()
+    {
+        await _service.InitializeGlobeAsync("globe-a", new GlobeOptions());
+        var anna = CreateParticipant("Anna", 55.75, 37.62);
+
+        var result = await _service.AddParticipantAsync("globe-a", anna);
+
+        Assert.True(result.Success);
+        Assert.Empty(_module.Invocations["addParticipants"]);
+        var invocation = Assert.Single(_module.Invocations["addTestParticipant"]);
+        Assert.Equal("globe-a", invocation.Arguments[0]);
+        var marker = invocation.Arguments[1]!;
+        Assert.Equal(anna.Id.ToString(), Field<string>(marker, "id"));
+        Assert.Equal("Anna", Field<string>(marker, "name"));
+        Assert.Equal(55.75, Field<double>(marker, "latitude"));
+    }
+
+    [Fact]
+    public async Task AddParticipantAsync_WithoutCoordinates_SendsNothing()
+    {
+        await _service.InitializeGlobeAsync("globe-a", new GlobeOptions());
+
+        var result = await _service.AddParticipantAsync("globe-a", CreateParticipant("Nowhere", latitude: null));
+
+        Assert.False(result.Success);
+        Assert.Empty(_module.Invocations["addTestParticipant"]);
     }
 
     [Fact]

@@ -71,8 +71,8 @@ public class GlobeMediatorService : IGlobeMediator
             if (isGlobeAvailable)
             {
                 // 3D глобус доступен - добавляем через него
-                _logger.LogInformation("🎯 Глобус доступен, вызываем AddParticipantsAsync для контейнера: {ContainerId}", containerId);
-                result = await _globeService.AddParticipantsAsync(containerId, new[] { participant });
+                _logger.LogInformation("🎯 Глобус доступен, вызываем AddParticipantAsync для контейнера: {ContainerId}", containerId);
+                result = await _globeService.AddParticipantAsync(containerId, participant);
                 if (result.Success)
                 {
                     _logger.LogInformation("✅ Участник {Name} успешно добавлен в глобус {ContainerId}", participant.Name, containerId);
