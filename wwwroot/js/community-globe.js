@@ -56,6 +56,97 @@ const globeInstances = new Map();
 
 // Сколько длится появление и исчезновение подписи при раскладке без наложений.
 const PARTICIPANT_LABEL_FADE_IN_SECONDS = 0.2;
+// Шаг, с которым меняется порог группировки: точки перегруппировываются, когда камера
+// приблизилась или отдалилась примерно на треть, а не на каждом кадре.
+const CLUSTER_ANGLE_STEP = 1.3;
+
+/**
+ * Угол (радианы), который на поверхности глобуса занимают radiusPx экранных пикселей
+ * в точке, ближайшей к камере. Ближе этого угла маркеры сливаются в группу.
+ */
+function globeClusterAngle(cameraDistance, fovDegrees, viewportHeightPx, radiusPx, earthRadius = 1) {
+    if (!(radiusPx > 0) || !(viewportHeightPx > 0) || !(cameraDistance > earthRadius)) {
+        return 0;
+    }
+    const surfaceDistance = cameraDistance - earthRadius;
+    const visibleHeight = 2 * surfaceDistance * Math.tan((fovDegrees * Math.PI / 180) / 2);
+    return (radiusPx / viewportHeightPx) * visibleHeight / earthRadius;
+}
+
+function unitVectorOf(latitude, longitude) {
+    const lat = latitude * Math.PI / 180;
+    const lng = longitude * Math.PI / 180;
+    return { x: Math.cos(lat) * Math.cos(lng), y: Math.sin(lat), z: Math.cos(lat) * Math.sin(lng) };
+}
+
+/**
+ * Группирует точки на сфере: точка входит в первую группу, центр которой ближе
+ * maxAngle (радианы), иначе начинает свою. Центр группы — среднее направление её точек.
+ * Порядок точек сохраняется, поэтому одни и те же данные дают одни и те же группы.
+ * @returns {Array<{latitude: number, longitude: number, members: number[]}>}
+ */
+function clusterGlobePoints(points, maxAngle) {
+    const groups = [];
+    const cosLimit = Math.cos(maxAngle);
+    points.forEach((point, index) => {
+        const v = unitVectorOf(point.latitude, point.longitude);
+        const group = maxAngle > 0
+            ? groups.find(g => g.center.x * v.x + g.center.y * v.y + g.center.z * v.z >= cosLimit)
+            : undefined;
+        if (!group) {
+            groups.push({ members: [index], sum: { ...v }, center: { ...v } });
+            return;
+        }
+        group.members.push(index);
+        group.sum.x += v.x;
+        group.sum.y += v.y;
+        group.sum.z += v.z;
+        const length = Math.hypot(group.sum.x, group.sum.y, group.sum.z);
+        // Точки на противоположных сторонах в одну группу не попадают, но на всякий случай
+        // нулевой вектор оставляет прежний центр.
+        if (length > 1e-9) {
+            group.center = { x: group.sum.x / length, y: group.sum.y / length, z: group.sum.z / length };
+        }
+    });
+
+    return groups.map(group => group.members.length === 1
+        ? { latitude: points[group.members[0]].latitude, longitude: points[group.members[0]].longitude, members: group.members }
+        : {
+            latitude: Math.asin(Math.max(-1, Math.min(1, group.center.y))) * 180 / Math.PI,
+            longitude: Math.atan2(group.center.z, group.center.x) * 180 / Math.PI,
+            members: group.members
+        });
+}
+
+/**
+ * Маркер группы: подпись — число точек, цвет — самый частый цвет её точек.
+ */
+function clusterMarkerParticipant(group, participants) {
+    const members = group.members.map(index => participants[index]);
+    const colorCounts = new Map();
+    members.forEach(member => {
+        const color = member.markerColor || '';
+        colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
+    });
+    let markerColor = '';
+    let best = 0;
+    colorCounts.forEach((count, color) => {
+        if (count > best) {
+            best = count;
+            markerColor = color;
+        }
+    });
+
+    return {
+        id: `cluster:${members[0].id}`,
+        name: String(members.length),
+        latitude: group.latitude,
+        longitude: group.longitude,
+        markerColor: markerColor || undefined,
+        isCluster: true,
+        members
+    };
+}
 const PARTICIPANT_LABEL_FADE_OUT_SECONDS = 0.12;
 
 /**
@@ -81,6 +172,10 @@ class CommunityGlobe {
             atmosphereOpacity: 0.2,
             participantPointSize: 0.06,
             participantPointColor: '#24dce7',
+            // Близкие маркеры сливаются в группу со счётчиком (как на 2D-карте).
+            clusterPoints: true,
+            // Расстояние между маркерами на экране в пикселях, ближе которого они сливаются.
+            clusterRadius: 40,
             participantPointOffset: 0.02, // Расстояние точек от поверхности глобуса
             participantMarkerOpacity: 0.72,
             participantMarkerHeight: 0.06,
@@ -641,6 +736,11 @@ class CommunityGlobe {
             return;
         }
 
+        if (metadata.isCluster) {
+            this.zoomIntoCluster(metadata);
+            return;
+        }
+
         this.centerOnParticipant(metadata);
 
         if (this.callbacks.onParticipantClick) {
@@ -737,30 +837,26 @@ class CommunityGlobe {
          }
 
          try {
-            let markerIndex = 0;
-
-            participants.forEach((participant, index) => {
+            const valid = [];
+            participants.forEach(participant => {
                 // Валидация координат
                 if (typeof participant.latitude !== 'number' || typeof participant.longitude !== 'number' ||
                     isNaN(participant.latitude) || isNaN(participant.longitude)) {
                     console.warn(`⚠️ Пропускаем участника ${participant.name}: некорректные координаты (${participant.latitude}, ${participant.longitude})`);
                     return;
                 }
-
-                const marker = this.createParticipantMarker(participant, markerIndex);
-                this.earthGroup.add(marker);
-                this.participantMarkers.push(marker);
-                this.participantPoints.push(marker); // Обратная совместимость с отладочными API
-                this.pointMetadata.set(`participant_${markerIndex}`, participant);
-                markerIndex++;
+                valid.push(participant);
             });
 
-            this.state.participantCount = markerIndex;
-            this.updateParticipantMarkerTransforms();
-            this.updateParticipantLabelBillboards();
+            // pointMetadata и participantCount — точки как есть, маркеры на экране — с группами.
+            valid.forEach((participant, index) => this.pointMetadata.set(`participant_${index}`, participant));
+            this.sourceParticipants = valid;
+            this.state.participantCount = valid.length;
+            this.renderParticipantMarkers();
+            const markerIndex = this.participantMarkers.length;
 
             console.log(`🎯 Создано ${markerIndex} 3D меток участников`);
-            console.log(`✅ Добавлено ${markerIndex} участников на глобус`);
+            console.log(`✅ Добавлено ${valid.length} участников на глобус`);
             console.log(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
 
             // Принудительно обновляем рендер для немедленного отображения точек
@@ -786,6 +882,17 @@ class CommunityGlobe {
      * Удаляет точки участников и очищает метаданные
      */
     clearParticipants() {
+        this.clearParticipantMarkers();
+        this.sourceParticipants = [];
+        this.pointMetadata.clear();
+        this.state.participantCount = 0;
+        console.log('🧹 Очищены все метки участников');
+    }
+
+    /**
+     * Убирает маркеры с глобуса, не трогая точки: перед перерисовкой групп.
+     */
+    clearParticipantMarkers() {
         this.participantMarkers.forEach(marker => {
             this.earthGroup.remove(marker);
             this.disposeObject3D(marker);
@@ -802,9 +909,70 @@ class CommunityGlobe {
         this.participantMarkerOverlayIndicators = [];
         this.participantLabels = [];
         this.hoveredParticipantMarker = null;
-        this.pointMetadata.clear();
-        this.state.participantCount = 0;
-        console.log('🧹 Очищены все метки участников');
+    }
+
+    /**
+     * Рисует маркеры точек: близкие на экране сливаются в группы со счётчиком.
+     */
+    renderParticipantMarkers() {
+        this.clearParticipantMarkers();
+        const participants = this.sourceParticipants || [];
+        const angle = this.getClusterAngle();
+        this.clusterAngleKey = this.getClusterAngleKey(angle);
+
+        clusterGlobePoints(participants, angle).forEach((group, index) => {
+            const participant = group.members.length === 1
+                ? participants[group.members[0]]
+                : clusterMarkerParticipant(group, participants);
+            const marker = this.createParticipantMarker(participant, index);
+            this.earthGroup.add(marker);
+            this.participantMarkers.push(marker);
+            this.participantPoints.push(marker); // Обратная совместимость с отладочными API
+        });
+
+        this.updateParticipantMarkerTransforms();
+        this.updateParticipantLabelBillboards();
+    }
+
+    /**
+     * Порог группировки для текущей камеры; 0 — не группировать. Вплотную к поверхности
+     * точки не группируются: так видны и точки с одинаковыми координатами.
+     */
+    getClusterAngle() {
+        if (this.options.clusterPoints === false || !this.camera) {
+            return 0;
+        }
+        const distance = this.camera.position.length();
+        const { minDistance } = this.getCameraDistanceLimits();
+        if (distance <= minDistance * 1.02) {
+            return 0;
+        }
+        const radius = this.getClampedNumber(this.options.clusterRadius, 40, 0, 200);
+        return globeClusterAngle(distance, Number(this.camera.fov) || 75, this.getRenderSize().height, radius);
+    }
+
+    getClusterAngleKey(angle) {
+        return angle > 0 ? Math.round(Math.log(angle) / Math.log(CLUSTER_ANGLE_STEP)) : null;
+    }
+
+    // Камера заметно приблизилась или отдалилась — группы пересобираются.
+    updateParticipantClusters() {
+        if (!this.sourceParticipants || this.sourceParticipants.length < 2) {
+            return;
+        }
+        if (this.getClusterAngleKey(this.getClusterAngle()) !== this.clusterAngleKey) {
+            this.renderParticipantMarkers();
+        }
+    }
+
+    /**
+     * Клик по группе: камера подлетает к ней, и группа распадается на точки или меньшие группы.
+     */
+    zoomIntoCluster(cluster) {
+        const { minDistance } = this.getCameraDistanceLimits();
+        const distance = this.camera ? this.camera.position.length() : minDistance * 2;
+        const target = Math.max(minDistance, 1 + (distance - 1) * 0.45);
+        return this.centerOn(cluster.latitude, cluster.longitude, target);
     }
 
     disposeObject3D(object) {
@@ -1981,6 +2149,7 @@ class CommunityGlobe {
         }
         this.applyCameraDistanceSafety();
         this.syncSunLightWithCamera();
+        this.updateParticipantClusters();
         this.updateParticipantMarkerTransforms();
         this.updateParticipantLabelLayout();
         this.updateParticipantLabelBillboards();
@@ -2302,6 +2471,8 @@ class CommunityGlobe {
                 'participantPointSize',
                 'participantPointOffset',
                 'participantPointColor',
+                'clusterPoints',
+                'clusterRadius',
                 'participantMarkerOpacity',
                 'participantMarkerHeight',
                 'participantMarkerTipHeight',
@@ -2491,21 +2662,11 @@ class CommunityGlobe {
             participant.id.toString() === participantId.toString());
         if (!entry) return false;
 
-        const [key, participant] = entry;
+        const [, participant] = entry;
         participant.latitude = latitude;
         participant.longitude = longitude;
-
-        const marker = this.participantMarkers.find(item =>
-            item.userData.participant?.id?.toString() === participantId.toString());
-        if (!marker) return false;
-
-        const radius = 1 + this.options.participantPointOffset;
-        const position = this.latLngToVector3(latitude, longitude, radius);
-        const normal = new THREE.Vector3(position.x, position.y, position.z).normalize();
-        marker.position.set(position.x, position.y, position.z);
-        marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-        marker.userData.normal = normal;
-        this.pointMetadata.set(key, participant);
+        // Точка могла уйти из группы или прийти в другую.
+        this.renderParticipantMarkers();
 
         return true;
     }

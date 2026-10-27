@@ -52,6 +52,17 @@
     /// </summary>
     [Parameter] public IReadOnlyDictionary<string, string>? CategoryColors { get; set; }
 
+    /// <summary>
+    /// Сливать близкие маркеры в группы со счётчиком (по умолчанию да). При приближении
+    /// группы распадаются, клик по группе приближает к ней.
+    /// </summary>
+    [Parameter] public bool ClusterPoints { get; set; } = true;
+
+    /// <summary>
+    /// Расстояние между маркерами на экране в пикселях (0–200), ближе которого они сливаются.
+    /// </summary>
+    [Parameter] public int ClusterRadius { get; set; } = 40;
+
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
     private int SafeWidth => Math.Max(Width, 1);
@@ -153,7 +164,9 @@
             var result = await GlobeMediator.InitializeGlobeAsync(ContainerId, new GlobeOptions
             {
                 Width = Width,
-                Height = Height
+                Height = Height,
+                ClusterPoints = ClusterPoints,
+                ClusterRadius = Math.Clamp(ClusterRadius, 0, 200)
             });
 
             if (result.Success)

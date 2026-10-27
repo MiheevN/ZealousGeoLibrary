@@ -105,6 +105,23 @@ public class GlobeSynchronizationTests : BunitContext
         WaitForPoints("globe-first", saved.Id);
     }
 
+    [Fact]
+    public void Viewer_PassesGroupingSettingsToTheGlobe()
+    {
+        Render<CommunityGlobeViewer>(p => p.Add(c => c.GlobeId, "plain").Add(c => c.DataContainerId, ContainerId));
+        Render<CommunityGlobeViewer>(p => p
+            .Add(c => c.GlobeId, "custom")
+            .Add(c => c.DataContainerId, ContainerId)
+            .Add(c => c.ClusterPoints, false)
+            .Add(c => c.ClusterRadius, 500));
+
+        WaitForAssertion(() => Assert.True(_mediator.IsReady("globe-plain") && _mediator.IsReady("globe-custom")), TimeSpan.FromSeconds(5));
+        Assert.True(_mediator.Options["globe-plain"].ClusterPoints);
+        Assert.Equal(40, _mediator.Options["globe-plain"].ClusterRadius);
+        Assert.False(_mediator.Options["globe-custom"].ClusterPoints);
+        Assert.Equal(200, _mediator.Options["globe-custom"].ClusterRadius);
+    }
+
     private IGeoDataContainer Container(string id) => _containers.GetOrCreateContainer(id);
 
     private IRenderedComponent<CommunityGlobeViewer> RenderReadyGlobe(string globeId, string containerId)
@@ -148,6 +165,8 @@ public class GlobeSynchronizationTests : BunitContext
         private readonly ConcurrentDictionary<string, bool> _ready = new();
         private readonly ConcurrentDictionary<string, Func<GlobeState, Task>> _callbacks = new();
 
+        public ConcurrentDictionary<string, GlobeOptions> Options { get; } = new();
+
         public bool IsReady(string containerId) => _ready.ContainsKey(containerId);
 
         public int AddPointsCalls(string containerId) => _points.TryGetValue(containerId, out var calls) ? calls.Count : 0;
@@ -163,6 +182,7 @@ public class GlobeSynchronizationTests : BunitContext
 
         public async Task<GlobeInitializationResult> InitializeGlobeAsync(string containerId, GlobeOptions options)
         {
+            Options[containerId] = options;
             if (_callbacks.TryGetValue(containerId, out var callback))
             {
                 await callback(new GlobeState { IsInitialized = true });

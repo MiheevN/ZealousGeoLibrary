@@ -3,7 +3,8 @@
 
 <div class="community-globe-shell d-flex flex-column align-items-center gap-3">
     <CommunityGlobeViewer GlobeId="@GlobeId" Width="@Width" Height="@Height"
-                          DataContainerId="@DataContainerId" CategoryColors="@CategoryColors" />
+                          DataContainerId="@DataContainerId" CategoryColors="@CategoryColors"
+                          ClusterPoints="@ClusterPoints" ClusterRadius="@ClusterRadius" />
     
     @if (ShowControls)
     {
@@ -33,6 +34,12 @@
     [Parameter] public bool ShowParticipantManagement { get; set; } = true;
     [Parameter] public bool ShowParticipantInfo { get; set; } = true;
     [Parameter] public bool ShowSettings { get; set; } = false;
+
+    /// <summary>Группировать близкие маркеры (см. <see cref="CommunityGlobeViewer.ClusterPoints"/>).</summary>
+    [Parameter] public bool ClusterPoints { get; set; } = true;
+
+    /// <summary>Радиус группировки в пикселях (см. <see cref="CommunityGlobeViewer.ClusterRadius"/>).</summary>
+    [Parameter] public int ClusterRadius { get; set; } = 40;
 
     /// <summary>Контейнер гео-данных с точками глобуса (см. <see cref="CommunityGlobeViewer.DataContainerId"/>).</summary>
     [Parameter] public string? DataContainerId { get; set; }
