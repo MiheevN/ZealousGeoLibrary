@@ -71,8 +71,7 @@ public class GeoDataContainerManager : GeoDataContainerManagerBase
         {
             Logger.LogInformation("Removed geo-data container: {ContainerId}", containerId);
 
-            // Подписчики (например, глобусы) должны узнать, что данные контейнера пропали,
-            // как и при удалении контейнера из БД.
+            // Подписчики (например, глобусы) должны узнать, что данные контейнера пропали.
             if (removed.Count > 0)
             {
                 HandleDataChanged(containerId, GeoDataChangeType.Cleared);

@@ -9,7 +9,7 @@ namespace ZealousMindedPeopleGeo.Models;
 public class GeoPoint
 {
     /// <summary>
-    /// Наибольшая длина <see cref="Id"/>: идентификатор входит в ключ таблицы БД.
+    /// Наибольшая длина <see cref="Id"/>: идентификатор удобно хранить ключом таблицы.
     /// </summary>
     public const int MaxIdLength = 128;
 
@@ -101,7 +101,7 @@ public class GeoPoint
             return Messages.PointLongitudeOutOfRange(Id, Longitude);
         }
 
-        // Те же пределы, что у столбцов БД: хранилища принимают одни и те же точки.
+        // Пределы длины одинаковы для всех хранилищ: под них удобно задать столбцы таблицы.
         return TooLong(nameof(Title), Title, MaxTitleLength)
             ?? TooLong(nameof(Category), Category, MaxCategoryLength)
             ?? TooLong(nameof(Color), Color, MaxColorLength)

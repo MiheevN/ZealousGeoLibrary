@@ -21,7 +21,7 @@
       • Интерактивная карта сообщества на Google Maps
       • 3D глобус с Three.js и интерактивным управлением
       • Геокодирование через Nominatim OpenStreetMap API
-      • Гибкие источники данных (In-Memory, Google Sheets, JSON)
+      • Хранилища точек через интерфейсы: в памяти из коробки, своя база или API — реализацией приложения; JSON и GeoJSON
       • Полная PWA поддержка с оффлайн функциональностью
       • Локализация (русский/английский)
       • Импорт и экспорт GeoJSON
@@ -99,13 +99,10 @@
 
   <!-- Ссылки на пакеты -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.10" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.75.0.4178" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
   </ItemGroup>
 
