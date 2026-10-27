@@ -1036,9 +1036,8 @@ ASP.NET Core.
 - Форма `GeoDataParticipantForm` и панель `CommunityGlobeParticipantManager` с
   `DataContainerId` пишут в контейнер — новая точка появляется у всех.
 - Со своим хранилищем (см. «Своё хранилище») то же самое работает, если оно вызывает
-  `HandleDataChanged`, — в пределах одного процесса сервера. Несколько серверов за балансировщиком друг о друге не знают:
-  для них нужна общая шина (например, Redis или SignalR backplane), которая вызывает
-  перезагрузку контейнера.
+  `HandleDataChanged`.
+- Несколько серверов с общим хранилищем связывает шина `IGeoDataChangeBus` (ниже).
 - Без `DataContainerId` компоненты читают `IParticipantRepository`. Встроенный
   репозиторий в памяти у каждого пользователя свой, поэтому синхронизировать там нечего.
 
@@ -1047,6 +1046,46 @@ ASP.NET Core.
 <CommunityGlobeComponent GlobeId="team" DataContainerId="team-points" ShowParticipantManagement="true" />
 <CommunityMapComponent MapId="team-map" DataContainerId="team-points" />
 ```
+
+#### Несколько серверов
+
+Если приложение запущено на нескольких серверах за балансировщиком и хранит точки в
+общей базе, каждый сервер узнаёт только о своих изменениях. Связать их можно шиной:
+реализуйте `IGeoDataChangeBus` поверх того, что у вас уже есть, — Redis pub/sub,
+SignalR backplane, очередь — и зарегистрируйте её. Менеджер контейнеров (встроенный или
+унаследованный от `GeoDataContainerManagerBase`) сам отправляет в шину каждое изменение
+и передаёт подписчикам `OnDataChanged` изменения с других серверов; свои сообщения,
+вернувшиеся из шины, он узнаёт по `Origin` и не повторяет. Без шины всё работает в
+пределах одного сервера.
+
+```csharp
+// Пример на StackExchange.Redis: одно сообщение — одно изменение.
+public sealed class RedisGeoDataChangeBus : IGeoDataChangeBus
+{
+    private static readonly RedisChannel Channel = RedisChannel.Literal("geo-data-changes");
+    private readonly ISubscriber _subscriber;
+
+    public RedisGeoDataChangeBus(IConnectionMultiplexer redis)
+    {
+        _subscriber = redis.GetSubscriber();
+        _subscriber.Subscribe(Channel, (_, message) =>
+            ChangeReceived?.Invoke(JsonSerializer.Deserialize<GeoDataChange>(message.ToString())!));
+    }
+
+    public event Action<GeoDataChange>? ChangeReceived;
+
+    public async ValueTask PublishAsync(GeoDataChange change, CancellationToken ct = default) =>
+        await _subscriber.PublishAsync(Channel, JsonSerializer.Serialize(change));
+}
+
+// Program.cs
+builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("redis:6379"));
+builder.Services.AddSingleton<IGeoDataChangeBus, RedisGeoDataChangeBus>();
+builder.Services.AddZealousMindedPeopleGeo();
+```
+
+Сбой шины не мешает сохранению: изменение остаётся в хранилище, ошибка пишется в лог.
+С хранилищем в памяти шина бесполезна — у каждого сервера свои данные.
 
 ### Подписка на изменения данных
 
@@ -1240,6 +1279,7 @@ ZealousMindedPeopleGeo/
 │   ├── GeoDataContainer/                 # Именованные контейнеры данных
 │   │   ├── IGeoDataContainer.cs          # Интерфейс контейнера
 │   │   ├── IGeoDataContainerManager.cs   # Менеджер контейнеров
+│   │   ├── IGeoDataChangeBus.cs          # Шина изменений между серверами (реализует приложение)
 │   │   ├── InMemoryGeoDataContainer.cs   # In-Memory реализация
 │   │   ├── GeoDataContainerManager.cs    # Реализация менеджера
 │   │   ├── ParticipantGeoDataExtensions.cs # Методы участников поверх точек

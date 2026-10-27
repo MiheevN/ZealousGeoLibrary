@@ -39,13 +39,27 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     /// <inheritdoc />
     public event Action<string, GeoDataChangeType>? OnDataChanged;
 
+    private readonly IGeoDataChangeBus? _changeBus;
+
+    // Метка этого сервера в сообщениях шины: свои сообщения, вернувшиеся из шины, не повторяются.
+    private readonly Guid _origin = Guid.NewGuid();
+
     /// <summary>
     /// Создает новый базовый менеджер контейнеров
     /// </summary>
     /// <param name="logger">Логгер</param>
-    protected GeoDataContainerManagerBase(ILogger logger)
+    /// <param name="changeBus">
+    /// Шина изменений между серверами (необязательно). С ней изменения, сделанные на
+    /// других серверах с тем же хранилищем, приходят подписчикам <see cref="OnDataChanged"/>.
+    /// </param>
+    protected GeoDataContainerManagerBase(ILogger logger, IGeoDataChangeBus? changeBus = null)
     {
         Logger = logger;
+        _changeBus = changeBus;
+        if (_changeBus is not null)
+        {
+            _changeBus.ChangeReceived += HandleRemoteChange;
+        }
     }
 
     /// <inheritdoc />
@@ -310,7 +324,41 @@ public abstract class GeoDataContainerManagerBase : IGeoDataContainerManager
     protected void HandleDataChanged(string containerId, GeoDataChangeType changeType)
     {
         Logger.LogDebug("Data changed in container '{ContainerId}': {ChangeType}", containerId, changeType);
+        RaiseDataChanged(containerId, changeType);
 
+        if (_changeBus is not null)
+        {
+            _ = PublishChangeAsync(new GeoDataChange(containerId, changeType, _origin));
+        }
+    }
+
+    // Изменение с другого сервера: данные уже в общем хранилище, подписчикам остаётся перечитать их.
+    private void HandleRemoteChange(GeoDataChange change)
+    {
+        if (change is null || change.Origin == _origin || string.IsNullOrEmpty(change.ContainerId))
+        {
+            return;
+        }
+
+        Logger.LogDebug("Container '{ContainerId}' changed on another server: {ChangeType}", change.ContainerId, change.ChangeType);
+        RaiseDataChanged(change.ContainerId, change.ChangeType);
+    }
+
+    // Сбой шины не должен ломать изменение, которое уже сохранено.
+    private async Task PublishChangeAsync(GeoDataChange change)
+    {
+        try
+        {
+            await _changeBus!.PublishAsync(change);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to publish change of container '{ContainerId}' to other servers", change.ContainerId);
+        }
+    }
+
+    private void RaiseDataChanged(string containerId, GeoDataChangeType changeType)
+    {
         // Менеджер общий для всех пользователей: каждый подписчик вызывается отдельно,
         // чтобы ошибка одного (например, закрытой страницы) не лишила событий остальных.
         foreach (var subscriber in OnDataChanged?.GetInvocationList() ?? Array.Empty<Delegate>())

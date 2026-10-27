@@ -17,10 +17,12 @@ public class GeoDataContainerManager : GeoDataContainerManagerBase
     /// </summary>
     /// <param name="logger">Логгер</param>
     /// <param name="loggerFactory">Фабрика логгеров для создания логгеров контейнеров</param>
+    /// <param name="changeBus">Шина изменений между серверами, если приложение её зарегистрировало</param>
     public GeoDataContainerManager(
         ILogger<GeoDataContainerManager> logger,
-        ILoggerFactory loggerFactory)
-        : base(logger)
+        ILoggerFactory loggerFactory,
+        IGeoDataChangeBus? changeBus = null)
+        : base(logger, changeBus)
     {
         _loggerFactory = loggerFactory;
     }
