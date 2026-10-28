@@ -8,6 +8,13 @@
 ## [Unreleased] - 2024-12-XX
 
 ### Удалено
+- **Встроенное постоянное хранение.** Библиотека даёт интерфейсы хранилищ (`IGeoDataContainerManager`/`IGeoDataContainer`, `IParticipantRepository`) и реализации в памяти. Постоянное хранение реализует приложение (см. README, «Своё хранилище»). Удалены:
+  - хранение контейнеров в базе через EF Core: `AddGeoDataDatabase`, `EnsureGeoDataDatabaseCreatedAsync`, `DatabaseGeoDataContainerManager`, `GeoDataDbContext`, `GeoDataDatabaseInitializer`, пример `examples/GeoDataDatabaseExample.razor`;
+  - участники в Google Sheets: `GoogleSheetsParticipantRepository`, `GoogleSheetsService`, `IParticipantService`/`ParticipantService`, `InitializeZealousMindedPeopleGeoAsync`, настройки `GoogleSheetId` и `GoogleServiceAccountKey`, класс `RegistrationResult`;
+  - зависимости от пакетов `Microsoft.EntityFrameworkCore`, `Microsoft.EntityFrameworkCore.Relational` и `Google.Apis.Sheets.v4`.
+
+  Ключи `GoogleSheetId` и `GoogleServiceAccountKey` в `appsettings.json` теперь просто игнорируются. Код, который вызывал удалённые методы, нужно перевести на свою реализацию интерфейса
+
 - **Неработающие и неиспользуемые части:**
   - `ValidationService`, `LocalizationService` и валидаторы FluentValidation (`ParticipantValidator` и др.) вместе с зависимостью от пакета FluentValidation. `ValidationService` не регистрировался, поэтому пример из README не работал; ввод формы проверяют атрибуты моделей, точки — `GeoPoint.Validate()`
   - `IMapService` и `GoogleMapsServiceAdapter` — регистрировались, но ими никто не пользовался

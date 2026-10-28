@@ -11,7 +11,7 @@
 - **Настройки глобуса** - Полная настройка параметров глобуса (размеры, освещение, атмосфера, облака)
 - **Динамическое управление** - Включение/выключение атмосферы и облаков в реальном времени
 - **Множественные глобусы** - Поддержка нескольких независимых 3D глобусов на одной странице
-- **Именованные контейнеры гео-данных** - Любые точки (`GeoPoint`: офисы, события, датчики, участники) в именованных наборах для разных глобусов и карт, в памяти или в БД
+- **Именованные контейнеры гео-данных** - Любые точки (`GeoPoint`: офисы, события, датчики, участники) в именованных наборах для разных глобусов и карт; хранятся в памяти или в хранилище, которое подключает приложение
 - **Управление состоянием** - Централизованное управление состоянием всех глобусов
 - **Загрузка/сохранение данных** - Удобные интерфейсы для инициализации и сохранения данных из JSON и других источников
 - **In-Memory репозиторий** - Простое хранение данных участников в памяти
@@ -61,9 +61,9 @@ node --test experiments/*.test.mjs
 
 Что проверяют .NET-тесты (`tests/ZealousMindedPeopleGeo.Tests`):
 
-- `GeoData/` — общий контракт хранилищ гео-данных. Одни и те же тесты прогоняются
-  на хранилище в памяти и в БД (SQLite in-memory), поэтому реализации не расходятся
-  в результатах операций и событиях `OnDataChanged`;
+- `GeoData/` — контракт хранилищ гео-данных (`GeoDataStorageContractTests`): результаты
+  операций и события `OnDataChanged`. Прогоняется на хранилище в памяти; своё хранилище
+  проверяется тем же набором, если унаследовать класс (см. «Своё хранилище»);
 - `Components/` — Razor-компоненты через [bUnit](https://bunit.dev): какие параметры
   уходят в JavaScript и что видит пользователь;
 - `Validation/` — атрибуты, которыми форма проверяет ввод участника;
@@ -102,10 +102,11 @@ builder.Services.AddZealousMindedPeopleGeo(options => options.EnableGeocoding = 
 
 Какие настройки есть и когда они нужны — в разделе «Конфигурация».
 
-Участники хранятся в памяти, пока в настройках не указан `GoogleSheetId`, тогда — в Google
-Sheets. Свой `IParticipantRepository` или хранилище гео-данных в БД (`AddGeoDataDatabase`)
-можно зарегистрировать до или после: библиотека их не перезапишет, а повторный вызов
-`AddZealousMindedPeopleGeo` ничего не дублирует.
+Точки и участники по умолчанию хранятся в памяти и пропадают при перезапуске. Постоянное
+хранение — база данных, таблица, внешний API — библиотека не навязывает: приложение
+реализует интерфейсы `IGeoDataContainerManager` и `IParticipantRepository` и регистрирует
+свои реализации до или после вызова (см. «Своё хранилище»). Библиотека их не перезапишет,
+а повторный вызов `AddZealousMindedPeopleGeo` ничего не дублирует.
 
 Компоненты интерактивные, поэтому приложению нужен интерактивный рендеринг Blazor
 (`AddInteractiveServerComponents()` и `@rendermode="InteractiveServer"`, как в шаблоне
@@ -465,7 +466,6 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
   "ZealousMindedPeopleGeo": {
     "GoogleMapsApiKey": "",
     "EnableGeocoding": true,
-    "GoogleSheetId": "",
     "Map": {
       "Projection": "EqualEarth",
       "CentralMeridian": 0,
@@ -479,10 +479,8 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
 | Ключ | По умолчанию | Что делает |
 |---|---|---|
-| `GoogleMapsApiKey` | пусто | Ключ Google Maps Platform с включённым Geocoding API. По нему `GeoDataParticipantForm` и `IParticipantService.RegisterParticipantAsync` находят координаты адреса. Без ключа форма сообщает, что ключ не настроен, и точку не добавляет. Карта и глобус ключ не используют. |
+| `GoogleMapsApiKey` | пусто | Ключ Google Maps Platform с включённым Geocoding API. По нему `GeoDataParticipantForm` находит координаты адреса. Без ключа форма сообщает, что ключ не настроен, и точку не добавляет. Карта и глобус ключ не используют. |
 | `EnableGeocoding` | `true` | `false` выключает запросы к Google, даже если ключ задан. |
-| `GoogleSheetId` | пусто | ID таблицы Google — часть адреса между `/d/` и `/edit`. Если задан, участники (`IParticipantRepository`) хранятся в этой таблице, иначе в памяти. |
-| `GoogleServiceAccountKey` | пусто | Содержимое JSON-ключа сервисного аккаунта Google (сам JSON, не путь к файлу). Обязателен вместе с `GoogleSheetId`. |
 | `Map:Projection` | `EqualEarth` | Проекция 2D-карты: `EqualEarth` или `Equirectangular`. |
 | `Map:CentralMeridian` | `0` | Центральный меридиан 2D-карты в градусах, от −180 до 180. |
 | `Map:DefaultLatitude` | `20` | Широта начального центра 2D-карты. |
@@ -501,34 +499,19 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
 ### Ключи и секреты
 
-Не храните ключ Google и JSON сервисного аккаунта в `appsettings.json` в репозитории.
+Не храните ключ Google в `appsettings.json` в репозитории.
 Для разработки подойдут user secrets, на сервере — переменные окружения (двоеточие в
 имени ключа заменяется на `__`):
 
 ```bash
 dotnet user-secrets init
 dotnet user-secrets set "ZealousMindedPeopleGeo:GoogleMapsApiKey" "<ключ>"
-dotnet user-secrets set "ZealousMindedPeopleGeo:GoogleServiceAccountKey" "$(cat service-account.json)"
 
 export ZealousMindedPeopleGeo__GoogleMapsApiKey="<ключ>"
 ```
 
 Ключ используется только на сервере: компоненты не передают его в браузер. В Blazor
 WebAssembly настройки загружает сам браузер, поэтому ключ из них виден пользователям.
-
-### Участники в Google Sheets
-
-1. Создайте сервисный аккаунт в Google Cloud, включите для проекта Google Sheets API и
-   скачайте JSON-ключ аккаунта.
-2. Откройте таблицу на редактирование для адреса аккаунта — поле `client_email` в JSON.
-3. Задайте `GoogleSheetId` и `GoogleServiceAccountKey`.
-
-Участники пишутся на лист `Sheet1`, столбцы A–I: время регистрации, имя, адрес, широта,
-долгота, город, страна, соцсети, сообщение. В русской локали Google называет первый лист
-«Лист1» — переименуйте его в `Sheet1`. Первая строка — заголовки, данные читаются со
-второй. Заголовки записывает `IParticipantService.InitializeStorageAsync()`; без его
-вызова оставьте первую строку под заголовки сами. Таблица поддерживает только добавление
-и чтение: изменение и удаление участников возвращают ошибку.
 
 ## 📱 PWA и сервис-воркер
 
@@ -646,18 +629,9 @@ public class GlobeOptions
 
 ### Сервисы
 
-#### IParticipantService
-Основной сервис для работы с участниками:
-```csharp
-public interface IParticipantService
-{
-    Task<ServiceResult<Participant>> RegisterParticipantAsync(ParticipantRegistrationModel model);
-    Task<ServiceResult<IEnumerable<Participant>>> GetParticipantsAsync(int page = 1, int pageSize = 50);
-    Task<ServiceResult<Participant>> GetParticipantAsync(Guid id);
-    Task<ServiceResult> UpdateParticipantAsync(Guid id, Participant participant);
-    Task<ServiceResult> DeleteParticipantAsync(Guid id);
-}
-```
+#### IGeoDataContainerManager и IParticipantRepository
+Хранилища точек и участников. Встроены реализации в памяти, постоянное хранение
+реализует приложение (см. «Своё хранилище»).
 
 #### IGeocodingService
 Сервис геокодирования:
@@ -1061,8 +1035,8 @@ ASP.NET Core.
   этот пользователь, другой или фоновая служба сервера.
 - Форма `GeoDataParticipantForm` и панель `CommunityGlobeParticipantManager` с
   `DataContainerId` пишут в контейнер — новая точка появляется у всех.
-- С `AddGeoDataDatabase` то же самое работает поверх базы данных в пределах
-  одного процесса сервера. Несколько серверов за балансировщиком друг о друге не знают:
+- Со своим хранилищем (см. «Своё хранилище») то же самое работает, если оно вызывает
+  `HandleDataChanged`, — в пределах одного процесса сервера. Несколько серверов за балансировщиком друг о друге не знают:
   для них нужна общая шина (например, Redis или SignalR backplane), которая вызывает
   перезагрузку контейнера.
 - Без `DataContainerId` компоненты читают `IParticipantRepository`. Встроенный
@@ -1094,92 +1068,58 @@ private void HandleDataChanged(string containerId, GeoDataChangeType changeType)
 }
 ```
 
-## 🗄️ Хранение гео-данных в базе данных
+## 🗄️ Своё хранилище
 
-Помимо хранения в памяти, библиотека поддерживает постоянное хранение гео-данных в реляционной базе данных через [Entity Framework Core](https://learn.microsoft.com/ef/core/). Реализация **не зависит от конкретного провайдера БД** — вы выбираете провайдер (SQLite, PostgreSQL, SQL Server и т. д.) при регистрации сервисов.
+Библиотека хранит точки и участников только в памяти. Чтобы данные переживали
+перезапуск или жили в базе приложения, реализуйте интерфейс и зарегистрируйте его —
+компоненты, загрузка и выгрузка JSON/GeoJSON и синхронизация между пользователями
+работают с ним так же, как со встроенным хранилищем.
 
-`DatabaseGeoDataContainerManager` реализует тот же интерфейс `IGeoDataContainerManager`, что и хранилище в памяти, поэтому весь код работы с контейнерами (добавление по одному, загрузка массивом, загрузка/выгрузка JSON, несколько глобусов, подписка на изменения) остаётся неизменным — меняется только способ регистрации.
+| Интерфейс | Что хранит | Встроенная реализация |
+|---|---|---|
+| `IGeoDataContainerManager` + `IGeoDataContainer` | точки (`GeoPoint`) в именованных контейнерах | `GeoDataContainerManager` (в памяти, singleton) |
+| `IParticipantRepository` | участников для компонентов без `DataContainerId` | `InMemoryParticipantRepository` (в памяти, scoped) |
 
-### Регистрация сервисов
-
-```csharp
-// В Program.cs — выберите любой провайдер EF Core
-builder.Services.AddGeoDataDatabase(options =>
-    options.UseSqlite("Data Source=geodata.db"));
-
-// Пример для PostgreSQL:
-// builder.Services.AddGeoDataDatabase(options =>
-//     options.UseNpgsql(builder.Configuration.GetConnectionString("GeoData")));
-
-var app = builder.Build();
-
-// Создание схемы БД при старте (для разработки/демо).
-// В продакшене используйте миграции EF Core.
-await app.Services.EnsureGeoDataDatabaseCreatedAsync();
-```
-
-Для управления схемой в продакшене подключите [миграции EF Core](https://learn.microsoft.com/ef/core/managing-schemas/migrations/) к контексту `GeoDataDbContext` вместо `EnsureGeoDataDatabaseCreatedAsync`.
-
-Точки лежат в таблице `GeoPoints`: общие поля — в своих столбцах, `Properties` — одним
-JSON в `PropertiesJson`, поэтому схема не меняется, какие бы поля ни хранило приложение.
-`EnsureGeoDataDatabaseCreatedAsync` создаёт эту таблицу и в уже существующей БД, например
-общей с таблицами приложения: сам `EnsureCreated` из EF такую БД не трогает.
-
-#### База прежних версий
-
-Прежние версии хранили участников в таблице `GeoDataParticipants`. При первом
-`EnsureGeoDataDatabaseCreatedAsync` библиотека в одной транзакции переносит их в
-`GeoPoints` и переименовывает старую таблицу в `GeoDataParticipants_Migrated`. Удалённые
-потом точки не вернутся. Строки без координат точкой не станут и остаются в
-переименованной таблице. Если схемой управляют миграции EF Core, после их применения
-вызовите перенос сами:
+Для контейнеров проще всего унаследовать `GeoDataContainerManagerBase`: загрузку и
+выгрузку JSON и GeoJSON и рассылку `OnDataChanged` он уже умеет, остаётся управлять
+контейнерами. Сам контейнер реализует `IGeoDataContainer` поверх вашей базы:
 
 ```csharp
-await using var context = await dbFactory.CreateDbContextAsync();
-await GeoDataDatabaseInitializer.MigrateLegacyParticipantsAsync(context);
-```
-
-### Работа с несколькими глобусами
-
-Каждый именованный контейнер (`containerId`) соответствует отдельному глобусу или карте. Данные разных контейнеров изолированы друг от друга в одной таблице за счёт колонки `ContainerId` (составной ключ `ContainerId` + `Id`), поэтому одна и та же точка может присутствовать в разных контейнерах.
-
-```csharp
-@inject IGeoDataContainerManager ContainerManager
-
-// Данные сохраняются в БД и переживают перезапуск приложения
-var europe = ContainerManager.GetOrCreateContainer("europe");
-var asia = ContainerManager.GetOrCreateContainer("asia");
-
-// Добавление по одному
-await europe.AddParticipantAsync(new Participant { Name = "Берлин", Latitude = 52.52, Longitude = 13.405 });
-
-// Загрузка массивом (дубликаты по Id пропускаются)
-await asia.AddParticipantsAsync(new[]
+public sealed class DbGeoDataContainerManager : GeoDataContainerManagerBase
 {
-    new Participant { Name = "Токио", Latitude = 35.6762, Longitude = 139.6503 },
-    new Participant { Name = "Дели", Latitude = 28.6139, Longitude = 77.2090 }
-});
+    private readonly IDbContextFactory<AppDbContext> _db;
 
-// Список всех глобусов, для которых есть данные в БД
-var globeIds = ContainerManager.GetContainerIds();
+    public DbGeoDataContainerManager(IDbContextFactory<AppDbContext> db, ILogger<DbGeoDataContainerManager> logger)
+        : base(logger) => _db = db;
+
+    // Контейнер сообщает об изменениях через HandleDataChanged — так их увидят все
+    // открытые глобусы и карты.
+    public override IGeoDataContainer GetOrCreateContainer(string containerId) =>
+        new DbGeoDataContainer(containerId, _db, HandleDataChanged);
+
+    public override IGeoDataContainer? GetContainer(string containerId) => ContainerExists(containerId) ? GetOrCreateContainer(containerId) : null;
+    public override bool ContainerExists(string containerId) { /* SELECT по ContainerId */ }
+    public override bool RemoveContainer(string containerId) { /* DELETE по ContainerId */ }
+    public override IEnumerable<string> GetContainerIds() { /* SELECT DISTINCT ContainerId */ }
+}
+
+// Program.cs — до или после AddZealousMindedPeopleGeo
+builder.Services.AddSingleton<IGeoDataContainerManager, DbGeoDataContainerManager>();
+builder.Services.AddZealousMindedPeopleGeo();
 ```
 
-### Загрузка и выгрузка JSON
+Что должно соблюдаться (так ведёт себя встроенное хранилище):
 
-API загрузки/выгрузки JSON идентичен хранилищу в памяти, но данные читаются и пишутся в БД:
+- контейнер хранит **копии** точек: изменения объекта после `AddPointAsync` его не трогают;
+- точка с занятым `Id` не добавляется, `GeoPoint.Validate()` с ошибкой — тоже;
+- `OnDataChanged` вызывается после успешного изменения и только если что-то изменилось;
+- `Properties` точки — произвольные строки: удобно хранить одним JSON-столбцом,
+  тогда схема таблицы не зависит от полей приложения.
 
-```csharp
-// Загрузка массива точек или участников из JSON-строки прямо в БД
-await ContainerManager.LoadFromJsonAsync("europe", jsonContent);
-
-// Загрузка из файла
-await ContainerManager.LoadFromJsonFileAsync("europe", "data/europe.json");
-
-// Выгрузка содержимого глобуса из БД в JSON
-var json = await ContainerManager.ExportToJsonAsync("europe");
-```
-
-> 💡 Полный пример Blazor-страницы см. в [`examples/GeoDataDatabaseExample.razor`](examples/GeoDataDatabaseExample.razor).
+Проверить своё хранилище можно готовым набором тестов: скопируйте в свой тестовый проект
+`GeoDataStorageContractTests*.cs` из `tests/ZealousMindedPeopleGeo.Tests/GeoData`,
+унаследуйте класс и верните свой менеджер из `Manager` (пример —
+`InMemoryGeoDataStorageTests`).
 
 ## 💾 Кэширование
 
@@ -1221,16 +1161,12 @@ var geocodingResult = await CachingService.GetOrCreateGeocodingResultAsync(
 Библиотека предоставляет детальную информацию об ошибках:
 
 ```csharp
-var result = await ParticipantService.RegisterParticipantAsync(model);
+var result = await ContainerManager.GetOrCreateContainer("team").AddPointAsync(point);
 
-if (result.Success)
+if (!result.Success)
 {
-    var participant = result.Data;
-}
-else
-{
+    // Почему точку не приняли: неверные координаты, слишком длинное поле, повтор Id
     var errorMessage = result.ErrorMessage;
-    var errorCode = result.ErrorCode;
 }
 ```
 
@@ -1307,7 +1243,6 @@ ZealousMindedPeopleGeo/
 │   │   ├── InMemoryGeoDataContainer.cs   # In-Memory реализация
 │   │   ├── GeoDataContainerManager.cs    # Реализация менеджера
 │   │   ├── ParticipantGeoDataExtensions.cs # Методы участников поверх точек
-│   │   ├── Persistence/                  # Хранение в БД: таблица GeoPoints, перенос старой таблицы
 │   │   └── GeoDataLoaderExtensions.cs    # Расширения для загрузки
 │   └── Repositories/                     # Репозитории данных
 │       └── InMemoryParticipantRepository.cs # In-Memory хранилище

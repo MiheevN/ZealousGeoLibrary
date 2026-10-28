@@ -12,11 +12,6 @@ namespace ZealousMindedPeopleGeo.Models
         [Required(ErrorMessage = "Google Maps API ключ обязателен")]
         public string GoogleMapsApiKey { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "ID Google Sheet обязателен")]
-        public string GoogleSheetId { get; set; } = string.Empty;
-
-        public string? GoogleServiceAccountKey { get; set; }
-
         public bool EnableGeocoding { get; set; } = true;
 
         public MapConfiguration? Map { get; set; }
@@ -90,15 +85,4 @@ namespace ZealousMindedPeopleGeo.Models
         Equirectangular
     }
 
-
-    /// <summary>
-    /// Результат регистрации участника
-    /// </summary>
-    public class RegistrationResult
-    {
-        public bool Success { get; set; }
-        public string? ErrorMessage { get; set; }
-        public Participant? Participant { get; set; }
-        public int? SheetRowNumber { get; set; }
-    }
 }

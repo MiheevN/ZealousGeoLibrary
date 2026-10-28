@@ -4,7 +4,7 @@ namespace ZealousMindedPeopleGeo.Services.Repositories
 {
     /// <summary>
     /// Интерфейс репозитория для работы с данными участников
-    /// Позволяет абстрагироваться от конкретного источника данных (Google Sheets, база данных и т.д.)
+    /// Позволяет абстрагироваться от конкретного источника данных (база данных, таблица, внешний API): реализацию регистрирует приложение
     /// </summary>
     public interface IParticipantRepository
     {

@@ -6,8 +6,8 @@ namespace ZealousMindedPeopleGeo.Services.GeoDataContainer;
 
 /// <summary>
 /// Контейнер гео-данных в памяти, потокобезопасный.
-/// Хранит копии точек, поэтому, как и хранилище в БД, не зависит от объектов,
-/// которые приложение меняет после добавления.
+/// Хранит копии точек, поэтому не зависит от объектов, которые приложение меняет
+/// после добавления. Так же должно вести себя любое хранилище приложения.
 /// </summary>
 public class InMemoryGeoDataContainer : IGeoDataContainer
 {
@@ -162,7 +162,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
         _points.Clear();
         _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} points", ContainerId, count);
 
-        // Как и хранилище в БД: нет изменений — нет события.
+        // Нет изменений — нет события.
         if (count > 0)
         {
             NotifyDataChanged(GeoDataChangeType.Cleared);
