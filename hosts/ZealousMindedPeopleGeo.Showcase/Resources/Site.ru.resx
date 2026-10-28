@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="BrandSub" xml:space="preserve">
+    <value>Тестовая среда</value>
+  </data>
+  <data name="NavLabel" xml:space="preserve">
+    <value>Разделы</value>
+  </data>
+  <data name="NavOverview" xml:space="preserve">
+    <value>Обзор</value>
+  </data>
+  <data name="NavComponents" xml:space="preserve">
+    <value>Компоненты</value>
+  </data>
+  <data name="NavMap" xml:space="preserve">
+    <value>2D карта</value>
+  </data>
+  <data name="NavGlobe" xml:space="preserve">
+    <value>3D глобус</value>
+  </data>
+  <data name="NavShowcase" xml:space="preserve">
+    <value>Все компоненты</value>
+  </data>
+  <data name="FooterLibrary" xml:space="preserve">
+    <value>Библиотека</value>
+  </data>
+  <data name="FooterEnvironment" xml:space="preserve">
+    <value>Среда</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="ErrorUnhandled" xml:space="preserve">
+    <value>Произошла необработанная ошибка, подробности — в консоли браузера и логе хоста.</value>
+  </data>
+  <data name="ErrorReload" xml:space="preserve">
+    <value>Перезагрузить</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="TitleSuffix" xml:space="preserve">
+    <value>{0} · ZealousGeo</value>
+  </data>
+  <data name="HomeEyebrow" xml:space="preserve">
+    <value>Тестовая среда · v{0}</value>
+  </data>
+  <data name="HomeDescription" xml:space="preserve">
+    <value>Хост для ручной проверки компонентов библиотеки без боевого сайта: 2D карта в проекции Equal Earth, 3D глобус, формы и PWA. Страницы работают на демонстрационных наборах данных и не трогают общий репозиторий участников.</value>
+  </data>
+  <data name="HomeOpenMap" xml:space="preserve">
+    <value>Открыть карту</value>
+  </data>
+  <data name="HomeOpenGlobe" xml:space="preserve">
+    <value>Открыть глобус</value>
+  </data>
+  <data name="HomeHeroAlt" xml:space="preserve">
+    <value>Карта мира в проекции Equal Earth</value>
+  </data>
+  <data name="HomePages" xml:space="preserve">
+    <value>Страницы</value>
+  </data>
+  <data name="HomeMapDescription" xml:space="preserve">
+    <value>Equal Earth или прежняя прямоугольная проекция, центральный меридиан и набор данных переключаются на лету.</value>
+  </data>
+  <data name="HomeGlobeDescription" xml:space="preserve">
+    <value>Глобус на Three.js с изолированным контейнером данных и списком точек.</value>
+  </data>
+  <data name="HomeShowcaseDescription" xml:space="preserve">
+    <value>Глобусы, карта, управление и настройки, форма участника, PWA и экспорт данных на одной странице.</value>
+  </data>
+  <data name="HomeDataSets" xml:space="preserve">
+    <value>Демонстрационные наборы</value>
+  </data>
+  <data name="HomeDataSet" xml:space="preserve">
+    <value>Набор</value>
+  </data>
+  <data name="HomeDataSetDescription" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="HomePointCount" xml:space="preserve">
+    <value>Точек</value>
+  </data>
+  <data name="HomeRun" xml:space="preserve">
+    <value>Запуск</value>
+  </data>
+  <data name="HomeRunWatch" xml:space="preserve">
+    <value>С пересборкой при каждом изменении:</value>
+  </data>
+  <data name="HomeRunNote" xml:space="preserve">
+    <value>Библиотека подключена ссылкой на проект, поэтому правки компонентов, CSS и JS видны после пересборки без публикации пакета.</value>
+  </data>
+  <data name="NotFoundTitle" xml:space="preserve">
+    <value>Страница не найдена</value>
+  </data>
+  <data name="NotFoundDescription" xml:space="preserve">
+    <value>Такой страницы в витрине нет. Все разделы — в меню.</value>
+  </data>
+  <data name="NotFoundHome" xml:space="preserve">
+    <value>На обзор</value>
+  </data>
+  <data name="MapDescription" xml:space="preserve">
+    <value>Карта рисуется на Canvas без внешних картографических API. По умолчанию — равновеликая проекция Equal Earth, прежняя прямоугольная доступна опцией. Точки окрашены по категориям, легенда над картой скрывает и показывает их. Близкие маркеры сливаются в группы со счётчиком: клик приближает группу, а точки с одинаковыми координатами раскрываются веером. Набор данных и группировка меняются на лету, а при смене проекции или меридиана компонент создаётся заново. Точки можно скачать в GeoJSON и загрузить свой файл GeoJSON, например нарисованный в geojson.io.</value>
+  </data>
+  <data name="PointCount" xml:space="preserve">
+    <value>Точек: {0}</value>
+  </data>
+  <data name="MapOptions" xml:space="preserve">
+    <value>Параметры карты</value>
+  </data>
+  <data name="MapProjection" xml:space="preserve">
+    <value>Проекция</value>
+  </data>
+  <data name="MapRectangular" xml:space="preserve">
+    <value>Прямоугольная</value>
+  </data>
+  <data name="MapCentralMeridian" xml:space="preserve">
+    <value>Центральный меридиан</value>
+  </data>
+  <data name="MapMeridianAmerica" xml:space="preserve">
+    <value>−90° Америка</value>
+  </data>
+  <data name="MapMeridianGreenwich" xml:space="preserve">
+    <value>0° Гринвич</value>
+  </data>
+  <data name="MapMeridianAsia" xml:space="preserve">
+    <value>60° Азия</value>
+  </data>
+  <data name="MapMeridianPacific" xml:space="preserve">
+    <value>150° Тихий океан</value>
+  </data>
+  <data name="MapGrouping" xml:space="preserve">
+    <value>Группировка</value>
+  </data>
+  <data name="On" xml:space="preserve">
+    <value>Вкл</value>
+  </data>
+  <data name="Off" xml:space="preserve">
+    <value>Выкл</value>
+  </data>
+  <data name="DataSet" xml:space="preserve">
+    <value>Набор данных</value>
+  </data>
+  <data name="MapDownload" xml:space="preserve">
+    <value>Скачать</value>
+  </data>
+  <data name="MapUpload" xml:space="preserve">
+    <value>Загрузить…</value>
+  </data>
+  <data name="MapListTitle" xml:space="preserve">
+    <value>Точки</value>
+  </data>
+  <data name="ImportTooLarge" xml:space="preserve">
+    <value>Файл «{0}» больше 5 МБ.</value>
+  </data>
+  <data name="ImportNotGeoJson" xml:space="preserve">
+    <value>«{0}» — не GeoJSON: нужен FeatureCollection или Feature.</value>
+  </data>
+  <data name="ImportNoPoints" xml:space="preserve">
+    <value>В «{0}» нет точек.</value>
+  </data>
+  <data name="ImportNoPointsReason" xml:space="preserve">
+    <value>В «{0}» нет точек: {1}</value>
+  </data>
+  <data name="ImportLoaded" xml:space="preserve">
+    <value>Загружено точек: {0} из «{1}».</value>
+  </data>
+  <data name="ImportLoadedSkipped" xml:space="preserve">
+    <value>Загружено точек: {0} из «{1}», пропущено: {2} (например, {3}).</value>
+  </data>
+  <data name="GlobeDescriptionBefore" xml:space="preserve">
+    <value>Глобус читает точки из именованного контейнера</value>
+  </data>
+  <data name="GlobeDescriptionAfter" xml:space="preserve">
+    <value>и окрашивает маркеры по категориям теми же цветами, что и 2D-карта. Набор данных переключается перезагрузкой страницы, чтобы WebGL-контекст создавался заново.</value>
+  </data>
+  <data name="Categories" xml:space="preserve">
+    <value>Категории</value>
+  </data>
+  <data name="NoCategory" xml:space="preserve">
+    <value>Без категории</value>
+  </data>
+  <data name="Points" xml:space="preserve">
+    <value>Точки</value>
+  </data>
+</root>

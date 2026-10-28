@@ -1,3 +1,5 @@
+using ZealousMindedPeopleGeo.Resources;
+
 namespace ZealousMindedPeopleGeo.Models;
 
 /// <summary>
@@ -27,13 +29,14 @@ public static class DemoDataSets
     }
 
     /// <summary>
-    /// Все доступные демонстрационные наборы данных.
+    /// Все доступные демонстрационные наборы данных. Названия и описания — на языке
+    /// <see cref="System.Globalization.CultureInfo.CurrentUICulture"/>; сами точки — как есть.
     /// </summary>
-    public static IReadOnlyList<DataSetInfo> All { get; } = new List<DataSetInfo>
+    public static IReadOnlyList<DataSetInfo> All => new List<DataSetInfo>
     {
-        new("russian-cities", "Города России", "Крупные города России по частям страны", RussianCities),
-        new("world-capitals", "Столицы мира", "Столицы пяти континентов", WorldCapitals),
-        new("tech-hubs", "Технологические хабы", "Центры технологий по регионам мира", TechHubs),
+        new("russian-cities", Ui.DemoRussianCities, Ui.DemoRussianCitiesDescription, RussianCities),
+        new("world-capitals", Ui.DemoWorldCapitals, Ui.DemoWorldCapitalsDescription, WorldCapitals),
+        new("tech-hubs", Ui.DemoTechHubs, Ui.DemoTechHubsDescription, TechHubs),
     };
 
     /// <summary>

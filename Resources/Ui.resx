@@ -318,6 +318,24 @@
   <data name="GlobeNoLocation" xml:space="preserve">
     <value>Current position is not set</value>
   </data>
+  <data name="DemoRussianCities" xml:space="preserve">
+    <value>Russian cities</value>
+  </data>
+  <data name="DemoRussianCitiesDescription" xml:space="preserve">
+    <value>Major Russian cities across the country</value>
+  </data>
+  <data name="DemoWorldCapitals" xml:space="preserve">
+    <value>World capitals</value>
+  </data>
+  <data name="DemoWorldCapitalsDescription" xml:space="preserve">
+    <value>Capitals of five continents</value>
+  </data>
+  <data name="DemoTechHubs" xml:space="preserve">
+    <value>Tech hubs</value>
+  </data>
+  <data name="DemoTechHubsDescription" xml:space="preserve">
+    <value>Technology centres around the world</value>
+  </data>
   <data name="GlobeCanvasLabel" xml:space="preserve">
     <value>3D globe with points</value>
   </data>

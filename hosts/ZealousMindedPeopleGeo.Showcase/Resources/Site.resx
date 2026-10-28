@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="BrandSub" xml:space="preserve">
+    <value>Test environment</value>
+  </data>
+  <data name="NavLabel" xml:space="preserve">
+    <value>Sections</value>
+  </data>
+  <data name="NavOverview" xml:space="preserve">
+    <value>Overview</value>
+  </data>
+  <data name="NavComponents" xml:space="preserve">
+    <value>Components</value>
+  </data>
+  <data name="NavMap" xml:space="preserve">
+    <value>2D map</value>
+  </data>
+  <data name="NavGlobe" xml:space="preserve">
+    <value>3D globe</value>
+  </data>
+  <data name="NavShowcase" xml:space="preserve">
+    <value>All components</value>
+  </data>
+  <data name="FooterLibrary" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="FooterEnvironment" xml:space="preserve">
+    <value>Environment</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="ErrorUnhandled" xml:space="preserve">
+    <value>An unhandled error has occurred. See the browser console and the host log for details.</value>
+  </data>
+  <data name="ErrorReload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="TitleSuffix" xml:space="preserve">
+    <value>{0} · ZealousGeo</value>
+    <comment>{0} — название страницы</comment>
+  </data>
+  <data name="HomeEyebrow" xml:space="preserve">
+    <value>Test environment · v{0}</value>
+    <comment>{0} — версия библиотеки</comment>
+  </data>
+  <data name="HomeDescription" xml:space="preserve">
+    <value>A host for checking the library components by hand, without a production site: a 2D map in the Equal Earth projection, a 3D globe, forms and PWA. The pages use demo data sets and never touch the shared participant repository.</value>
+  </data>
+  <data name="HomeOpenMap" xml:space="preserve">
+    <value>Open the map</value>
+  </data>
+  <data name="HomeOpenGlobe" xml:space="preserve">
+    <value>Open the globe</value>
+  </data>
+  <data name="HomeHeroAlt" xml:space="preserve">
+    <value>World map in the Equal Earth projection</value>
+  </data>
+  <data name="HomePages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="HomeMapDescription" xml:space="preserve">
+    <value>Equal Earth or the older rectangular projection; the central meridian and the data set switch on the fly.</value>
+  </data>
+  <data name="HomeGlobeDescription" xml:space="preserve">
+    <value>A Three.js globe with an isolated data container and a list of points.</value>
+  </data>
+  <data name="HomeShowcaseDescription" xml:space="preserve">
+    <value>Globes, the map, controls and settings, the participant form, PWA and data export on one page.</value>
+  </data>
+  <data name="HomeDataSets" xml:space="preserve">
+    <value>Demo data sets</value>
+  </data>
+  <data name="HomeDataSet" xml:space="preserve">
+    <value>Set</value>
+  </data>
+  <data name="HomeDataSetDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="HomePointCount" xml:space="preserve">
+    <value>Points</value>
+  </data>
+  <data name="HomeRun" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="HomeRunWatch" xml:space="preserve">
+    <value>Rebuilding on every change:</value>
+  </data>
+  <data name="HomeRunNote" xml:space="preserve">
+    <value>The library is referenced as a project, so changes to components, CSS and JS show up after a rebuild without publishing a package.</value>
+  </data>
+  <data name="NotFoundTitle" xml:space="preserve">
+    <value>Page not found</value>
+  </data>
+  <data name="NotFoundDescription" xml:space="preserve">
+    <value>There is no such page in the showcase. All sections are in the menu.</value>
+  </data>
+  <data name="NotFoundHome" xml:space="preserve">
+    <value>To the overview</value>
+  </data>
+  <data name="MapDescription" xml:space="preserve">
+    <value>The map is drawn on a canvas without external map APIs. The default is the equal-area Equal Earth projection; the older rectangular one is an option. Points are coloured by category, and the legend above the map hides and shows them. Nearby markers merge into groups with a counter: a click zooms into a group, and points with the same coordinates fan out. The data set and grouping change on the fly; changing the projection or meridian recreates the component. Points can be downloaded as GeoJSON, and you can load your own GeoJSON file, for example one drawn in geojson.io.</value>
+  </data>
+  <data name="PointCount" xml:space="preserve">
+    <value>Points: {0}</value>
+    <comment>{0} — число точек</comment>
+  </data>
+  <data name="MapOptions" xml:space="preserve">
+    <value>Map options</value>
+  </data>
+  <data name="MapProjection" xml:space="preserve">
+    <value>Projection</value>
+  </data>
+  <data name="MapRectangular" xml:space="preserve">
+    <value>Rectangular</value>
+  </data>
+  <data name="MapCentralMeridian" xml:space="preserve">
+    <value>Central meridian</value>
+  </data>
+  <data name="MapMeridianAmerica" xml:space="preserve">
+    <value>−90° Americas</value>
+  </data>
+  <data name="MapMeridianGreenwich" xml:space="preserve">
+    <value>0° Greenwich</value>
+  </data>
+  <data name="MapMeridianAsia" xml:space="preserve">
+    <value>60° Asia</value>
+  </data>
+  <data name="MapMeridianPacific" xml:space="preserve">
+    <value>150° Pacific</value>
+  </data>
+  <data name="MapGrouping" xml:space="preserve">
+    <value>Grouping</value>
+  </data>
+  <data name="On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="Off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="DataSet" xml:space="preserve">
+    <value>Data set</value>
+  </data>
+  <data name="MapDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="MapUpload" xml:space="preserve">
+    <value>Upload…</value>
+  </data>
+  <data name="MapListTitle" xml:space="preserve">
+    <value>Points</value>
+  </data>
+  <data name="ImportTooLarge" xml:space="preserve">
+    <value>The file “{0}” is larger than 5 MB.</value>
+    <comment>{0} — имя файла</comment>
+  </data>
+  <data name="ImportNotGeoJson" xml:space="preserve">
+    <value>“{0}” is not GeoJSON: a FeatureCollection or Feature is expected.</value>
+    <comment>{0} — имя файла</comment>
+  </data>
+  <data name="ImportNoPoints" xml:space="preserve">
+    <value>“{0}” has no points.</value>
+    <comment>{0} — имя файла</comment>
+  </data>
+  <data name="ImportNoPointsReason" xml:space="preserve">
+    <value>“{0}” has no points: {1}</value>
+    <comment>{0} — имя файла, {1} — почему пропущен первый объект</comment>
+  </data>
+  <data name="ImportLoaded" xml:space="preserve">
+    <value>Loaded {0} points from “{1}”.</value>
+    <comment>{0} — число точек, {1} — имя файла</comment>
+  </data>
+  <data name="ImportLoadedSkipped" xml:space="preserve">
+    <value>Loaded {0} points from “{1}”, skipped {2} (for example, {3}).</value>
+    <comment>{0} — загружено, {1} — имя файла, {2} — пропущено, {3} — причина</comment>
+  </data>
+  <data name="GlobeDescriptionBefore" xml:space="preserve">
+    <value>The globe reads points from the named container</value>
+    <comment>Дальше — имя контейнера и GlobeDescriptionAfter</comment>
+  </data>
+  <data name="GlobeDescriptionAfter" xml:space="preserve">
+    <value>and colours markers by category with the same colours as the 2D map. The data set is switched by reloading the page so that the WebGL context is created anew.</value>
+  </data>
+  <data name="Categories" xml:space="preserve">
+    <value>Categories</value>
+  </data>
+  <data name="NoCategory" xml:space="preserve">
+    <value>No category</value>
+  </data>
+  <data name="Points" xml:space="preserve">
+    <value>Points</value>
+  </data>
+</root>

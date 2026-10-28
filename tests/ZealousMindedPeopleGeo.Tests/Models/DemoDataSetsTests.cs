@@ -21,6 +21,22 @@ public class DemoDataSetsTests
         });
     }
 
+    [Fact]
+    public void Titles_FollowTheUserLanguage()
+    {
+        using (new CultureScope("en"))
+        {
+            Assert.Equal("Russian cities", DemoDataSets.FindByKey("russian-cities")!.Title);
+            Assert.Equal("Tech hubs", DemoDataSets.All[2].Title);
+        }
+
+        using (new CultureScope("ru"))
+        {
+            Assert.Equal("Города России", DemoDataSets.FindByKey("russian-cities")!.Title);
+            Assert.Equal("Столицы пяти континентов", DemoDataSets.FindByKey("world-capitals")!.Description);
+        }
+    }
+
     [Theory]
     [MemberData(nameof(DataSetKeys))]
     public void DataSet_PointsAreValidAndCategorized(string key)
