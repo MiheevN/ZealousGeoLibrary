@@ -19,10 +19,10 @@ var app = builder.Build();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
-// Сообщения библиотеки (например, почему объект GeoJSON не загрузился) выходят на
-// языке CurrentUICulture: здесь — на языке браузера, если он есть среди переводов,
-// иначе по-русски, как вся витрина; ?ui-culture=en в адресе выбирает язык явно.
-// Формат чисел и дат не меняется. App.razor запоминает язык в cookie для схемы Blazor.
+// Надписи витрины и библиотеки выходят на языке CurrentUICulture: здесь — на языке
+// браузера, если он есть среди переводов, иначе по-русски; ?ui-culture=en в адресе
+// (переключатель RU/EN в меню) выбирает язык явно. Формат чисел и дат не меняется.
+// App.razor запоминает язык в cookie для схемы Blazor.
 var messageLanguages = new[] { new CultureInfo("ru"), new CultureInfo("en") };
 app.UseRequestLocalization(new RequestLocalizationOptions
 {

@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
+@using System.Globalization
 @inject IWebHostEnvironment HostEnvironment
+@inject NavigationManager Navigation
 
 <div class="app">
     <aside class="app-sidebar">
@@ -8,22 +10,33 @@
                 <span class="app-brand-mark"><Icon Name="globe" /></span>
                 <span>
                     <span class="app-brand-name">ZealousGeo</span>
-                    <span class="app-brand-sub">Тестовая среда</span>
+                    <span class="app-brand-sub">@Site.BrandSub</span>
                 </span>
             </a>
 
-            <nav class="app-nav" aria-label="Разделы">
-                <NavLink href="" Match="NavLinkMatch.All"><Icon Name="home" /> Обзор</NavLink>
-                <div class="app-nav-section">Компоненты</div>
-                <NavLink href="map"><Icon Name="map" /> 2D карта</NavLink>
-                <NavLink href="globe"><Icon Name="globe" /> 3D глобус</NavLink>
-                <NavLink href="showcase"><Icon Name="grid" /> Все компоненты</NavLink>
+            <nav class="app-nav" aria-label="@Site.NavLabel">
+                <NavLink href="" Match="NavLinkMatch.All"><Icon Name="home" /> @Site.NavOverview</NavLink>
+                <div class="app-nav-section">@Site.NavComponents</div>
+                <NavLink href="map"><Icon Name="map" /> @Site.NavMap</NavLink>
+                <NavLink href="globe"><Icon Name="globe" /> @Site.NavGlobe</NavLink>
+                <NavLink href="showcase"><Icon Name="grid" /> @Site.NavShowcase</NavLink>
             </nav>
 
+            @* Язык выбирает UseRequestLocalization по ?ui-culture=, а App.razor запоминает его
+               в cookie. Перезагрузка полная: язык схемы Blazor задаётся при её создании. *@
+            <div class="app-lang" role="group" aria-label="@Site.Language">
+                @foreach (var (language, name) in Languages)
+                {
+                    var current = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == language;
+                    <a href="@LanguageHref(language)" lang="@language" hreflang="@language" aria-current="@(current ? "true" : null)"
+                       @onclick="() => Navigation.NavigateTo(LanguageHref(language), forceLoad: true)" @onclick:preventDefault>@name</a>
+                }
+            </div>
+
             <div class="app-sidebar-footer">
-                <span>Библиотека <strong>v@(ShowcaseInfo.LibraryVersion)</strong></span>
+                <span>@Site.FooterLibrary <strong>v@(ShowcaseInfo.LibraryVersion)</strong></span>
                 <span>.NET <strong>@Environment.Version</strong></span>
-                <span>Среда <strong>@HostEnvironment.EnvironmentName</strong></span>
+                <span>@Site.FooterEnvironment <strong>@HostEnvironment.EnvironmentName</strong></span>
             </div>
         </div>
     </aside>
@@ -34,3 +47,9 @@
         </div>
     </main>
 </div>
+
+@code {
+    private static readonly (string Language, string Name)[] Languages = { ("ru", "RU"), ("en", "EN") };
+
+    private string LanguageHref(string language) => Navigation.GetUriWithQueryParameter("ui-culture", language);
+}

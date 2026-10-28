@@ -4,17 +4,15 @@
 @inject IGeoDataContainerManager ContainerManager
 @inject NavigationManager Navigation
 
-<PageTitle>3D глобус · ZealousGeo</PageTitle>
+<PageTitle>@Site.TitleSuffix(Site.NavGlobe)</PageTitle>
 
-<PageHeader Eyebrow="CommunityGlobeViewer" Title="3D глобус">
+<PageHeader Eyebrow="CommunityGlobeViewer" Title="@Site.NavGlobe">
     <Description>
-        Глобус читает точки из именованного контейнера <code>@ContainerId</code> и
-        окрашивает маркеры по категориям теми же цветами, что и 2D-карта. Набор данных
-        переключается перезагрузкой страницы, чтобы WebGL-контекст создавался заново.
+        @Site.GlobeDescriptionBefore <code>@ContainerId</code> @Site.GlobeDescriptionAfter
     </Description>
     <Meta>
         <span class="chip">@_dataSet.Title</span>
-        <span class="chip">Точек: @_points.Count</span>
+        <span class="chip">@Site.PointCount(_points.Count)</span>
     </Meta>
 </PageHeader>
 
@@ -27,7 +25,7 @@
     </section>
 
     <aside class="panel">
-        <h2 class="panel-title">Набор данных</h2>
+        <h2 class="panel-title">@Site.DataSet</h2>
         <div class="option-list">
             @foreach (var set in DemoDataSets.All)
             {
@@ -39,18 +37,18 @@
             }
         </div>
 
-        <h2 class="panel-title">Категории</h2>
+        <h2 class="panel-title">@Site.Categories</h2>
         <ul class="point-list">
             @foreach (var category in _palette.Categories)
             {
                 <li>
-                    <span><span class="swatch" style="background: @category.Color"></span>@(category.Name.Length == 0 ? "Без категории" : category.Name)</span>
+                    <span><span class="swatch" style="background: @category.Color"></span>@(category.Name.Length == 0 ? Site.NoCategory : category.Name)</span>
                     <span>@category.Count</span>
                 </li>
             }
         </ul>
 
-        <h2 class="panel-title">Точки</h2>
+        <h2 class="panel-title">@Site.Points</h2>
         <ul class="point-list">
             @foreach (var point in _points)
             {

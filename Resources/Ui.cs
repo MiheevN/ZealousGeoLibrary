@@ -105,6 +105,12 @@ internal static class Ui
     public static string GlobeDetailUltra => Text(nameof(GlobeDetailUltra));
     public static string GlobeCenterOnLocation => Text(nameof(GlobeCenterOnLocation));
     public static string GlobeNoLocation => Text(nameof(GlobeNoLocation));
+    public static string DemoRussianCities => Text(nameof(DemoRussianCities));
+    public static string DemoRussianCitiesDescription => Text(nameof(DemoRussianCitiesDescription));
+    public static string DemoWorldCapitals => Text(nameof(DemoWorldCapitals));
+    public static string DemoWorldCapitalsDescription => Text(nameof(DemoWorldCapitalsDescription));
+    public static string DemoTechHubs => Text(nameof(DemoTechHubs));
+    public static string DemoTechHubsDescription => Text(nameof(DemoTechHubsDescription));
     public static string GlobeCanvasLabel => Text(nameof(GlobeCanvasLabel));
     public static string GlobeKeyboardHint => Text(nameof(GlobeKeyboardHint));
     public static string ManagerTitle => Text(nameof(ManagerTitle));

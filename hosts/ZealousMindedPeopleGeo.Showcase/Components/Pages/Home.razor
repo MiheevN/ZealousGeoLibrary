@@ -1,27 +1,23 @@
 @page "/"
 
-<PageTitle>Обзор · ZealousGeo</PageTitle>
+<PageTitle>@Site.TitleSuffix(Site.NavOverview)</PageTitle>
 
 <section class="panel hero">
     <div>
-        <div class="page-eyebrow">Тестовая среда · v@(ShowcaseInfo.LibraryVersion)</div>
+        <div class="page-eyebrow">@Site.HomeEyebrow(ShowcaseInfo.LibraryVersion)</div>
         <h1 class="page-title">ZealousMindedPeopleGeo</h1>
-        <p class="page-description">
-            Хост для ручной проверки компонентов библиотеки без боевого сайта: 2D карта
-            в проекции Equal Earth, 3D глобус, формы и PWA. Страницы работают на
-            демонстрационных наборах данных и не трогают общий репозиторий участников.
-        </p>
+        <p class="page-description">@Site.HomeDescription</p>
         <div class="hero-actions">
-            <a class="button button-primary" href="map"><Icon Name="map" /> Открыть карту</a>
-            <a class="button" href="globe"><Icon Name="globe" /> Открыть глобус</a>
+            <a class="button button-primary" href="map"><Icon Name="map" /> @Site.HomeOpenMap</a>
+            <a class="button" href="globe"><Icon Name="globe" /> @Site.HomeOpenGlobe</a>
         </div>
     </div>
     <img class="hero-art" src="img/equal-earth.svg" width="550" height="272"
-         alt="Карта мира в проекции Equal Earth" />
+         alt="@Site.HomeHeroAlt" />
 </section>
 
 <section class="section">
-    <h2 class="section-title">Страницы</h2>
+    <h2 class="section-title">@Site.HomePages</h2>
     <div class="feature-grid">
         @foreach (var link in Pages)
         {
@@ -42,10 +38,10 @@
 
 <section class="section two-columns">
     <div class="panel">
-        <h2 class="panel-title">Демонстрационные наборы</h2>
+        <h2 class="panel-title">@Site.HomeDataSets</h2>
         <table class="data-table">
             <thead>
-                <tr><th>Набор</th><th>Описание</th><th class="number">Точек</th></tr>
+                <tr><th>@Site.HomeDataSet</th><th>@Site.HomeDataSetDescription</th><th class="number">@Site.HomePointCount</th></tr>
             </thead>
             <tbody>
                 @foreach (var set in DemoDataSets.All)
@@ -61,30 +57,22 @@
     </div>
 
     <div class="panel">
-        <h2 class="panel-title">Запуск</h2>
+        <h2 class="panel-title">@Site.HomeRun</h2>
         <pre class="code-block">dotnet run --project hosts/ZealousMindedPeopleGeo.Showcase</pre>
-        <p class="muted small">С пересборкой при каждом изменении:</p>
+        <p class="muted small">@Site.HomeRunWatch</p>
         <pre class="code-block">dotnet watch --project hosts/ZealousMindedPeopleGeo.Showcase</pre>
-        <p class="muted small">
-            Библиотека подключена ссылкой на проект, поэтому правки компонентов, CSS и JS
-            видны после пересборки без публикации пакета.
-        </p>
+        <p class="muted small">@Site.HomeRunNote</p>
     </div>
 </section>
 
 @code {
     private sealed record PageLink(string Href, string Icon, string Title, string Description, string[] Components);
 
-    private static readonly PageLink[] Pages =
+    // Свойство, а не поле: надписи — на языке текущего запроса.
+    private static PageLink[] Pages => new PageLink[]
     {
-        new("map", "map", "2D карта",
-            "Equal Earth или прежняя прямоугольная проекция, центральный меридиан и набор данных переключаются на лету.",
-            new[] { "CommunityMapComponent" }),
-        new("globe", "globe", "3D глобус",
-            "Глобус на Three.js с изолированным контейнером данных и списком точек.",
-            new[] { "CommunityGlobeViewer" }),
-        new("showcase", "grid", "Все компоненты",
-            "Глобусы, карта, управление и настройки, форма участника, PWA и экспорт данных на одной странице.",
-            new[] { "LibraryShowcaseComponent" }),
+        new("map", "map", Site.NavMap, Site.HomeMapDescription, new[] { "CommunityMapComponent" }),
+        new("globe", "globe", Site.NavGlobe, Site.HomeGlobeDescription, new[] { "CommunityGlobeViewer" }),
+        new("showcase", "grid", Site.NavShowcase, Site.HomeShowcaseDescription, new[] { "LibraryShowcaseComponent" }),
     };
 }

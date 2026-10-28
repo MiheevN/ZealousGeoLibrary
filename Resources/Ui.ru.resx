@@ -291,6 +291,24 @@
   <data name="GlobeNoLocation" xml:space="preserve">
     <value>Текущая позиция не установлена</value>
   </data>
+  <data name="DemoRussianCities" xml:space="preserve">
+    <value>Города России</value>
+  </data>
+  <data name="DemoRussianCitiesDescription" xml:space="preserve">
+    <value>Крупные города России по частям страны</value>
+  </data>
+  <data name="DemoWorldCapitals" xml:space="preserve">
+    <value>Столицы мира</value>
+  </data>
+  <data name="DemoWorldCapitalsDescription" xml:space="preserve">
+    <value>Столицы пяти континентов</value>
+  </data>
+  <data name="DemoTechHubs" xml:space="preserve">
+    <value>Технологические хабы</value>
+  </data>
+  <data name="DemoTechHubsDescription" xml:space="preserve">
+    <value>Центры технологий по регионам мира</value>
+  </data>
   <data name="GlobeCanvasLabel" xml:space="preserve">
     <value>3D-глобус с точками</value>
   </data>

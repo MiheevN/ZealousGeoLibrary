@@ -135,6 +135,33 @@ h1:focus-visible {
     box-shadow: inset 2px 0 0 var(--zgl-accent);
 }
 
+/* Переключатель языка: RU / EN. */
+.app-lang {
+    display: flex;
+    gap: 4px;
+    padding: 0 10px;
+}
+
+.app-lang a {
+    padding: 4px 8px;
+    border: 1px solid var(--zgl-border);
+    border-radius: var(--zgl-radius-sm);
+    color: var(--zgl-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.app-lang a:hover {
+    color: var(--zgl-text);
+}
+
+.app-lang a[aria-current="true"] {
+    border-color: var(--zgl-accent);
+    background: var(--zgl-accent-soft);
+    color: var(--zgl-text);
+}
+
 .app-nav svg {
     flex: none;
     width: 18px;
@@ -754,6 +781,13 @@ h1:focus-visible {
         gap: 6px;
         padding: 8px;
         min-height: 44px;
+    }
+
+    .app-lang a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 12px;
     }
 
     .app-main {

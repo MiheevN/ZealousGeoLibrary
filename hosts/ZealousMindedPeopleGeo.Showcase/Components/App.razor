@@ -1,7 +1,7 @@
 @using System.Globalization
 @using Microsoft.AspNetCore.Localization
 <!DOCTYPE html>
-<html lang="ru" data-bs-theme="dark">
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" data-bs-theme="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,9 +19,9 @@
     <Routes @rendermode="InteractiveServer" />
 
     <div id="blazor-error-ui" role="alert">
-        Произошла необработанная ошибка, подробности — в консоли браузера и логе хоста.
-        <a href="." class="reload">Перезагрузить</a>
-        <span class="dismiss" aria-label="Закрыть">✕</span>
+        @Site.ErrorUnhandled
+        <a href="." class="reload">@Site.ErrorReload</a>
+        <span class="dismiss" aria-label="@Site.Close">✕</span>
     </div>
 
     <script src="_framework/blazor.web.js"></script>
