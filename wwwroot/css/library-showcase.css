@@ -9,6 +9,8 @@
 .zgl-showcase-header h2 {
     margin: 0 0 0.5rem;
     font-size: 1.6rem;
+    /* «ZealousMindedPeopleGeo» на телефоне шире экрана — переносим внутри слова. */
+    overflow-wrap: anywhere;
 }
 
 .zgl-showcase-subtitle {

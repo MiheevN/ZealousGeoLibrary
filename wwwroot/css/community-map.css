@@ -569,6 +569,18 @@
     }
 }
 
+/* Палец: кнопки не ниже 44 px, как советуют руководства Apple и Google. */
+@media (pointer: coarse) {
+    .participants-toggle,
+    .map-legend-item {
+        min-height: 44px;
+    }
+
+    .map-legend-item {
+        padding: 0.25rem 0.85rem;
+    }
+}
+
 /* Узкий компонент: список под картой, а карта сохраняет свою высоту. */
 @container community-map (max-width: 640px) {
     .map-body {
@@ -577,9 +589,12 @@
         min-height: 0;
     }
 
+    /* Высота — по ширине: на узком экране под картой не остаётся пустой полосы. */
     .map-canvas {
         flex: none;
-        height: min(var(--zgl-map-height, 500px), 58svh);
+        height: auto;
+        aspect-ratio: 4 / 3;
+        max-height: min(var(--zgl-map-height, 500px), 58svh);
         min-height: 240px;
     }
 

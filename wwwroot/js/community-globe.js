@@ -89,6 +89,60 @@ const KEY_ZOOM_STEP = 1.25;
 // Сколько имён точек группы диктор называет вслед за их числом.
 const ANNOUNCED_CLUSTER_TITLES = 3;
 
+// Касание одним пальцем: по первым TOUCH_DECIDE_DISTANCE пикселям видно, что задумано.
+// Быстрый вертикальный взмах прокручивает страницу, остальное вращает глобус.
+const TOUCH_DECIDE_DISTANCE = 10;
+const TOUCH_PAGE_SCROLL_SPEED = 0.45; // px/мс
+const TOUCH_INERTIA_FRICTION = 0.95; // за 16 мс
+const TOUCH_INERTIA_MIN_SPEED = 0.02; // px/мс
+// Подписи: 34 px на холсте высотой 600 px, на маленьком — пропорционально, но не мельче 15.
+const LABEL_PIXEL_HEIGHT_REFERENCE = 600;
+const LABEL_MIN_PIXEL_HEIGHT = 15;
+
+/**
+ * Что делает палец: 'pending' — пока не ясно, 'page' — быстрый вертикальный взмах
+ * (прокрутить страницу), 'globe' — всё остальное (вращать глобус).
+ */
+function classifyTouchGesture(dx, dy, elapsedMs) {
+    const distance = Math.hypot(dx, dy);
+    if (distance < TOUCH_DECIDE_DISTANCE) {
+        return 'pending';
+    }
+    const speed = distance / Math.max(elapsedMs, 1);
+    const vertical = Math.abs(dy) > Math.abs(dx) * 1.5;
+    return vertical && speed >= TOUCH_PAGE_SCROLL_SPEED ? 'page' : 'globe';
+}
+
+/**
+ * Высота подписи в пикселях для холста высотой viewportHeight.
+ */
+function labelPixelHeightForViewport(viewportHeight, maxPixelHeight = DEFAULT_LABEL_PIXEL_HEIGHT) {
+    const height = Number(viewportHeight);
+    if (!(height > 0)) {
+        return maxPixelHeight;
+    }
+    return Math.round(Math.min(maxPixelHeight, Math.max(LABEL_MIN_PIXEL_HEIGHT, maxPixelHeight * height / LABEL_PIXEL_HEIGHT_REFERENCE)));
+}
+
+/**
+ * Скорость щипка для OrbitControls: при zoomSpeed = (d − 1) / d раздвинутые вдвое пальцы
+ * вдвое приближают поверхность, а не центр Земли, — щипок не проскакивает к самой земле.
+ */
+function touchZoomSpeed(cameraDistance, earthRadius = 1) {
+    const distance = Number(cameraDistance);
+    if (!(distance > earthRadius)) {
+        return 0.05;
+    }
+    return Math.max(0.05, (distance - earthRadius) / distance);
+}
+
+// Текст подписи целиком внутри холста (с полупиксельным допуском на округление).
+function labelRectFitsViewport(rect, viewport) {
+    return Boolean(rect)
+        && rect.x >= -0.5 && rect.y >= -0.5
+        && rect.x + rect.width <= viewport.x + 0.5 && rect.y + rect.height <= viewport.y + 0.5;
+}
+
 /**
  * Угол поворота (радианы) на одно нажатие стрелки: тем меньше, чем ближе камера.
  */
@@ -389,6 +443,10 @@ class CommunityGlobe {
         this.announcer = null;
         this.selectionRing = null;
         this.cameraAnimation = null;
+        // Касание одним пальцем: решение «страница или глобус» и инерция прокрутки.
+        this.touchGesture = null;
+        this.touchZoomActive = false;
+        this.pageScrollInertia = null;
 
         this.scene = null;
         this.camera = null;
@@ -627,6 +685,7 @@ class CommunityGlobe {
         debugLog('✅ Renderer добавлен в контейнер', this.containerId);
         this.setupKeyboardAccess();
         this.initialCameraPosition = { ...this.state.cameraPosition };
+        this.labelTargetPixelHeight = labelPixelHeightForViewport(renderSize.height);
 
         this.earthGroup = new THREE.Group();
         this.scene.add(this.earthGroup);
@@ -835,6 +894,14 @@ class CommunityGlobe {
         });
         globeElement.addEventListener('focus', () => this.handleGlobeFocus());
         globeElement.addEventListener('blur', () => this.handleGlobeBlur());
+        // Перехватываем касания до OrbitControls (фаза захвата на контейнере): быстрый
+        // вертикальный взмах прокручивает страницу и до глобуса не доходит.
+        if (this.container) {
+            this.container.addEventListener('pointerdown', (event) => this.handleTouchPointerDown(event), true);
+            this.container.addEventListener('pointermove', (event) => this.handleTouchPointerMove(event), true);
+            this.container.addEventListener('pointerup', (event) => this.handleTouchPointerEnd(event), true);
+            this.container.addEventListener('pointercancel', (event) => this.handleTouchPointerEnd(event), true);
+        }
         window.addEventListener('resize', this.handleWindowResize);
 
         if (typeof ResizeObserver !== 'undefined' && this.container) {
@@ -999,6 +1066,113 @@ class CommunityGlobe {
         }
     }
 
+    handleTouchPointerDown(event) {
+        if (event.pointerType !== 'touch' || event.target !== this.renderer?.domElement) {
+            return;
+        }
+        this.stopPageScrollInertia();
+        this.touchZoomActive = true;
+        if (this.touchGesture) {
+            // Второй палец — щипок или вращение двумя пальцами: это глобус.
+            this.touchGesture.mode = 'globe';
+            return;
+        }
+        const now = event.timeStamp || Date.now();
+        this.touchGesture = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startTime: now,
+            lastY: event.clientY,
+            lastTime: now,
+            velocity: 0,
+            mode: 'pending'
+        };
+    }
+
+    handleTouchPointerMove(event) {
+        const gesture = this.touchGesture;
+        if (!gesture || event.pointerId !== gesture.pointerId) {
+            return;
+        }
+        const now = event.timeStamp || Date.now();
+        if (gesture.mode === 'pending') {
+            gesture.mode = classifyTouchGesture(event.clientX - gesture.startX, event.clientY - gesture.startY, now - gesture.startTime);
+            if (gesture.mode === 'page') {
+                // Страница догоняет палец с самого начала взмаха.
+                gesture.lastY = gesture.startY;
+            }
+        }
+        if (gesture.mode !== 'page') {
+            return;
+        }
+
+        event.stopImmediatePropagation();
+        const dy = event.clientY - gesture.lastY;
+        const dt = Math.max(now - gesture.lastTime, 1);
+        this.scrollPageBy(-dy);
+        gesture.velocity = 0.8 * (-dy / dt) + 0.2 * gesture.velocity;
+        gesture.lastY = event.clientY;
+        gesture.lastTime = now;
+    }
+
+    handleTouchPointerEnd(event) {
+        const gesture = this.touchGesture;
+        if (!gesture || event.pointerId !== gesture.pointerId) {
+            return;
+        }
+        this.touchGesture = null;
+        if (gesture.mode === 'page' && event.type === 'pointerup') {
+            this.startPageScrollInertia(gesture.velocity);
+        }
+    }
+
+    // Прокручивает ближайший прокручиваемый блок над глобусом или саму страницу.
+    scrollPageBy(dy) {
+        const target = this.getScrollParent();
+        if (target === null) {
+            window.scrollBy(0, dy);
+        } else {
+            target.scrollTop += dy;
+        }
+    }
+
+    getScrollParent() {
+        for (let element = this.container?.parentElement; element && element !== document.body && element !== document.documentElement; element = element.parentElement) {
+            const overflowY = getComputedStyle(element).overflowY;
+            if ((overflowY === 'auto' || overflowY === 'scroll') && element.scrollHeight > element.clientHeight) {
+                return element;
+            }
+        }
+        return null;
+    }
+
+    // После отрыва пальца страница прокручивается дальше и плавно останавливается.
+    startPageScrollInertia(velocity) {
+        this.stopPageScrollInertia();
+        let speed = velocity;
+        let last = performance.now();
+        const step = (now) => {
+            const dt = Math.min(now - last, 50);
+            last = now;
+            if (Math.abs(speed) < TOUCH_INERTIA_MIN_SPEED || !this.state.isInitialized) {
+                this.pageScrollInertia = null;
+                return;
+            }
+            this.scrollPageBy(speed * dt);
+            speed *= Math.pow(TOUCH_INERTIA_FRICTION, dt / 16);
+            this.pageScrollInertia = requestAnimationFrame(step);
+        };
+        this.pageScrollInertia = requestAnimationFrame(step);
+    }
+
+    stopPageScrollInertia() {
+        if (this.pageScrollInertia !== null && this.pageScrollInertia !== undefined) {
+            cancelAnimationFrame(this.pageScrollInertia);
+        }
+        this.pageScrollInertia = null;
+    }
+
     // Камера сразу встаёт в новое положение; начатый перелёт отменяется.
     moveCameraTo(position) {
         this.cameraAnimation = null;
@@ -1149,7 +1323,24 @@ class CommunityGlobe {
             this.camera.aspect = size.width / size.height;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(size.width, size.height, false);
+            this.updateLabelPixelHeight(size.height);
         }
+    }
+
+    // На маленьком холсте подписи мельче: иначе они закрывают глобус и вылезают за край.
+    updateLabelPixelHeight(viewportHeight) {
+        const pixelHeight = labelPixelHeightForViewport(viewportHeight);
+        if (pixelHeight === this.labelTargetPixelHeight) {
+            return;
+        }
+        this.labelTargetPixelHeight = pixelHeight;
+        (this.participantMarkers || []).forEach(marker => {
+            const label = marker?.userData?.label;
+            if (label) {
+                label.userData.targetPixelHeight = pixelHeight;
+                this.updateParticipantLabelScale(label);
+            }
+        });
     }
 
     /**
@@ -1770,6 +1961,7 @@ class CommunityGlobe {
             return;
         }
 
+        this.touchZoomActive = false;
         this.controls.zoomSpeed = this.calculateCameraZoomSpeed(this.camera.position.length(), event.deltaY < 0);
     }
 
@@ -2181,7 +2373,7 @@ class CommunityGlobe {
 
         const centerX = (projected.x + 1) / 2 * viewport.x;
         const centerY = (1 - projected.y) / 2 * viewport.y;
-        return labelTextRect(
+        const rect = labelTextRect(
             centerX,
             centerY,
             this.getPositiveNumber(label.userData.targetPixelHeight, DEFAULT_LABEL_PIXEL_HEIGHT),
@@ -2189,6 +2381,8 @@ class CommunityGlobe {
             label.userData.textInsetX,
             label.userData.textInsetY
         );
+        // Подпись, которая не помещается в холст, на этом месте не ставится.
+        return labelRectFitsViewport(rect, viewport) ? rect : null;
     }
 
     updateParticipantLabelConnectorOpacity(marker, labelOpacity) {
@@ -2494,6 +2688,9 @@ class CommunityGlobe {
         if (this.controls) {
             this.updateCameraControlLimits();
             this.updateCameraRotateSpeed();
+            if (this.touchZoomActive) {
+                this.controls.zoomSpeed = touchZoomSpeed(this.camera.position.length());
+            }
             this.controls.update();
         }
         this.applyCameraDistanceSafety();
@@ -3000,6 +3197,7 @@ class CommunityGlobe {
             debugLog('🗑️ Очистка pointMetadata');
             this.pointMetadata.clear();
             this.cameraAnimation = null;
+            this.stopPageScrollInertia();
             this.keyboardHint?.remove();
             this.announcer?.remove();
             this.selectionRing?.remove();
