@@ -125,6 +125,20 @@ public class GlobeSynchronizationTests : BunitContext
         Assert.Equal(200, _mediator.Options["globe-custom"].ClusterRadius);
     }
 
+    [Fact]
+    public void Viewer_GivesTheGlobeKeyboardTextsInTheUserLanguage()
+    {
+        using var russian = new CultureScope("ru");
+        Render<CommunityGlobeViewer>(p => p.Add(c => c.GlobeId, "ru").Add(c => c.DataContainerId, ContainerId));
+
+        WaitForAssertion(() => Assert.True(_mediator.IsReady("globe-ru")), TimeSpan.FromSeconds(5));
+        var options = _mediator.Options["globe-ru"];
+        Assert.Equal("ru", options.Locale);
+        Assert.NotNull(options.Texts);
+        Assert.StartsWith("Стрелки вращают глобус", options.Texts["keyboardHint"]);
+        Assert.Equal("{0} точек", options.Texts["clusterMany"]);
+    }
+
     private IGeoDataContainer Container(string id) => _containers.GetOrCreateContainer(id);
 
     private int ContainerSubscriberCount() =>

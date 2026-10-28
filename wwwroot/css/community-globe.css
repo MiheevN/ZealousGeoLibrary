@@ -27,6 +27,44 @@
     height: 100% !important;
 }
 
+.globe-canvas-container > canvas:focus {
+    outline: none;
+}
+
+.globe-canvas-container > canvas:focus-visible {
+    outline: 2px solid var(--zgl-accent);
+    outline-offset: -2px;
+}
+
+/* Кольцо вокруг маркера, выбранного клавишами N и P. */
+.community-globe-selection {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 2px solid var(--zgl-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 12px var(--zgl-accent);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.community-globe-selection[hidden] {
+    display: none;
+}
+
+/* Текст только для экранного диктора: подсказка про клавиши и выбранный маркер. */
+.community-globe-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .globe-loading-overlay,
 .globe-error-overlay {
     position: absolute;

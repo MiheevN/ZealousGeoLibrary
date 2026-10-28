@@ -58,6 +58,18 @@ public class GlobeOptions
     public int ClusterRadius { get; set; } = 40;
 
     /// <summary>
+    /// Надписи глобуса для экранного диктора: подпись холста, подсказка про клавиши, название
+    /// точки без имени и формы «N точек». Без значения — по-английски.
+    /// <see cref="Components.CommunityGlobeViewer"/> передаёт перевод на язык пользователя.
+    /// </summary>
+    public Dictionary<string, string>? Texts { get; set; }
+
+    /// <summary>
+    /// Язык (например, "ru"), по правилам которого выбирается форма «1 точка» / «5 точек».
+    /// </summary>
+    public string? Locale { get; set; }
+
+    /// <summary>
     /// Отступ острого конца метки от поверхности глобуса
     /// </summary>
     public double ParticipantPointOffset { get; set; } = 0.02;

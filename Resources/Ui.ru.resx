@@ -291,6 +291,12 @@
   <data name="GlobeNoLocation" xml:space="preserve">
     <value>Текущая позиция не установлена</value>
   </data>
+  <data name="GlobeCanvasLabel" xml:space="preserve">
+    <value>3D-глобус с точками</value>
+  </data>
+  <data name="GlobeKeyboardHint" xml:space="preserve">
+    <value>Стрелки вращают глобус, + и − меняют масштаб, Home сбрасывает вид. N и P выбирают следующий и предыдущий маркер, Enter подлетает к нему, Esc снимает выбор.</value>
+  </data>
   <data name="ManagerTitle" xml:space="preserve">
     <value>Управление участниками</value>
   </data>
