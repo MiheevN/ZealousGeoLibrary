@@ -318,6 +318,12 @@
   <data name="GlobeNoLocation" xml:space="preserve">
     <value>Current position is not set</value>
   </data>
+  <data name="GlobeCanvasLabel" xml:space="preserve">
+    <value>3D globe with points</value>
+  </data>
+  <data name="GlobeKeyboardHint" xml:space="preserve">
+    <value>Arrow keys rotate the globe, + and − zoom, Home resets the view. N and P select the next and previous marker, Enter flies to it, Esc clears the selection.</value>
+  </data>
   <data name="ManagerTitle" xml:space="preserve">
     <value>Manage participants</value>
   </data>

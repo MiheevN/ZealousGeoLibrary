@@ -105,6 +105,8 @@ internal static class Ui
     public static string GlobeDetailUltra => Text(nameof(GlobeDetailUltra));
     public static string GlobeCenterOnLocation => Text(nameof(GlobeCenterOnLocation));
     public static string GlobeNoLocation => Text(nameof(GlobeNoLocation));
+    public static string GlobeCanvasLabel => Text(nameof(GlobeCanvasLabel));
+    public static string GlobeKeyboardHint => Text(nameof(GlobeKeyboardHint));
     public static string ManagerTitle => Text(nameof(ManagerTitle));
     public static string ManagerCollapse => Text(nameof(ManagerCollapse));
     public static string ManagerExpand => Text(nameof(ManagerExpand));
@@ -265,6 +267,21 @@ internal static class Ui
         ["lifeGoals"] = PropertyLifeGoals,
         ["website"] = PropertyWebsite,
         ["registeredAt"] = PropertyRegisteredAt
+    };
+
+    /// <summary>
+    /// Надписи 3D-глобуса для community-globe.js: подпись, подсказка про клавиши и то,
+    /// что экранный диктор говорит о выбранном маркере.
+    /// </summary>
+    public static Dictionary<string, string> GlobeScriptTexts() => new()
+    {
+        ["canvasLabel"] = GlobeCanvasLabel,
+        ["keyboardHint"] = GlobeKeyboardHint,
+        ["pointFallback"] = MapPointFallback,
+        ["clusterOne"] = MapClusterOne,
+        ["clusterFew"] = MapClusterFew,
+        ["clusterMany"] = MapClusterMany,
+        ["clusterOther"] = MapClusterOther
     };
 
     private static string Text(string name) => Resources.GetString(name, CultureInfo.CurrentUICulture) ?? name;

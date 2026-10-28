@@ -68,6 +68,96 @@ const PARTICIPANT_LABEL_FADE_IN_SECONDS = 0.2;
 // приблизилась или отдалилась примерно на треть, а не на каждом кадре.
 const CLUSTER_ANGLE_STEP = 1.3;
 
+// Надписи по умолчанию; компонент передаёт переведённые в options.texts.
+const DEFAULT_GLOBE_TEXTS = {
+    canvasLabel: '3D globe with points',
+    keyboardHint: 'Arrow keys rotate the globe, + and − zoom, Home resets the view. '
+        + 'N and P select the next and previous marker, Enter flies to it, Esc clears the selection.',
+    pointFallback: 'Point',
+    clusterOne: '{0} point',
+    clusterFew: '{0} points',
+    clusterMany: '{0} points',
+    clusterOther: '{0} points'
+};
+// Стрелка поворачивает глобус на четверть видимой высоты, но не меньше 0.5° и не больше 20°.
+const KEY_ROTATE_FRACTION = 0.25;
+const KEY_ROTATE_MIN = 0.5 * Math.PI / 180;
+const KEY_ROTATE_MAX = 20 * Math.PI / 180;
+// Камера не уходит за полюс: дальше 80° широты стрелки вверх и вниз её не двигают.
+const KEY_MAX_ELEVATION = 80 * Math.PI / 180;
+const KEY_ZOOM_STEP = 1.25;
+// Сколько имён точек группы диктор называет вслед за их числом.
+const ANNOUNCED_CLUSTER_TITLES = 3;
+
+/**
+ * Угол поворота (радианы) на одно нажатие стрелки: тем меньше, чем ближе камера.
+ */
+function keyboardRotationStep(cameraDistance, fovDegrees = 75, earthRadius = 1) {
+    const surfaceDistance = Math.max(0, cameraDistance - earthRadius);
+    const visibleHeight = 2 * surfaceDistance * Math.tan((fovDegrees * Math.PI / 180) / 2) / earthRadius;
+    return Math.min(KEY_ROTATE_MAX, Math.max(KEY_ROTATE_MIN, visibleHeight * KEY_ROTATE_FRACTION));
+}
+
+/**
+ * Новое положение камеры на том же расстоянии от центра: right > 0 поворачивает вид вправо
+ * (к востоку, если север сверху), up > 0 — вверх. Широта камеры не выходит за ±80°.
+ */
+function rotateCameraPosition(position, right, up) {
+    const distance = Math.hypot(position.x, position.y, position.z);
+    if (!(distance > 0)) {
+        return { ...position };
+    }
+    const elevation = Math.max(-KEY_MAX_ELEVATION, Math.min(KEY_MAX_ELEVATION, Math.asin(position.y / distance) + up));
+    const azimuth = Math.atan2(position.z, position.x) - right;
+    return {
+        x: distance * Math.cos(elevation) * Math.cos(azimuth),
+        y: distance * Math.sin(elevation),
+        z: distance * Math.cos(elevation) * Math.sin(azimuth)
+    };
+}
+
+/**
+ * Маркеры, которые камера видит (на обращённой к ней стороне и в кадре), слева направо,
+ * при равных x — сверху вниз. entries: { key, world: {x,y,z}, screen: {x,y} } — screen в
+ * координатах WebGL (−1…1, y вверх).
+ */
+function orderVisibleGlobeMarkers(entries, cameraPosition) {
+    return entries
+        .filter(({ world, screen }) => {
+            const facing = world.x * cameraPosition.x + world.y * cameraPosition.y + world.z * cameraPosition.z;
+            const radiusSquared = world.x * world.x + world.y * world.y + world.z * world.z;
+            return facing >= radiusSquared && Math.abs(screen.x) <= 1 && Math.abs(screen.y) <= 1;
+        })
+        .sort((a, b) => a.screen.x - b.screen.x || b.screen.y - a.screen.y);
+}
+
+function formatGlobeText(template, value) {
+    return String(template ?? '').replace('{0}', String(value));
+}
+
+function globePluralRules(locale) {
+    try {
+        return new Intl.PluralRules(locale || undefined);
+    } catch {
+        return new Intl.PluralRules();
+    }
+}
+
+/**
+ * Что экранный диктор говорит о выбранном маркере: имя и категорию точки или
+ * «5 точек: Берлин, Потсдам, …» для группы.
+ */
+function globeMarkerAnnouncement(participant, texts, plural) {
+    const title = item => item?.name || item?.title || texts.pointFallback;
+    if (participant?.isCluster) {
+        const members = participant.members || [];
+        const forms = { one: texts.clusterOne, few: texts.clusterFew, many: texts.clusterMany };
+        const count = formatGlobeText(forms[plural.select(members.length)] ?? texts.clusterOther, members.length);
+        return `${count}: ${members.slice(0, ANNOUNCED_CLUSTER_TITLES).map(title).join(', ')}`;
+    }
+    return [title(participant), participant?.category].filter(Boolean).join(', ');
+}
+
 /**
  * Угол (радианы), который на поверхности глобуса занимают radiusPx экранных пикселей
  * в точке, ближайшей к камере. Ближе этого угла маркеры сливаются в группу.
@@ -288,8 +378,17 @@ class CommunityGlobe {
             participantCount: 0,
             countryCount: 0,
             cameraPosition: { x: 0, y: 0, z: 2.5 },
-            cameraTarget: { x: 0, y: 0, z: 0 }
+            cameraTarget: { x: 0, y: 0, z: 0 },
+            hasKeyboardFocus: false
         };
+        this.texts = { ...DEFAULT_GLOBE_TEXTS, ...(this.options.texts || {}) };
+        this.plural = globePluralRules(this.options.locale);
+        // Маркер, выбранный с клавиатуры (id точки или группы), и элементы для экранного диктора.
+        this.keyboardSelectionKey = null;
+        this.keyboardHint = null;
+        this.announcer = null;
+        this.selectionRing = null;
+        this.cameraAnimation = null;
 
         this.scene = null;
         this.camera = null;
@@ -526,6 +625,8 @@ class CommunityGlobe {
         debugLog('➕ Добавление renderer в контейнер');
         this.container.appendChild(this.renderer.domElement);
         debugLog('✅ Renderer добавлен в контейнер', this.containerId);
+        this.setupKeyboardAccess();
+        this.initialCameraPosition = { ...this.state.cameraPosition };
 
         this.earthGroup = new THREE.Group();
         this.scene.add(this.earthGroup);
@@ -727,6 +828,13 @@ class CommunityGlobe {
         globeElement.addEventListener('pointerup', (event) => this.handleGlobePointerRelease(event));
         globeElement.addEventListener('pointercancel', () => this.handleGlobePointerLeave());
         globeElement.addEventListener('wheel', (event) => this.updateCameraZoomSpeedForWheel(event), { capture: true, passive: true });
+        globeElement.addEventListener('keydown', (event) => {
+            if (this.handleKeyDown(event)) {
+                event.preventDefault();
+            }
+        });
+        globeElement.addEventListener('focus', () => this.handleGlobeFocus());
+        globeElement.addEventListener('blur', () => this.handleGlobeBlur());
         window.addEventListener('resize', this.handleWindowResize);
 
         if (typeof ResizeObserver !== 'undefined' && this.container) {
@@ -739,14 +847,21 @@ class CommunityGlobe {
         this.updateMousePosition(event);
 
         const marker = this.getIntersectedParticipantMarker();
-        const metadata = marker?.userData?.participant;
+        this.activateParticipantMarker(marker?.userData?.participant);
+    }
+
+    /**
+     * Клик по маркеру или Enter на выбранном: к точке камера подлетает и сообщает о клике,
+     * группу — приближает. false — маркера нет.
+     */
+    activateParticipantMarker(metadata) {
         if (!metadata) {
-            return;
+            return false;
         }
 
         if (metadata.isCluster) {
             this.zoomIntoCluster(metadata);
-            return;
+            return true;
         }
 
         this.centerOnParticipant(metadata);
@@ -754,6 +869,217 @@ class CommunityGlobe {
         if (this.callbacks.onParticipantClick) {
             this.callbacks.onParticipantClick(metadata);
         }
+        return true;
+    }
+
+    /**
+     * Холст получает фокус с клавиатуры: роль, подпись, подсказка про клавиши и
+     * невидимая строка, которую экранный диктор читает при выборе маркера.
+     */
+    setupKeyboardAccess() {
+        const canvas = this.renderer?.domElement;
+        if (!canvas || !this.container || typeof document === 'undefined') {
+            return;
+        }
+        this.container.querySelectorAll('.community-globe-sr-only, .community-globe-selection').forEach(element => element.remove());
+
+        canvas.tabIndex = 0;
+        canvas.setAttribute('role', 'application');
+        canvas.setAttribute('aria-roledescription', '3D');
+        canvas.setAttribute('aria-label', this.texts.canvasLabel);
+
+        const hint = document.createElement('div');
+        hint.id = `${this.containerId}-keyboard-hint`;
+        hint.className = 'community-globe-sr-only';
+        hint.textContent = this.texts.keyboardHint;
+        canvas.setAttribute('aria-describedby', hint.id);
+
+        const announcer = document.createElement('div');
+        announcer.className = 'community-globe-sr-only';
+        announcer.setAttribute('aria-live', 'polite');
+
+        // Кольцо вокруг маркера, выбранного с клавиатуры: волны при наведении слишком коротки.
+        const ring = document.createElement('div');
+        ring.className = 'community-globe-selection';
+        ring.setAttribute('aria-hidden', 'true');
+        ring.hidden = true;
+
+        this.container.appendChild(hint);
+        this.container.appendChild(announcer);
+        this.container.appendChild(ring);
+        this.keyboardHint = hint;
+        this.announcer = announcer;
+        this.selectionRing = ring;
+    }
+
+    // Каждый кадр: кольцо стоит на выбранном маркере и прячется, когда он ушёл за горизонт.
+    updateKeyboardSelectionRing() {
+        const ring = this.selectionRing;
+        if (!ring) {
+            return;
+        }
+        const participant = this.getKeyboardSelectedMarker()?.userData?.participant;
+        const canvas = this.renderer?.domElement;
+        if (!participant || !canvas || !this.camera) {
+            ring.hidden = true;
+            return;
+        }
+        const world = this.latLngToWorldVector3(participant.latitude, participant.longitude, 1);
+        const screen = world.clone().project(this.camera);
+        if (orderVisibleGlobeMarkers([{ world, screen }], this.camera.position).length === 0) {
+            ring.hidden = true;
+            return;
+        }
+        ring.hidden = false;
+        ring.style.left = `${canvas.offsetLeft + (screen.x + 1) / 2 * canvas.clientWidth}px`;
+        ring.style.top = `${canvas.offsetTop + (1 - screen.y) / 2 * canvas.clientHeight}px`;
+    }
+
+    /**
+     * Клавиши на холсте с фокусом. true — клавиша обработана (странице её не передаём).
+     */
+    handleKeyDown(event) {
+        // Ctrl/Cmd/Alt с клавишей — команды браузера (Ctrl + — масштаб страницы).
+        if (event.ctrlKey || event.metaKey || event.altKey || !this.camera) {
+            return false;
+        }
+
+        const step = keyboardRotationStep(this.camera.position.length(), Number(this.camera.fov) || 75);
+        const rotations = {
+            ArrowLeft: [-step, 0],
+            ArrowRight: [step, 0],
+            ArrowUp: [0, step],
+            ArrowDown: [0, -step]
+        };
+
+        if (rotations[event.key]) {
+            const [right, up] = rotations[event.key];
+            this.moveCameraTo(rotateCameraPosition(this.camera.position, right, up));
+        } else if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') {
+            this.zoomCameraBy(1 / KEY_ZOOM_STEP);
+        } else if (event.key === '-' || event.key === '_' || event.key === '−' || event.code === 'NumpadSubtract') {
+            this.zoomCameraBy(KEY_ZOOM_STEP);
+        } else if (event.key === 'Home') {
+            this.clearKeyboardSelection();
+            const home = this.initialCameraPosition || { x: 0, y: 0, z: 2.5 };
+            this.animateCameraTo(home, 600);
+        } else if (event.code === 'KeyN' || event.code === 'KeyP') {
+            // По физической клавише: N и P работают и в русской раскладке.
+            this.selectNextGlobeMarker(event.code === 'KeyP' ? -1 : 1);
+        } else if (event.key === 'Enter' || event.key === ' ') {
+            const marker = this.getKeyboardSelectedMarker();
+            if (marker) {
+                this.activateParticipantMarker(marker.userData.participant);
+            }
+            // Пробел без выбранного маркера тоже не прокручивает страницу.
+            return Boolean(marker) || event.key === ' ';
+        } else if (event.key === 'Escape') {
+            return this.clearKeyboardSelection();
+        } else {
+            return false;
+        }
+
+        return true;
+    }
+
+    handleGlobeFocus() {
+        // Пока глобус в фокусе, он не вращается сам: маркеры не уезжают из-под выбора.
+        this.state.hasKeyboardFocus = true;
+        this.clearAutoRotationResumeTimer();
+        if (this.state.isAutoRotating) {
+            this.applyAutoRotationState(false);
+        }
+    }
+
+    handleGlobeBlur() {
+        this.state.hasKeyboardFocus = false;
+        this.clearKeyboardSelection();
+        if (!this.state.isUserInteracting && !this.state.isPointerOverGlobe) {
+            this.scheduleAutoRotationResume();
+        }
+    }
+
+    // Камера сразу встаёт в новое положение; начатый перелёт отменяется.
+    moveCameraTo(position) {
+        this.cameraAnimation = null;
+        const safe = this.getSafeCameraPosition(position);
+        this.camera.position.set(safe.x, safe.y, safe.z);
+        this.camera.lookAt(0, 0, 0);
+        if (this.controls) {
+            this.controls.update();
+        }
+    }
+
+    zoomCameraBy(factor) {
+        const position = this.camera.position;
+        const length = position.length();
+        if (!(length > 0)) {
+            return;
+        }
+        const scale = this.getClampedCameraDistance(length * factor) / length;
+        this.moveCameraTo({ x: position.x * scale, y: position.y * scale, z: position.z * scale });
+    }
+
+    // Маркеры, которые сейчас видны, в порядке обхода клавишами N и P.
+    getKeyboardMarkerOrder() {
+        const cameraPosition = this.camera.position;
+        const entries = this.participantMarkers
+            .filter(marker => marker?.userData?.participant)
+            .map(marker => {
+                const participant = marker.userData.participant;
+                const world = this.latLngToWorldVector3(participant.latitude, participant.longitude, 1);
+                const screen = typeof world.clone === 'function' ? world.clone().project(this.camera) : world;
+                return { key: String(participant.id), marker, world, screen };
+            });
+        return orderVisibleGlobeMarkers(entries, cameraPosition);
+    }
+
+    // Выбирает следующий (step = 1) или предыдущий (−1) видимый маркер по кругу.
+    selectNextGlobeMarker(step) {
+        const order = this.getKeyboardMarkerOrder();
+        if (order.length === 0) {
+            this.clearKeyboardSelection();
+            return;
+        }
+        const current = order.findIndex(entry => entry.key === this.keyboardSelectionKey);
+        const index = current < 0
+            ? (step > 0 ? 0 : order.length - 1)
+            : (current + step + order.length) % order.length;
+        this.setKeyboardSelection(order[index].marker);
+    }
+
+    setKeyboardSelection(marker) {
+        const participant = marker?.userData?.participant;
+        if (!participant) {
+            this.clearKeyboardSelection();
+            return;
+        }
+        this.keyboardSelectionKey = String(participant.id);
+        this.setHoveredParticipantMarker(marker);
+        if (this.announcer) {
+            this.announcer.textContent = globeMarkerAnnouncement(participant, this.texts, this.plural);
+        }
+    }
+
+    getKeyboardSelectedMarker() {
+        if (this.keyboardSelectionKey == null) {
+            return null;
+        }
+        return (this.participantMarkers || []).find(marker =>
+            String(marker?.userData?.participant?.id) === this.keyboardSelectionKey) || null;
+    }
+
+    // Снимает выбор с клавиатуры; true — что-то было выбрано.
+    clearKeyboardSelection() {
+        if (this.keyboardSelectionKey == null) {
+            return false;
+        }
+        this.keyboardSelectionKey = null;
+        if (this.announcer) {
+            this.announcer.textContent = '';
+        }
+        this.setHoveredParticipantMarker(null);
+        return true;
     }
 
     onMouseMove(event) {
@@ -761,7 +1087,8 @@ class CommunityGlobe {
         this.updateMousePosition(event);
 
         const marker = this.getIntersectedParticipantMarker();
-        this.setHoveredParticipantMarker(marker);
+        // Выбранный с клавиатуры маркер остаётся выделенным, пока мышь не над другим.
+        this.setHoveredParticipantMarker(marker || this.getKeyboardSelectedMarker());
         if (this.renderer?.domElement) {
             this.renderer.domElement.style.cursor = marker ? 'pointer' : '';
         }
@@ -940,6 +1267,20 @@ class CommunityGlobe {
 
         this.updateParticipantMarkerTransforms();
         this.updateParticipantLabelBillboards();
+        this.restoreKeyboardSelection();
+    }
+
+    // После перерисовки маркеры новые: выбор переходит на маркер с тем же id или снимается.
+    restoreKeyboardSelection() {
+        if (this.keyboardSelectionKey == null) {
+            return;
+        }
+        const marker = this.getKeyboardSelectedMarker();
+        if (marker) {
+            this.setHoveredParticipantMarker(marker);
+        } else {
+            this.clearKeyboardSelection();
+        }
     }
 
     /**
@@ -2163,6 +2504,7 @@ class CommunityGlobe {
         this.updateParticipantLabelBillboards();
         this.updateParticipantMarkerOverlayIndicators();
         this.updateParticipantMarkerRipples(this.getAnimationTimeMs());
+        this.updateKeyboardSelectionRing();
         this.updateCameraState();
         this.renderer.render(this.scene, this.camera);
     }
@@ -2206,8 +2548,12 @@ class CommunityGlobe {
         const startPosition = { ...this.camera.position };
         const safeTargetPosition = this.getSafeCameraPosition(targetPosition);
         const startTime = Date.now();
+        // Новый перелёт или клавиша отменяют начатый.
+        const animation = {};
+        this.cameraAnimation = animation;
 
         const animate = () => {
+            if (this.cameraAnimation !== animation) return;
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
@@ -2273,7 +2619,7 @@ class CommunityGlobe {
 
     handleGlobePointerLeave() {
         this.state.isPointerOverGlobe = false;
-        this.setHoveredParticipantMarker(null);
+        this.setHoveredParticipantMarker(this.getKeyboardSelectedMarker());
 
         if (this.renderer?.domElement) {
             this.renderer.domElement.style.cursor = '';
@@ -2321,13 +2667,13 @@ class CommunityGlobe {
             return;
         }
 
-        if (this.state.isPointerOverGlobe) {
+        if (this.state.isPointerOverGlobe || this.state.hasKeyboardFocus) {
             return;
         }
 
         this.autoRotationResumeTimer = setTimeout(() => {
             this.autoRotationResumeTimer = null;
-            if (!this.state.isUserInteracting && !this.state.isPointerOverGlobe && this.options.autoRotate) {
+            if (!this.state.isUserInteracting && !this.state.isPointerOverGlobe && !this.state.hasKeyboardFocus && this.options.autoRotate) {
                 this.applyAutoRotationState(true);
             }
         }, this.getAutoRotationResumeDelay());
@@ -2653,6 +2999,10 @@ class CommunityGlobe {
 
             debugLog('🗑️ Очистка pointMetadata');
             this.pointMetadata.clear();
+            this.cameraAnimation = null;
+            this.keyboardHint?.remove();
+            this.announcer?.remove();
+            this.selectionRing?.remove();
 
             this.state.isInitialized = false;
             debugLog('🗑️ Состояние установлено в неинициализированное');
