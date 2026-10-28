@@ -30,14 +30,14 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 
         try
         {
-            _logger.LogInformation("Loading globe module for container: {ContainerId}", containerId);
+            _logger.LogDebug("Loading globe module for container: {ContainerId}", containerId);
 
             // Инициализируем модуль если еще не сделали
             if (_module == null)
             {
                 _module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", 
                     "/_content/ZealousMindedPeopleGeo/js/community-globe.js");
-                _logger.LogInformation("Globe module loaded successfully");
+                _logger.LogDebug("Globe module loaded successfully");
             }
 
             // Создаем глобус
@@ -51,12 +51,12 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             if (_callbacks.TryGetValue(containerId, out var callbackData))
             {
                 await _module.InvokeVoidAsync("setGlobeReadyCallbackDirect", containerId, callbackData.reference);
-                _logger.LogInformation("Callback установлен для {ContainerId}", containerId);
+                _logger.LogDebug("Callback установлен для {ContainerId}", containerId);
             }
 
             // Модуль уже сохранен в _module
 
-            _logger.LogInformation("3D globe initialized for container: {ContainerId}", containerId);
+            _logger.LogDebug("3D globe initialized for container: {ContainerId}", containerId);
 
             // Получаем версию Three.js
             var version = "unknown";
@@ -115,7 +115,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
 
             if (success)
             {
-                _logger.LogInformation("✅ Добавлено {Count} точек в глобус {ContainerId}", pointsArray.Length, containerId);
+                _logger.LogDebug("Добавлено {Count} точек в глобус {ContainerId}", pointsArray.Length, containerId);
                 return new GlobeOperationResult { Success = true, ProcessedCount = pointsArray.Length };
             }
 
@@ -357,24 +357,20 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     {
         try
         {
-            _logger.LogInformation("🚮 DisposeAsync вызван для контейнера: {ContainerId}", containerId);
-            _logger.LogInformation("🚮 Проверка доступности модуля: {_module != null}", _module != null);
-
             // Используем модуль напрямую с правильным containerId
             if (_module != null)
             {
-                _logger.LogInformation("🚮 Вызов JavaScript dispose для контейнера: {ContainerId}", containerId);
                 var success = await _module.InvokeAsync<bool>("dispose", containerId);
-                _logger.LogInformation("🚮 JavaScript dispose вернул: {Success} для контейнера: {ContainerId}", success, containerId);
+                _logger.LogDebug("JavaScript dispose вернул: {Success} для контейнера: {ContainerId}", success, containerId);
                 return new GlobeOperationResult { Success = success };
             }
 
-            _logger.LogWarning("🚮 Модуль недоступен для контейнера: {ContainerId}", containerId);
+            _logger.LogWarning("Модуль недоступен для контейнера: {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = "Globe instance not found" };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🚮 Критическая ошибка при dispose контейнера {ContainerId}", containerId);
+            _logger.LogError(ex, "Ошибка при dispose контейнера {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
         }
     }
@@ -395,7 +391,7 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
             var wrapper = new CallbackWrapper(callback);
             var reference = DotNetObjectReference.Create(wrapper);
             _callbacks[containerId] = (callback, reference);
-            _logger.LogInformation("Callback сохранен для {ContainerId}", containerId);
+            _logger.LogDebug("Callback сохранен для {ContainerId}", containerId);
             return ValueTask.FromResult(new GlobeOperationResult { Success = true });
         }
         catch (Exception ex)
@@ -413,7 +409,6 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
         [JSInvokable]
         public async Task Invoke(GlobeState state)
         {
-            Console.WriteLine($"📞 CallbackWrapper.Invoke вызван");
             await _callback(state);
         }
     }

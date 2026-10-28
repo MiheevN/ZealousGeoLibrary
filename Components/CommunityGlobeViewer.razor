@@ -8,6 +8,8 @@
 @inject IGlobeMediator GlobeMediator
 @inject IParticipantRepository ParticipantRepository
 @inject IGeoDataContainerManager ContainerManager
+@using Microsoft.Extensions.Logging
+@inject ILogger<CommunityGlobeViewer> Logger
 @implements IDisposable
 
 <div id="@ContainerId" class="globe-canvas-container" style="@ContainerStyle">
@@ -132,10 +134,8 @@
 
     private async Task InitializeGlobeAsync()
     {
-        Console.WriteLine($"[{GlobeId}] InitializeGlobeAsync: начало");
         if (State.IsInitialized)
         {
-            Console.WriteLine($"[{GlobeId}] Глобус уже инициализирован");
             return;
         }
 
@@ -143,7 +143,7 @@
         if (Width <= 0 || Height <= 0)
         {
             _errorMessage = Ui.GlobeBadSize(Width, Height);
-            Console.WriteLine($"[{GlobeId}] {_errorMessage}");
+            Logger.LogWarning("Globe {GlobeId}: {Error}", GlobeId, _errorMessage);
             return;
         }
 
@@ -153,14 +153,12 @@
         try
         {
             // Устанавливаем callback ДО создания глобуса
-            Console.WriteLine($"[{GlobeId}] Установка callback для готовности глобуса");
             var callbackResult = await GlobeMediator.SetReadyCallbackAsync(ContainerId, OnGlobeReady);
             if (!callbackResult.Success)
             {
-                Console.WriteLine($"[{GlobeId}] Ошибка установки callback: {callbackResult.ErrorMessage}");
+                Logger.LogWarning("Globe {GlobeId}: ready callback not set: {Error}", GlobeId, callbackResult.ErrorMessage);
             }
 
-            Console.WriteLine($"[{GlobeId}] Вызов GlobeMediator.InitializeGlobeAsync");
             var result = await GlobeMediator.InitializeGlobeAsync(ContainerId, new GlobeOptions
             {
                 Width = Width,
@@ -176,13 +174,13 @@
             else
             {
                 _errorMessage = result.ErrorMessage;
-                Console.WriteLine($"[{GlobeId}] Ошибка: {_errorMessage}");
+                Logger.LogWarning("Globe {GlobeId} failed to initialize: {Error}", GlobeId, _errorMessage);
             }
         }
         catch (Exception ex)
         {
             _errorMessage = Ui.GlobeInitFailed(ex.Message);
-            Console.WriteLine($"[{GlobeId}] Исключение: {ex}");
+            Logger.LogError(ex, "Globe {GlobeId} failed to initialize", GlobeId);
         }
         finally
         {
@@ -191,14 +189,11 @@
             {
                 await InvokeAsync(StateHasChanged);
             }
-            Console.WriteLine($"[{GlobeId}] InitializeGlobeAsync: завершено");
         }
     }
 
     private async Task OnGlobeReady(GlobeState state)
     {
-        Console.WriteLine($"📞 Глобус {GlobeId} готов");
-
         GlobeStateService.UpdateState(GlobeId, s =>
         {
             s.IsInitialized = state.IsInitialized;
@@ -214,8 +209,6 @@
     {
         try
         {
-            Console.WriteLine($"🔄 Загрузка участников для глобуса {GlobeId}...");
-
             // Контейнер хранит любые точки: их категории раскрашивают маркеры, как на карте.
             List<Participant> participantsList;
             GlobeOperationResult result;
@@ -223,19 +216,17 @@
             {
                 var points = await ContainerManager.GetOrCreateContainer(DataContainerId).GetPointsAsync();
                 participantsList = points.Select(p => p.ToParticipant()).ToList();
-                Console.WriteLine($"📦 Источник данных глобуса {GlobeId}: контейнер '{DataContainerId}', {points.Count} точек");
                 result = await GlobeMediator.AddPointsAsync(ContainerId, points, CategoryColors);
             }
             else
             {
                 participantsList = (await ParticipantRepository.GetAllParticipantsAsync()).ToList();
-                Console.WriteLine($"📊 Загружено {participantsList.Count} участников для глобуса {GlobeId}");
                 result = await GlobeMediator.AddParticipantsAsync(ContainerId, participantsList);
             }
 
             if (result.Success)
             {
-                Console.WriteLine($"✅ Успешно добавлено {participantsList.Count} участников на глобус {GlobeId}");
+                Logger.LogDebug("Globe {GlobeId}: showing {Count} points", GlobeId, participantsList.Count);
                 GlobeStateService.UpdateState(GlobeId, s =>
                 {
                     s.Participants = participantsList;
@@ -244,17 +235,21 @@
             }
             else
             {
-                Console.WriteLine($"❌ Ошибка добавления участников: {result.ErrorMessage}");
                 // Не показываем ошибку пользователю, если это "Globe instance not found" - глобус еще инициализируется
-                if (result.ErrorMessage?.Contains("Globe instance not found") != true)
+                if (result.ErrorMessage?.Contains("Globe instance not found") == true)
                 {
+                    Logger.LogDebug("Globe {GlobeId} is not ready yet, points will be added when it is", GlobeId);
+                }
+                else
+                {
+                    Logger.LogWarning("Globe {GlobeId}: points not added: {Error}", GlobeId, result.ErrorMessage);
                     _errorMessage = Ui.GlobeAddPointsFailed(result.ErrorMessage);
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"💥 Критическая ошибка загрузки участников: {ex.Message}");
+            Logger.LogError(ex, "Globe {GlobeId}: failed to load points", GlobeId);
             _errorMessage = Ui.GlobeLoadPointsFailed(ex.Message);
         }
     }

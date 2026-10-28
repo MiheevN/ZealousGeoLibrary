@@ -2,6 +2,14 @@
 import { DEFAULT_LABEL_PIXEL_HEIGHT, calculateLabelScaleForCamera } from './label-scale.js';
 import { layoutLabels, labelTextRect } from './label-layout.js';
 
+// Подробный журнал для отладки. Включается в консоли браузера: globalThis.zealousGeoDebug = true.
+// Предупреждения и ошибки пишутся всегда.
+function debugLog(...args) {
+    if (globalThis.zealousGeoDebug === true) {
+        console.log(...args);
+    }
+}
+
 // Глобальные переменные для библиотек
 let THREE, OrbitControls;
 
@@ -20,17 +28,17 @@ async function loadScript(src) {
 // Загружаем зависимости асинхронно при инициализации модуля
 async function initializeDependencies() {
     try {
-        console.log('🔄 Загрузка зависимостей...');
+        debugLog('🔄 Загрузка зависимостей...');
 
         // Загружаем Three.js
         const threeModule = await import('./libs/three.module.js');
         THREE = threeModule.default || threeModule;
-        console.log('✅ Three.js загружен:', THREE.REVISION);
+        debugLog('✅ Three.js загружен:', THREE.REVISION);
 
         // Загружаем OrbitControls
         const controlsModule = await import('./libs/OrbitControls.js');
         OrbitControls = controlsModule.OrbitControls;
-        console.log('✅ OrbitControls загружен');
+        debugLog('✅ OrbitControls загружен');
 
         return true;
     } catch (error) {
@@ -45,7 +53,7 @@ let dependenciesLoaded = false;
 initializeDependencies().then(success => {
     dependenciesLoaded = success;
     if (success) {
-        console.log('🎉 Все зависимости загружены успешно');
+        debugLog('🎉 Все зависимости загружены успешно');
     } else {
         console.error('💥 Не удалось загрузить зависимости');
     }
@@ -319,7 +327,7 @@ class CommunityGlobe {
 
         this.initializeAutoRotationInteractionState();
 
-        console.log(`🔧 Создание глобуса для контейнера: ${containerId}`);
+        debugLog(`🔧 Создание глобуса для контейнера: ${containerId}`);
         this.init();
     }
 
@@ -355,18 +363,18 @@ class CommunityGlobe {
 
             this.state.isInitialized = true;
 
-            console.log(`🌍 Глобус ${this.containerId} инициализирован и готов к работе`);
-            console.log(`📊 Состояние глобуса ${this.containerId}:`, this.state);
+            debugLog(`🌍 Глобус ${this.containerId} инициализирован и готов к работе`);
+            debugLog(`📊 Состояние глобуса ${this.containerId}:`, this.state);
 
             this.animate();
             
             // Вызываем callback после задержки
             setTimeout(() => {
                 if (this.callbacks.onGlobeReady) {
-                    console.log(`📞 Вызов callback onGlobeReady для ${this.containerId}`);
+                    debugLog(`📞 Вызов callback onGlobeReady для ${this.containerId}`);
                     this.callbacks.onGlobeReady(this.state);
                 } else {
-                    console.log(`⚠️ Callback не установлен для ${this.containerId}`);
+                    debugLog(`⚠️ Callback не установлен для ${this.containerId}`);
                 }
             }, 200);
         } catch (error) {
@@ -396,7 +404,7 @@ class CommunityGlobe {
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             const container = document.getElementById(this.containerId);
             if (container) {
-                console.log(`Container found on attempt ${attempt}`);
+                debugLog(`Container found on attempt ${attempt}`);
                 return container;
             }
 
@@ -454,17 +462,17 @@ class CommunityGlobe {
     }
 
     setupScene() {
-        console.log('🔧 setupScene: начало для контейнера', this.containerId);
-        console.log('🔍 Проверка THREE.js:', typeof THREE);
+        debugLog('🔧 setupScene: начало для контейнера', this.containerId);
+        debugLog('🔍 Проверка THREE.js:', typeof THREE);
         if (typeof THREE === 'undefined') {
             console.error('❌ Three.js не загружен. setupScene не может быть выполнен.');
             throw new Error('Three.js не загружен. setupScene не может быть выполнен.');
         }
 
-        console.log('🔍 Поиск контейнера:', this.containerId);
+        debugLog('🔍 Поиск контейнера:', this.containerId);
         this.container = this.getContainer();
-        console.log('📦 Контейнер найден:', this.container);
-        console.log('📦 Контейнер DOM элемент:', this.container?.tagName, this.container?.id);
+        debugLog('📦 Контейнер найден:', this.container);
+        debugLog('📦 Контейнер DOM элемент:', this.container?.tagName, this.container?.id);
 
         if (!this.container) {
             console.error('❌ Контейнер не найден для ID:', this.containerId);
@@ -496,28 +504,28 @@ class CommunityGlobe {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        console.log('🧹 Селективная очистка старых Three.js canvas элементов');
-        console.log('📦 Контейнер перед очисткой:', this.container?.tagName, this.container?.id);
-        console.log('📦 Дочерних элементов в контейнере:', this.container?.childNodes?.length || 0);
+        debugLog('🧹 Селективная очистка старых Three.js canvas элементов');
+        debugLog('📦 Контейнер перед очисткой:', this.container?.tagName, this.container?.id);
+        debugLog('📦 Дочерних элементов в контейнере:', this.container?.childNodes?.length || 0);
 
         // Удаляем только старые canvas элементы Three.js, но сохраняем другие элементы Blazor
         if (this.container && this.container.childNodes) {
             const canvasElements = this.container.querySelectorAll('canvas');
-            console.log('🧹 Найдено canvas элементов для удаления:', canvasElements.length);
+            debugLog('🧹 Найдено canvas элементов для удаления:', canvasElements.length);
 
             canvasElements.forEach((canvas, index) => {
-                console.log(`🧹 Удаление canvas элемента ${index}:`, canvas);
+                debugLog(`🧹 Удаление canvas элемента ${index}:`, canvas);
                 this.container.removeChild(canvas);
             });
 
-            console.log('✅ Старые canvas элементы удалены');
+            debugLog('✅ Старые canvas элементы удалены');
         }
 
-        console.log('📦 Контейнер готов для добавления нового renderer');
+        debugLog('📦 Контейнер готов для добавления нового renderer');
 
-        console.log('➕ Добавление renderer в контейнер');
+        debugLog('➕ Добавление renderer в контейнер');
         this.container.appendChild(this.renderer.domElement);
-        console.log('✅ Renderer добавлен в контейнер', this.containerId);
+        debugLog('✅ Renderer добавлен в контейнер', this.containerId);
 
         this.earthGroup = new THREE.Group();
         this.scene.add(this.earthGroup);
@@ -526,23 +534,23 @@ class CommunityGlobe {
         this.raycaster.params.Points.threshold = 0.1;
 
         this.clock = new THREE.Clock();
-        console.log('🔧 setupScene: завершено для контейнера', this.containerId);
+        debugLog('🔧 setupScene: завершено для контейнера', this.containerId);
     }
 
     createEarth() {
         const earthGeometry = new THREE.SphereGeometry(1, 128, 128); // Увеличиваем количество сегментов
         const textureLoader = new THREE.TextureLoader();
 
-        console.log('🌍 Загрузка текстур глобуса:');
-        console.log('Основная текстура:', this.options.earthTextureUrl);
-        console.log('Карта нормалей:', this.options.normalTextureUrl);
-        console.log('Карта спекуляции:', this.options.specularTextureUrl);
+        debugLog('🌍 Загрузка текстур глобуса:');
+        debugLog('Основная текстура:', this.options.earthTextureUrl);
+        debugLog('Карта нормалей:', this.options.normalTextureUrl);
+        debugLog('Карта спекуляции:', this.options.specularTextureUrl);
 
         // Загружаем текстуры асинхронно для избежания блокировок
         const loadTexture = (url) => {
             if (!url) return null;
             try {
-                console.log('Загрузка текстуры:', url);
+                debugLog('Загрузка текстуры:', url);
                 return textureLoader.load(url);
             } catch (error) {
                 console.error('Ошибка загрузки текстуры:', url, error);
@@ -585,12 +593,12 @@ class CommunityGlobe {
         const cloudsGeometry = new THREE.SphereGeometry(1.01, 128, 128);
         const textureLoader = new THREE.TextureLoader();
 
-        console.log('☁️ Загрузка текстуры облаков:', this.options.cloudsTextureUrl);
+        debugLog('☁️ Загрузка текстуры облаков:', this.options.cloudsTextureUrl);
 
         const loadCloudTexture = (url) => {
             if (!url) return null;
             try {
-                console.log('Загрузка облаков:', url);
+                debugLog('Загрузка облаков:', url);
                 return textureLoader.load(url);
             } catch (error) {
                 console.error('Ошибка загрузки облаков:', url, error);
@@ -610,11 +618,11 @@ class CommunityGlobe {
     }
 
     setupLighting() {
-        console.log('💡 Настройка освещения глобуса:');
-        console.log('Яркость солнца:', this.options.sunLightIntensity);
-        console.log('Цвет солнца:', this.options.sunLightColor);
-        console.log('Яркость окружения:', this.options.ambientLightIntensity);
-        console.log('Цвет окружения:', this.options.ambientLightColor);
+        debugLog('💡 Настройка освещения глобуса:');
+        debugLog('Яркость солнца:', this.options.sunLightIntensity);
+        debugLog('Цвет солнца:', this.options.sunLightColor);
+        debugLog('Яркость окружения:', this.options.ambientLightIntensity);
+        debugLog('Цвет окружения:', this.options.ambientLightColor);
 
         // Преобразуем цвет из hex в Color
         const sunColor = new THREE.Color(this.options.sunLightColor);
@@ -822,17 +830,17 @@ class CommunityGlobe {
       * @param {Array} participants - Массив объектов участников с координатами
       */
      addParticipants(participants) {
-         console.log(`🎯 addParticipants вызван для контейнера ${this.containerId}:`, participants?.length || 0, 'участников');
+         debugLog(`🎯 addParticipants вызван для контейнера ${this.containerId}:`, participants?.length || 0, 'участников');
 
          if (!this.state.isInitialized) {
-             console.log(`❌ Глобус ${this.containerId} не инициализирован, планирую повтор через 500ms`);
+             debugLog(`❌ Глобус ${this.containerId} не инициализирован, планирую повтор через 500ms`);
              setTimeout(() => this.addParticipants(participants), 500);
              return false;
          }
 
          this.clearParticipants();
          if (!participants || participants.length === 0) {
-             console.log(`📊 Нет участников для добавления на глобус ${this.containerId}`);
+             debugLog(`📊 Нет участников для добавления на глобус ${this.containerId}`);
              return true;
          }
 
@@ -855,20 +863,20 @@ class CommunityGlobe {
             this.renderParticipantMarkers();
             const markerIndex = this.participantMarkers.length;
 
-            console.log(`🎯 Создано ${markerIndex} 3D меток участников`);
-            console.log(`✅ Добавлено ${valid.length} участников на глобус`);
-            console.log(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
+            debugLog(`🎯 Создано ${markerIndex} 3D меток участников`);
+            debugLog(`✅ Добавлено ${valid.length} участников на глобус`);
+            debugLog(`📊 Общее количество объектов в earthGroup: ${this.earthGroup.children.length}`);
 
             // Принудительно обновляем рендер для немедленного отображения точек
             if (this.renderer && this.scene && this.camera) {
-                console.log(`🔄 Принудительный рендер сцены для контейнера ${this.containerId}`);
+                debugLog(`🔄 Принудительный рендер сцены для контейнера ${this.containerId}`);
                 this.renderer.render(this.scene, this.camera);
             }
 
-            console.log(`📈 Финальное состояние для контейнера ${this.containerId}:`);
-            console.log(`   - Меток участников: ${this.state.participantCount}`);
-            console.log(`   - Объектов в сцене: ${this.scene.children.length}`);
-            console.log(`   - Объектов в earthGroup: ${this.earthGroup.children.length}`);
+            debugLog(`📈 Финальное состояние для контейнера ${this.containerId}:`);
+            debugLog(`   - Меток участников: ${this.state.participantCount}`);
+            debugLog(`   - Объектов в сцене: ${this.scene.children.length}`);
+            debugLog(`   - Объектов в earthGroup: ${this.earthGroup.children.length}`);
 
             return true;
         } catch (error) {
@@ -886,7 +894,7 @@ class CommunityGlobe {
         this.sourceParticipants = [];
         this.pointMetadata.clear();
         this.state.participantCount = 0;
-        console.log('🧹 Очищены все метки участников');
+        debugLog('🧹 Очищены все метки участников');
     }
 
     /**
@@ -2360,7 +2368,7 @@ class CommunityGlobe {
             const sunLight = this.sunLight ?? this.scene.children.find(child => child instanceof THREE.DirectionalLight);
             if (sunLight) {
                 sunLight.intensity = parsedIntensity;
-                console.log('Яркость солнца изменена на:', parsedIntensity);
+                debugLog('Яркость солнца изменена на:', parsedIntensity);
             }
         }
     }
@@ -2372,7 +2380,7 @@ class CommunityGlobe {
             const sunLight = this.sunLight ?? this.scene.children.find(child => child instanceof THREE.DirectionalLight);
             if (sunLight) {
                 sunLight.color = new THREE.Color(colorHex);
-                console.log('Цвет солнца изменен на:', colorHex);
+                debugLog('Цвет солнца изменен на:', colorHex);
             }
         }
     }
@@ -2385,7 +2393,7 @@ class CommunityGlobe {
             const ambientLight = this.ambientLight ?? this.scene.children.find(child => child instanceof THREE.AmbientLight);
             if (ambientLight) {
                 ambientLight.intensity = parsedIntensity;
-                console.log('Яркость окружения изменена на:', parsedIntensity);
+                debugLog('Яркость окружения изменена на:', parsedIntensity);
             }
         }
     }
@@ -2397,7 +2405,7 @@ class CommunityGlobe {
             const ambientLight = this.ambientLight ?? this.scene.children.find(child => child instanceof THREE.AmbientLight);
             if (ambientLight) {
                 ambientLight.color = new THREE.Color(colorHex);
-                console.log('Цвет окружения изменен на:', colorHex);
+                debugLog('Цвет окружения изменен на:', colorHex);
             }
         }
     }
@@ -2410,7 +2418,7 @@ class CommunityGlobe {
             const hemisphereLight = this.hemisphereLight ?? this.scene.children.find(child => child instanceof THREE.HemisphereLight);
             if (hemisphereLight) {
                 hemisphereLight.intensity = parsedIntensity;
-                console.log('Яркость небесного света изменена на:', parsedIntensity);
+                debugLog('Яркость небесного света изменена на:', parsedIntensity);
             }
         }
     }
@@ -2423,7 +2431,7 @@ class CommunityGlobe {
             const atmosphereLight = this.atmosphereLight ?? this.scene.children.find(child => child instanceof THREE.PointLight);
             if (atmosphereLight) {
                 atmosphereLight.intensity = parsedIntensity;
-                console.log('Яркость атмосферного света изменена на:', parsedIntensity);
+                debugLog('Яркость атмосферного света изменена на:', parsedIntensity);
             }
         }
     }
@@ -2566,7 +2574,7 @@ class CommunityGlobe {
                 this.addParticipants(participants);
             }
             
-            console.log('✅ Настройки применены');
+            debugLog('✅ Настройки применены');
             return true;
         } catch (error) {
             console.error('Ошибка применения настроек:', error);
@@ -2591,19 +2599,19 @@ class CommunityGlobe {
     }
 
     dispose() {
-        console.log('🗑️ CommunityGlobe.dispose вызван для контейнера:', this.containerId);
-        console.log('🗑️ Состояние перед dispose:', this.state?.isInitialized);
+        debugLog('🗑️ CommunityGlobe.dispose вызван для контейнера:', this.containerId);
+        debugLog('🗑️ Состояние перед dispose:', this.state?.isInitialized);
 
         try {
             if (this.animationId) {
-                console.log('🗑️ Отмена animation frame');
+                debugLog('🗑️ Отмена animation frame');
                 cancelAnimationFrame(this.animationId);
             }
 
             this.clearAutoRotationResumeTimer();
 
             if (this.resizeObserver) {
-                console.log('🗑️ Отключение resize observer');
+                debugLog('🗑️ Отключение resize observer');
                 this.resizeObserver.disconnect();
                 this.resizeObserver = null;
             }
@@ -2613,41 +2621,41 @@ class CommunityGlobe {
             }
 
             if (this.controls) {
-                console.log('🗑️ Освобождение controls');
+                debugLog('🗑️ Освобождение controls');
                 this.controls.dispose();
             }
 
-            console.log('🗑️ Обход сцены для освобождения ресурсов');
+            debugLog('🗑️ Обход сцены для освобождения ресурсов');
             let disposedObjects = 0;
             this.scene.traverse(object => {
-                console.log('🗑️ Обработка объекта:', object.type, object.constructor.name);
+                debugLog('🗑️ Обработка объекта:', object.type, object.constructor.name);
                 if (object.geometry) {
-                    console.log('  - Освобождение geometry');
+                    debugLog('  - Освобождение geometry');
                     object.geometry.dispose();
                 }
                 if (object.material) {
                     if (Array.isArray(object.material)) {
-                        console.log('  - Освобождение массива materials:', object.material.length);
+                        debugLog('  - Освобождение массива materials:', object.material.length);
                         object.material.forEach(material => material.dispose());
                     } else {
-                        console.log('  - Освобождение material');
+                        debugLog('  - Освобождение material');
                         object.material.dispose();
                     }
                 }
                 disposedObjects++;
             });
-            console.log('🗑️ Освобождено объектов:', disposedObjects);
+            debugLog('🗑️ Освобождено объектов:', disposedObjects);
 
             if (this.renderer) {
-                console.log('🗑️ Освобождение renderer');
+                debugLog('🗑️ Освобождение renderer');
                 this.renderer.dispose();
             }
 
-            console.log('🗑️ Очистка pointMetadata');
+            debugLog('🗑️ Очистка pointMetadata');
             this.pointMetadata.clear();
 
             this.state.isInitialized = false;
-            console.log('🗑️ Состояние установлено в неинициализированное');
+            debugLog('🗑️ Состояние установлено в неинициализированное');
 
         } catch (error) {
             console.error('💥 Критическая ошибка в CommunityGlobe.dispose:', error);
@@ -2700,11 +2708,11 @@ class CommunityGlobe {
             if (filteredParticipants.length > 0) {
                 this.addParticipants(filteredParticipants);
             }
-            console.log(`Участник с ID ${participantId} удален`);
+            debugLog(`Участник с ID ${participantId} удален`);
             return true;
         }
 
-        console.log(`Участник с ID ${participantId} не найден`);
+        debugLog(`Участник с ID ${participantId} не найден`);
         return false;
     }
 
@@ -2715,14 +2723,14 @@ class CommunityGlobe {
      */
     addTestParticipant(participant) {
         if (!this.state.isInitialized) {
-            console.log('❌ Глобус не инициализирован');
+            debugLog('❌ Глобус не инициализирован');
             return false;
         }
 
         // Проверяем, существует ли уже участник с таким ID
         const existingIndex = Array.from(this.pointMetadata.values()).findIndex(p => p.id === participant.id);
         if (existingIndex !== -1) {
-            console.log(`Участник с ID ${participant.id} уже существует`);
+            debugLog(`Участник с ID ${participant.id} уже существует`);
             return false;
         }
 
@@ -2732,14 +2740,14 @@ class CommunityGlobe {
 
         const result = this.addParticipants(participants);
         if (result) {
-            console.log(`✅ Добавлен новый участник: ${participant.name} (${participant.latitude}, ${participant.longitude})`);
+            debugLog(`✅ Добавлен новый участник: ${participant.name} (${participant.latitude}, ${participant.longitude})`);
         }
         return result;
     }
 }
 
 export async function initializeScripts() {
-    console.log('Initializing Community Globe scripts...');
+    debugLog('Initializing Community Globe scripts...');
     return true;
 }
 
@@ -2751,10 +2759,10 @@ export async function initializeScripts() {
  */
 export function createGlobe(containerId, options) {
     try {
-        console.log('Creating globe for container:', containerId);
+        debugLog('Creating globe for container:', containerId);
         const globe = new CommunityGlobe(containerId, options);
         globeInstances.set(containerId, globe);
-        console.log('Globe created successfully');
+        debugLog('Globe created successfully');
         return true;
     } catch (error) {
         console.error('Error creating globe:', error);
@@ -2770,14 +2778,14 @@ export function createGlobe(containerId, options) {
  */
 export function addParticipants(containerId, participants) {
     try {
-        console.log('🔄 Добавление участников на глобус', containerId, ':', participants?.length || 0);
+        debugLog('🔄 Добавление участников на глобус', containerId, ':', participants?.length || 0);
         const globe = globeInstances.get(containerId);
         if (globe && globe.state && globe.state.isInitialized) {
             const result = globe.addParticipants(participants);
-            console.log('✅ Результат добавления участников на глобус', containerId, ':', result);
+            debugLog('✅ Результат добавления участников на глобус', containerId, ':', result);
             return result;
         }
-        console.log('❌ Глобус', containerId, 'не инициализирован');
+        debugLog('❌ Глобус', containerId, 'не инициализирован');
         return false;
     } catch (error) {
         console.error('Error adding participants to globe', containerId, ':', error);
@@ -2968,32 +2976,32 @@ export function getState(containerId) {
 
 export function dispose(containerId) {
     try {
-        console.log('🗑️ JavaScript dispose вызван для containerId:', containerId);
-        console.log('🗑️ Количество экземпляров глобуса перед dispose:', globeInstances.size);
-        console.log('🗑️ Доступные контейнеры:', Array.from(globeInstances.keys()));
+        debugLog('🗑️ JavaScript dispose вызван для containerId:', containerId);
+        debugLog('🗑️ Количество экземпляров глобуса перед dispose:', globeInstances.size);
+        debugLog('🗑️ Доступные контейнеры:', Array.from(globeInstances.keys()));
 
         if (containerId) {
-            console.log('🗑️ Удаление конкретного глобуса:', containerId);
+            debugLog('🗑️ Удаление конкретного глобуса:', containerId);
             const globe = globeInstances.get(containerId);
             if (globe) {
-                console.log('🗑️ Найден глобус для удаления:', containerId, 'состояние:', globe.state?.isInitialized);
+                debugLog('🗑️ Найден глобус для удаления:', containerId, 'состояние:', globe.state?.isInitialized);
                 globe.dispose();
                 globeInstances.delete(containerId);
-                console.log('🗑️ Глобус удален успешно:', containerId);
+                debugLog('🗑️ Глобус удален успешно:', containerId);
                 return true;
             } else {
-                console.log('🗑️ Глобус не найден для containerId:', containerId);
+                debugLog('🗑️ Глобус не найден для containerId:', containerId);
             }
             return false;
         } else {
-            console.log('🗑️ Удаление всех глобусов (containerId не указан)');
+            debugLog('🗑️ Удаление всех глобусов (containerId не указан)');
             // Если containerId не указан, очищаем все глобусы (для обратной совместимости)
             for (const [id, globe] of globeInstances) {
-                console.log('🗑️ Удаление глобуса:', id, 'состояние:', globe.state?.isInitialized);
+                debugLog('🗑️ Удаление глобуса:', id, 'состояние:', globe.state?.isInitialized);
                 globe.dispose();
             }
             globeInstances.clear();
-            console.log('🗑️ Все глобусы удалены');
+            debugLog('🗑️ Все глобусы удалены');
             return true;
         }
     } catch (error) {
@@ -3024,8 +3032,8 @@ export function addTestParticipant(containerId, participant) {
 
 export function safeAddTestParticipant(participant) {
     try {
-        console.log('🔍 Модульная функция safeAddTestParticipant вызвана');
-        console.log('Данные участника:', participant);
+        debugLog('🔍 Модульная функция safeAddTestParticipant вызвана');
+        debugLog('Данные участника:', participant);
 
         // Проверяем доступность глобуса
         if (!dependenciesLoaded) {
@@ -3112,14 +3120,14 @@ export function debugGlobeState(containerId) {
 
 export function setGlobeReadyCallbackDirect(containerId, dotNetReference) {
     try {
-        console.log(`📞 Установка прямого callback для ${containerId}`);
+        debugLog(`📞 Установка прямого callback для ${containerId}`);
         const globe = globeInstances.get(containerId);
         if (globe) {
             globe.callbacks.onGlobeReady = async (state) => {
-                console.log(`📞 Вызов .NET callback для ${containerId}`, state);
+                debugLog(`📞 Вызов .NET callback для ${containerId}`, state);
                 await dotNetReference.invokeMethodAsync('Invoke', state);
             };
-            console.log(`✅ Прямой callback установлен для ${containerId}`);
+            debugLog(`✅ Прямой callback установлен для ${containerId}`);
             return true;
         }
         console.error(`❌ Глобус ${containerId} не найден`);

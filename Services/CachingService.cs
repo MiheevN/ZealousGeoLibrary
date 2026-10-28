@@ -24,7 +24,7 @@ public class CachingService : ICachingService, IDisposable
         _logger = logger;
         _options = options.Value;
 
-        _logger.LogInformation("CachingService initialized with options: {@Options}", _options);
+        _logger.LogDebug("CachingService initialized with options: {@Options}", _options);
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ public class CachingService : ICachingService, IDisposable
         {
             // MemoryCache не имеет публичного метода Clear()
             // Вместо этого создаем новый экземпляр через DI
-            _logger.LogInformation("Cache clear requested - MemoryCache will be refreshed by DI container");
+            _logger.LogDebug("Cache clear requested - MemoryCache will be refreshed by DI container");
 
             // В реальном сценарии можно использовать паттерн компоновщика или
             // создать обертку над MemoryCache с дополнительными методами

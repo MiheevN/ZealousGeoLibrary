@@ -13,6 +13,14 @@ let dotNetHelper = null;
 
 const DEG = Math.PI / 180;
 const DEFAULT_PROJECTION = 'equalearth';
+
+// Подробный журнал для отладки. Включается в консоли браузера: globalThis.zealousGeoDebug = true.
+// Предупреждения и ошибки пишутся всегда.
+function debugLog(...args) {
+    if (globalThis.zealousGeoDebug === true) {
+        console.log(...args);
+    }
+}
 // Доля контейнера, которую карта мира занимает при zoom = 1.
 const FIT_PADDING = 0.96;
 // Шаг дробления рёбер полигонов и линий сетки, в градусах: прямые в градусах
@@ -162,7 +170,7 @@ window.initializeCommunityMap = (apiKey, centerLat, centerLng, zoom, containerId
 
     mapInstances.set(targetId, instance);
     instance.draw();
-    console.log(`Карта сообщества инициализирована (${targetId}, ${instance.projection})`);
+    debugLog(`Карта сообщества инициализирована (${targetId}, ${instance.projection})`);
 };
 
 // points: массив точек { id, latitude, longitude, title, description, category, color,
@@ -229,7 +237,7 @@ window.centerMapOnUserLocation = (containerId) => {
                 longitude: position.coords.longitude
             });
             instance.centerOn(position.coords.latitude, position.coords.longitude, 5);
-            console.log('Карта центрирована на местоположении пользователя');
+            debugLog('Карта центрирована на местоположении пользователя');
         },
         (error) => {
             console.error('Ошибка получения геолокации:', error);
@@ -243,7 +251,7 @@ window.focusOnParticipant = (latitude, longitude, name, containerId) => {
         return;
     }
     instance.focusParticipant(latitude, longitude, name);
-    console.log(`Фокус на участнике: ${name}`);
+    debugLog(`Фокус на участнике: ${name}`);
 };
 
 window.disposeCommunityMap = (containerId) => {

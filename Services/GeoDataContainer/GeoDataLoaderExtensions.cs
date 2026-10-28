@@ -100,7 +100,7 @@ public class GlobeDataInitializer
         GlobeOptions? options = null,
         CancellationToken ct = default)
     {
-        _logger.LogInformation("Initializing globe '{GlobeId}' with data from container '{DataContainerId}'", globeId, dataContainerId);
+        _logger.LogDebug("Initializing globe '{GlobeId}' with data from container '{DataContainerId}'", globeId, dataContainerId);
 
         var result = new GlobeInitializationWithDataResult { GlobeId = globeId };
 
@@ -127,7 +127,7 @@ public class GlobeDataInitializer
             {
                 // Если контейнер не существует, создаем пустой
                 dataContainer = _containerManager.GetOrCreateContainer(dataContainerId);
-                _logger.LogInformation("Created new empty container '{DataContainerId}'", dataContainerId);
+                _logger.LogDebug("Created new empty container '{DataContainerId}'", dataContainerId);
             }
 
             var participants = await dataContainer.GetAllParticipantsAsync(ct);
@@ -154,7 +154,7 @@ public class GlobeDataInitializer
             result.Success = true;
             result.ParticipantCount = participantsList.Count;
 
-            _logger.LogInformation("Globe '{GlobeId}' initialized successfully with {Count} participants", globeId, participantsList.Count);
+            _logger.LogDebug("Globe '{GlobeId}' initialized successfully with {Count} participants", globeId, participantsList.Count);
         }
         catch (Exception ex)
         {

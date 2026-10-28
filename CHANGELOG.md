@@ -35,6 +35,8 @@
     - `community-map.js`
     - `GeoJson.cs`
 
+- **Отладочный вывод:** статический `GlobeMediatorService.OnGlobeReady` — его не вызывал ни один скрипт, он только печатал в консоль (готовность глобуса передаёт `SetReadyCallbackAsync`)
+
 ### Добавлено
 - **Группы близких точек на 3D-глобусе**, как на 2D-карте: близкие маркеры сливаются в один с числом точек и самым частым цветом. Группы пересобираются при приближении и отдалении (вращение их не трогает), вплотную к поверхности видны все точки. Клик по группе подводит к ней камеру. Параметры `ClusterPoints` и `ClusterRadius` у `CommunityGlobeViewer` и `CommunityGlobeComponent`, опции `clusterPoints`/`clusterRadius` у JS-глобуса
 
@@ -266,6 +268,8 @@
   - Исправлена ссылка в ServiceCollectionExtensions.cs с NominatimGeocodingService на GoogleMapsGeocodingService
 
 ### Изменено
+- **Тише в консоли.** Компоненты и сервисы больше не пишут в `Console`: `CommunityGlobeViewer` пишет через `ILogger`, а записи о ходе обычных операций (загрузка точек, инициализация глобуса, работа контейнеров и репозитория) переведены с `Information` на `Debug`. Скрипты глобуса и 2D-карты печатают подробный журнал только при `globalThis.zealousGeoDebug = true`; предупреждения, ошибки и `debugGlobeState()` выводятся как раньше. Как включить журнал — в README, «Журнал»
+
 - `GeoDataParticipantForm.Title`, `SubmitButtonText`, `CommunityMapComponent.Title` и `ListTitle` стали `string?`: без значения показывается перевод. Подпись списка карты по умолчанию — «Points» / «Точки» вместо «Members», счётчик без списка — «Points: N» вместо «Total Participants: N»
 
 - **Email участника необязателен.** У `Participant` и `ParticipantRegistrationModel` нет `[Required]` у `Email`, а `ParticipantValidator` и `ParticipantRegistrationValidator` проверяют формат только у заполненного адреса (новый атрибут `OptionalEmailAddress`). Форма `GeoDataParticipantForm` подписывает поле «Email (optional)» и предупреждает, что указанный адрес виден всем на карте; пробелы по краям обрезаются
