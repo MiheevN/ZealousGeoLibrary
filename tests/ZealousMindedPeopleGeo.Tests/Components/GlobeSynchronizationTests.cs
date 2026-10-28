@@ -89,7 +89,7 @@ public class GlobeSynchronizationTests : BunitContext
     }
 
     [Fact]
-    public void ParticipantPanel_WithContainer_AddsThePointToTheContainer()
+    public async Task ParticipantPanel_WithContainer_AddsThePointToTheContainer()
     {
         using var english = new CultureScope("en");
         RenderReadyGlobe("first", ContainerId);
@@ -103,7 +103,7 @@ public class GlobeSynchronizationTests : BunitContext
         panel.Find("button.btn-success").Click();
 
         panel.WaitForAssertion(() => Assert.Contains("Anna", panel.Find(".alert-success").TextContent));
-        var saved = Assert.Single(Container(ContainerId).GetPointsAsync().AsTask().Result);
+        var saved = Assert.Single(await Container(ContainerId).GetPointsAsync());
         Assert.Equal("Anna", saved.Title);
         WaitForPoints("globe-first", saved.Id);
     }

@@ -19,8 +19,8 @@ test('CommunityGlobeControls returns to provided current location instead of Mos
     assert.match(source, /\[Parameter\]\s+public\s+double\?\s+CurrentLatitude\s*\{\s*get;\s*set;\s*\}/);
     assert.match(source, /\[Parameter\]\s+public\s+double\?\s+CurrentLongitude\s*\{\s*get;\s*set;\s*\}/);
     assert.match(source, /CenterOnCurrentLocationAsync/);
-    assert.match(source, /var\s+latitude\s*=\s*CurrentLatitude\.Value;/);
-    assert.match(source, /var\s+longitude\s*=\s*CurrentLongitude\.Value;/);
+    assert.match(source, /CurrentLatitude\s+is\s+not\s+\{\s*\}\s+latitude/);
+    assert.match(source, /CurrentLongitude\s+is\s+not\s+\{\s*\}\s+longitude/);
     assert.match(source, /GlobeMediator\.CenterOnAsync\(ContainerId,\s*latitude,\s*longitude/);
     assert.doesNotMatch(source, /CenterOnAsync\(ContainerId,\s*55\.7558,\s*37\.6176/);
 });
