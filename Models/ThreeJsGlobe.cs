@@ -47,6 +47,17 @@ public class GlobeOptions
     public string ParticipantPointColor { get; set; } = "#24dce7";
 
     /// <summary>
+    /// Сливать близкие на экране маркеры в группу со счётчиком, как на 2D-карте. Группы
+    /// пересобираются при приближении, клик по группе приближает к ней.
+    /// </summary>
+    public bool ClusterPoints { get; set; } = true;
+
+    /// <summary>
+    /// Расстояние между маркерами на экране в пикселях (0–200), ближе которого они сливаются.
+    /// </summary>
+    public int ClusterRadius { get; set; } = 40;
+
+    /// <summary>
     /// Отступ острого конца метки от поверхности глобуса
     /// </summary>
     public double ParticipantPointOffset { get; set; } = 0.02;
