@@ -37,7 +37,7 @@ public class GeoDataContainerManager : GeoDataContainerManagerBase
 
         return _containers.GetOrAdd(containerId, id =>
         {
-            Logger.LogInformation("Creating new geo-data container: {ContainerId}", id);
+            Logger.LogDebug("Creating new geo-data container: {ContainerId}", id);
             var containerLogger = _loggerFactory.CreateLogger<InMemoryGeoDataContainer>();
             return new InMemoryGeoDataContainer(id, containerLogger, HandleDataChanged);
         });
@@ -71,7 +71,7 @@ public class GeoDataContainerManager : GeoDataContainerManagerBase
 
         if (_containers.TryRemove(containerId, out var removed))
         {
-            Logger.LogInformation("Removed geo-data container: {ContainerId}", containerId);
+            Logger.LogDebug("Removed geo-data container: {ContainerId}", containerId);
 
             // Подписчики (например, глобусы) должны узнать, что данные контейнера пропали.
             if (removed.Count > 0)

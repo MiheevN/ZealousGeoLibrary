@@ -29,13 +29,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Initializing globe in container {ContainerId}", containerId);
+            _logger.LogDebug("Initializing globe in container {ContainerId}", containerId);
 
             var result = await _globeService.InitializeGlobeAsync(containerId, options);
 
             if (result.Success)
             {
-                _logger.LogInformation("Globe initialized successfully");
+                _logger.LogDebug("Globe initialized successfully");
             }
             else
             {
@@ -60,32 +60,27 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("🎯 GlobeMediator.AddParticipantAsync вызван для контейнера: {ContainerId}, участник: {Name}", containerId, participant.Name);
-
             // Проверяем доступность конкретного 3D глобуса
-            _logger.LogInformation("🎯 Проверка доступности глобуса для контейнера: {ContainerId}", containerId);
             var isGlobeAvailable = await _globeService.IsGlobeAvailableAsync(containerId);
-            _logger.LogInformation("🎯 Доступность глобуса для контейнера {ContainerId}: {Available}", containerId, isGlobeAvailable);
 
             GlobeOperationResult result;
             if (isGlobeAvailable)
             {
                 // 3D глобус доступен - добавляем через него
-                _logger.LogInformation("🎯 Глобус доступен, вызываем AddParticipantAsync для контейнера: {ContainerId}", containerId);
                 result = await _globeService.AddParticipantAsync(containerId, participant);
                 if (result.Success)
                 {
-                    _logger.LogInformation("✅ Участник {Name} успешно добавлен в глобус {ContainerId}", participant.Name, containerId);
+                    _logger.LogDebug("Участник {Name} успешно добавлен в глобус {ContainerId}", participant.Name, containerId);
                 }
                 else
                 {
-                    _logger.LogWarning("❌ Не удалось добавить участника {Name} в глобус {ContainerId}: {Error}", participant.Name, containerId, result.ErrorMessage);
+                    _logger.LogWarning("Не удалось добавить участника {Name} в глобус {ContainerId}: {Error}", participant.Name, containerId, result.ErrorMessage);
                 }
             }
             else
             {
                 // 3D глобус недоступен - участник будет храниться только в репозитории
-                _logger.LogInformation("⚠️ Глобус {ContainerId} недоступен, участник {Name} сохранен только в репозитории", containerId, participant.Name);
+                _logger.LogDebug("Глобус {ContainerId} недоступен, участник {Name} сохранен только в репозитории", containerId, participant.Name);
                 result = new GlobeOperationResult
                 {
                     Success = true,
@@ -97,7 +92,7 @@ public class GlobeMediatorService : IGlobeMediator
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "💥 Критическая ошибка в GlobeMediator.AddParticipantAsync для контейнера {ContainerId}", containerId);
+            _logger.LogError(ex, "Ошибка в GlobeMediator.AddParticipantAsync для контейнера {ContainerId}", containerId);
             return new GlobeOperationResult
             {
                 Success = false,
@@ -112,12 +107,12 @@ public class GlobeMediatorService : IGlobeMediator
         try
         {
             var pointList = points.ToList();
-            _logger.LogInformation("Adding {Count} points to globe {ContainerId}", pointList.Count, containerId);
+            _logger.LogDebug("Adding {Count} points to globe {ContainerId}", pointList.Count, containerId);
 
             if (!await _globeService.IsGlobeAvailableAsync(containerId))
             {
                 // Как и для участников: глобуса ещё нет, данные уже лежат в своём хранилище.
-                _logger.LogInformation("3D globe {ContainerId} not available, points are kept in their storage only", containerId);
+                _logger.LogDebug("3D globe {ContainerId} not available, points are kept in their storage only", containerId);
                 return new GlobeOperationResult { Success = true, ProcessedCount = pointList.Count };
             }
 
@@ -142,7 +137,7 @@ public class GlobeMediatorService : IGlobeMediator
         try
         {
             var participantList = participants.ToList();
-            _logger.LogInformation("Adding {Count} participants to globe {ContainerId}", participantList.Count, containerId);
+            _logger.LogDebug("Adding {Count} participants to globe {ContainerId}", participantList.Count, containerId);
 
             // Проверяем доступность конкретного 3D глобуса
             var isGlobeAvailable = await _globeService.IsGlobeAvailableAsync(containerId);
@@ -154,7 +149,7 @@ public class GlobeMediatorService : IGlobeMediator
                 result = await _globeService.AddParticipantsAsync(containerId, participantList);
                 if (result.Success)
                 {
-                    _logger.LogInformation("Participants added to 3D globe {ContainerId} successfully", containerId);
+                    _logger.LogDebug("Participants added to 3D globe {ContainerId} successfully", containerId);
                 }
                 else
                 {
@@ -164,7 +159,7 @@ public class GlobeMediatorService : IGlobeMediator
             else
             {
                 // 3D глобус недоступен - участники будут храниться только в репозитории
-                _logger.LogInformation("3D globe {ContainerId} not available, participants stored in repository only", containerId);
+                _logger.LogDebug("3D globe {ContainerId} not available, participants stored in repository only", containerId);
 
                 // Участники уже должны быть в репозитории, просто возвращаем успех
                 // (предполагаем, что вызывающий код уже сохранил их в репозиторий)
@@ -193,13 +188,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Removing participant {Id} from globe {ContainerId}", participantId, containerId);
+            _logger.LogDebug("Removing participant {Id} from globe {ContainerId}", participantId, containerId);
 
             var result = await _globeService.RemoveParticipantAsync(containerId, participantId);
 
             if (result.Success)
             {
-                _logger.LogInformation("Participant {Id} removed from globe {ContainerId} successfully", participantId, containerId);
+                _logger.LogDebug("Participant {Id} removed from globe {ContainerId} successfully", participantId, containerId);
             }
             else
             {
@@ -224,13 +219,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Centering globe {ContainerId} on {Lat}, {Lng} with zoom {Zoom}", containerId, latitude, longitude, zoom);
+            _logger.LogDebug("Centering globe {ContainerId} on {Lat}, {Lng} with zoom {Zoom}", containerId, latitude, longitude, zoom);
 
             var result = await _globeService.CenterOnAsync(containerId, latitude, longitude, zoom);
 
             if (result.Success)
             {
-                _logger.LogInformation("Globe {ContainerId} centered successfully", containerId);
+                _logger.LogDebug("Globe {ContainerId} centered successfully", containerId);
             }
             else
             {
@@ -255,13 +250,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Setting level of detail to {Lod} for globe {ContainerId}", lod, containerId);
+            _logger.LogDebug("Setting level of detail to {Lod} for globe {ContainerId}", lod, containerId);
 
             var result = await _globeService.SetLevelOfDetailAsync(containerId, lod);
 
             if (result.Success)
             {
-                _logger.LogInformation("Level of detail set successfully for globe {ContainerId}", containerId);
+                _logger.LogDebug("Level of detail set successfully for globe {ContainerId}", containerId);
             }
             else
             {
@@ -286,13 +281,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Setting auto rotation to {Enabled} with speed {Speed} for globe {ContainerId}", enabled, speed, containerId);
+            _logger.LogDebug("Setting auto rotation to {Enabled} with speed {Speed} for globe {ContainerId}", enabled, speed, containerId);
 
             var result = await _globeService.SetAutoRotationAsync(containerId, enabled, speed);
 
             if (result.Success)
             {
-                _logger.LogInformation("Auto rotation set successfully for globe {ContainerId}", containerId);
+                _logger.LogDebug("Auto rotation set successfully for globe {ContainerId}", containerId);
             }
             else
             {
@@ -334,13 +329,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Clearing globe {ContainerId}", containerId);
+            _logger.LogDebug("Clearing globe {ContainerId}", containerId);
 
             var result = await _globeService.ClearAsync(containerId);
 
             if (result.Success)
             {
-                _logger.LogInformation("Globe {ContainerId} cleared successfully", containerId);
+                _logger.LogDebug("Globe {ContainerId} cleared successfully", containerId);
             }
             else
             {
@@ -365,13 +360,13 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Disposing globe {ContainerId}", containerId);
+            _logger.LogDebug("Disposing globe {ContainerId}", containerId);
 
             var result = await _globeService.DisposeAsync(containerId);
 
             if (result.Success)
             {
-                _logger.LogInformation("Globe {ContainerId} disposed successfully", containerId);
+                _logger.LogDebug("Globe {ContainerId} disposed successfully", containerId);
             }
             else
             {
@@ -424,12 +419,12 @@ public class GlobeMediatorService : IGlobeMediator
     {
         try
         {
-            _logger.LogInformation("Setting ready callback for globe {ContainerId}", containerId);
+            _logger.LogDebug("Setting ready callback for globe {ContainerId}", containerId);
             var result = await _globeService.SetReadyCallbackAsync(containerId, callback);
 
             if (result.Success)
             {
-                _logger.LogInformation("Ready callback set successfully for globe {ContainerId}", containerId);
+                _logger.LogDebug("Ready callback set successfully for globe {ContainerId}", containerId);
             }
             else
             {
@@ -442,29 +437,6 @@ public class GlobeMediatorService : IGlobeMediator
         {
             _logger.LogError(ex, "Error setting ready callback for globe {ContainerId}", containerId);
             return new GlobeOperationResult { Success = false, ErrorMessage = ex.Message };
-        }
-    }
-
-    /// <summary>
-    /// Callback метод, вызываемый из JavaScript при готовности глобуса
-    /// </summary>
-    [JSInvokable]
-    public static Task OnGlobeReady(string containerId, string stateJson)
-    {
-        try
-        {
-            Console.WriteLine($"📞 JavaScript callback: глобус {containerId} готов");
-            Console.WriteLine($"📊 Состояние: {stateJson}");
-
-            // Здесь можно добавить дополнительную логику, например,
-            // уведомить Blazor компоненты или обновить состояние
-
-            return Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"💥 Ошибка в callback OnGlobeReady: {ex.Message}");
-            return Task.FromException(ex);
         }
     }
 }

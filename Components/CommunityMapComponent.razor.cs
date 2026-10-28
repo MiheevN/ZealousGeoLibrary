@@ -300,7 +300,7 @@ public partial class CommunityMapComponent : IAsyncDisposable
         // Скрытыми остаются только категории, которые ещё есть на карте.
         _hiddenCategories.IntersectWith(_palette.Categories.Select(c => c.Name));
 
-        Logger.LogInformation("Загружено {Count} точек для карты {MapId}", points.Count, MapId);
+        Logger.LogDebug("Загружено {Count} точек для карты {MapId}", points.Count, MapId);
     }
 
     // Участник с нулевой широтой или долготой считается ненайденным: геокодирование

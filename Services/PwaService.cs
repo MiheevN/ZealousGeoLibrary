@@ -51,7 +51,7 @@ public class PwaService : IPwaService, IAsyncDisposable
             await module.InvokeVoidAsync("registerServiceWorker", ServiceWorkerPath, Ui.PwaUpdateConfirm);
 
             _isInitialized = true;
-            _logger.LogInformation("PWA service initialized successfully");
+            _logger.LogDebug("PWA service initialized successfully");
         }
         catch (Exception ex)
         {

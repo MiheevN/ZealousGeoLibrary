@@ -43,7 +43,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
 
             _participants[participant.Id] = participant;
 
-            _logger.LogInformation("Participant {Name} added with ID {Id}", participant.Name, participant.Id);
+            _logger.LogDebug("Participant {Name} added with ID {Id}", participant.Name, participant.Id);
 
             return ValueTask.FromResult(new RepositoryResult
             {
@@ -68,7 +68,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
         try
         {
             var participants = _participants.Values.ToList();
-            _logger.LogInformation("Retrieved {Count} participants", participants.Count);
+            _logger.LogDebug("Retrieved {Count} participants", participants.Count);
 
             return ValueTask.FromResult<IEnumerable<Participant>>(participants);
         }
@@ -86,7 +86,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
             _participants.TryGetValue(id, out var participant);
             if (participant != null)
             {
-                _logger.LogInformation("Found participant {Name} with ID {Id}", participant.Name, id);
+                _logger.LogDebug("Found participant {Name} with ID {Id}", participant.Name, id);
             }
             else
             {
@@ -126,7 +126,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
 
             _participants[participant.Id] = participant;
 
-            _logger.LogInformation("Participant {Name} updated with ID {Id}", participant.Name, participant.Id);
+            _logger.LogDebug("Participant {Name} updated with ID {Id}", participant.Name, participant.Id);
 
             return ValueTask.FromResult(new RepositoryResult
             {
@@ -152,7 +152,7 @@ public class InMemoryParticipantRepository : IParticipantRepository
         {
             if (_participants.TryRemove(id, out var removedParticipant))
             {
-                _logger.LogInformation("Participant {Name} deleted with ID {Id}", removedParticipant.Name, id);
+                _logger.LogDebug("Participant {Name} deleted with ID {Id}", removedParticipant.Name, id);
 
                 return ValueTask.FromResult(new RepositoryResult
                 {

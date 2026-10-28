@@ -52,7 +52,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
                 $"Point with ID {point.Id} already exists in container '{ContainerId}'"));
         }
 
-        _logger?.LogInformation("Container '{ContainerId}': Added point {Title} with ID {Id}", ContainerId, point.Title, point.Id);
+        _logger?.LogDebug("Container '{ContainerId}': Added point {Title} with ID {Id}", ContainerId, point.Title, point.Id);
         NotifyDataChanged(GeoDataChangeType.Added);
 
         return ValueTask.FromResult(GeoDataOperationResult.OkPoint(point.Id));
@@ -81,7 +81,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
             }
         }
 
-        _logger?.LogInformation("Container '{ContainerId}': Added {Added} points, skipped {Skipped}", ContainerId, added, skipped);
+        _logger?.LogDebug("Container '{ContainerId}': Added {Added} points, skipped {Skipped}", ContainerId, added, skipped);
 
         if (added > 0)
         {
@@ -134,7 +134,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
                 $"Point with ID {point.Id} not found in container '{ContainerId}'"));
         }
 
-        _logger?.LogInformation("Container '{ContainerId}': Updated point {Title} with ID {Id}", ContainerId, point.Title, point.Id);
+        _logger?.LogDebug("Container '{ContainerId}': Updated point {Title} with ID {Id}", ContainerId, point.Title, point.Id);
         NotifyDataChanged(GeoDataChangeType.Updated);
 
         return ValueTask.FromResult(GeoDataOperationResult.OkPoint(point.Id));
@@ -149,7 +149,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
                 $"Point with ID {id} not found in container '{ContainerId}'"));
         }
 
-        _logger?.LogInformation("Container '{ContainerId}': Removed point {Title} with ID {Id}", ContainerId, removed.Title, id);
+        _logger?.LogDebug("Container '{ContainerId}': Removed point {Title} with ID {Id}", ContainerId, removed.Title, id);
         NotifyDataChanged(GeoDataChangeType.Removed);
 
         return ValueTask.FromResult(GeoDataOperationResult.OkPoint(id));
@@ -160,7 +160,7 @@ public class InMemoryGeoDataContainer : IGeoDataContainer
     {
         var count = _points.Count;
         _points.Clear();
-        _logger?.LogInformation("Container '{ContainerId}': Cleared {Count} points", ContainerId, count);
+        _logger?.LogDebug("Container '{ContainerId}': Cleared {Count} points", ContainerId, count);
 
         // Нет изменений — нет события.
         if (count > 0)

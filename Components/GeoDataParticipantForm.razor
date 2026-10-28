@@ -182,7 +182,7 @@
             {
                 _statusMessage = rejection;
                 _statusClass = "alert-warning";
-                Logger.LogInformation("Participant '{Name}' rejected by the host: {Reason}", participant.Name, rejection);
+                Logger.LogDebug("Participant '{Name}' rejected by the host: {Reason}", participant.Name, rejection);
                 return;
             }
 
@@ -198,7 +198,7 @@
                 return;
             }
 
-            Logger.LogInformation("Participant '{Name}' saved to container '{ContainerId}'", participant.Name, DataContainerId);
+            Logger.LogDebug("Participant '{Name}' saved to container '{ContainerId}'", participant.Name, DataContainerId);
 
             // 5. Добавление на глобус (если указан)
             if (!string.IsNullOrEmpty(GlobeId) && !string.IsNullOrEmpty(EffectiveGlobeContainerId))
@@ -212,7 +212,7 @@
                         s.Participants.Add(participant);
                         s.ParticipantCount = s.Participants.Count;
                     });
-                    Logger.LogInformation("Participant '{Name}' added to globe '{GlobeId}'", participant.Name, GlobeId);
+                    Logger.LogDebug("Participant '{Name}' added to globe '{GlobeId}'", participant.Name, GlobeId);
                 }
                 else
                 {
