@@ -731,3 +731,32 @@ h1:focus-visible {
         padding: 24px;
     }
 }
+
+/* Телефон: шапка в две строки — логотип, под ним все разделы, без прокрутки вбок. */
+@media (max-width: 600px) {
+    .app-sidebar {
+        position: static;
+    }
+
+    .app-sidebar-inner {
+        flex-wrap: wrap;
+        gap: 8px;
+        overflow-x: visible;
+    }
+
+    .app-nav {
+        flex-wrap: wrap;
+        width: 100%;
+        gap: 4px;
+    }
+
+    .app-nav a {
+        gap: 6px;
+        padding: 8px;
+        min-height: 44px;
+    }
+
+    .app-main {
+        padding-top: 16px;
+    }
+}
