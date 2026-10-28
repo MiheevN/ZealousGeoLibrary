@@ -100,10 +100,7 @@
     
     private async Task CenterOnCurrentLocationAsync()
     {
-        if (!CanCenterOnCurrentLocation) return;
-
-        var latitude = CurrentLatitude.Value;
-        var longitude = CurrentLongitude.Value;
+        if (!CanCenterOnCurrentLocation || CurrentLatitude is not { } latitude || CurrentLongitude is not { } longitude) return;
         
         var result = await GlobeMediator.CenterOnAsync(ContainerId, latitude, longitude);
         
