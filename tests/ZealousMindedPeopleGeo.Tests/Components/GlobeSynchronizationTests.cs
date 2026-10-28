@@ -78,8 +78,11 @@ public class GlobeSynchronizationTests : BunitContext
     {
         RenderReadyGlobe("first", ContainerId);
         var calls = _mediator.AddPointsCalls("globe-first");
+        Assert.Equal(1, ContainerSubscriberCount());
 
         await DisposeComponentsAsync();
+        // bUnit может вернуть управление до Dispose, если рендерер ещё занят: ждём отписки.
+        WaitForAssertion(() => Assert.Equal(0, ContainerSubscriberCount()), TimeSpan.FromSeconds(5));
         await Container(ContainerId).AddPointAsync(Point("oslo", 59.91, 10.75));
 
         Assert.Equal(calls, _mediator.AddPointsCalls("globe-first"));
@@ -123,6 +126,11 @@ public class GlobeSynchronizationTests : BunitContext
     }
 
     private IGeoDataContainer Container(string id) => _containers.GetOrCreateContainer(id);
+
+    private int ContainerSubscriberCount() =>
+        (typeof(GeoDataContainerManagerBase)
+            .GetField(nameof(GeoDataContainerManagerBase.OnDataChanged), BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(_containers) as Delegate)?.GetInvocationList().Length ?? 0;
 
     private IRenderedComponent<CommunityGlobeViewer> RenderReadyGlobe(string globeId, string containerId)
     {
