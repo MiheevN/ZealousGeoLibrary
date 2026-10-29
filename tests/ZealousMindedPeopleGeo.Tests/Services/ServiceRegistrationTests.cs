@@ -70,6 +70,19 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
+    public void Options_WithoutGoogleKey_PassValidation()
+    {
+        // Так их проверяет ValidateDataAnnotations(): приложение без ключа Google должно запускаться.
+        var options = new ZealousMindedPeopleGeoOptions();
+        var errors = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+
+        var valid = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+            options, new System.ComponentModel.DataAnnotations.ValidationContext(options), errors, validateAllProperties: true);
+
+        Assert.True(valid, string.Join("; ", errors.Select(e => e.ErrorMessage)));
+    }
+
+    [Fact]
     public void Configuration_BindsKeysDocumentedInReadme()
     {
         // Ключи из раздела README «Конфигурация».

@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace ZealousMindedPeopleGeo.Models
 {
     /// <summary>
@@ -9,11 +7,21 @@ namespace ZealousMindedPeopleGeo.Models
     {
         public const string SectionName = "ZealousMindedPeopleGeo";
 
-        [Required(ErrorMessage = "Google Maps API ключ обязателен")]
+        /// <summary>
+        /// Необязательный ключ Google Maps Platform с включённым Geocoding API. По нему
+        /// <c>GeoDataParticipantForm</c> находит координаты адреса. Без ключа всё остальное
+        /// работает, а форма сообщает, что поиск адресов недоступен. Карта и глобус ключ не используют.
+        /// </summary>
         public string GoogleMapsApiKey { get; set; } = string.Empty;
 
+        /// <summary>
+        /// <c>false</c> выключает запросы к Google, даже если ключ задан.
+        /// </summary>
         public bool EnableGeocoding { get; set; } = true;
 
+        /// <summary>
+        /// Значения по умолчанию для всех 2D-карт.
+        /// </summary>
         public MapConfiguration? Map { get; set; }
     }
 

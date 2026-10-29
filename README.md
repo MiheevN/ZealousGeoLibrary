@@ -524,7 +524,7 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
 | Ключ | По умолчанию | Что делает |
 |---|---|---|
-| `GoogleMapsApiKey` | пусто | Ключ Google Maps Platform с включённым Geocoding API. По нему `GeoDataParticipantForm` находит координаты адреса. Без ключа форма сообщает, что ключ не настроен, и точку не добавляет. Карта и глобус ключ не используют. |
+| `GoogleMapsApiKey` | пусто | Ключ Google Maps Platform с включённым Geocoding API. По нему `GeoDataParticipantForm` находит координаты адреса. Ключ необязателен: без него всё остальное работает, а форма сообщает, что поиск адресов недоступен, и точку не добавляет. Карта и глобус ключ не используют. |
 | `EnableGeocoding` | `true` | `false` выключает запросы к Google, даже если ключ задан. |
 | `Map:Projection` | `EqualEarth` | Проекция 2D-карты: `EqualEarth` или `Equirectangular`. |
 | `Map:CentralMeridian` | `0` | Центральный меридиан 2D-карты в градусах, от −180 до 180. |
