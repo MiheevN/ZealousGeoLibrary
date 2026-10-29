@@ -398,13 +398,19 @@ public static class CachingExtensions
     /// <summary>
     /// Получить или создать закешированный результат геокодирования
     /// </summary>
+    /// <param name="cachingService">Кэш</param>
+    /// <param name="address">Адрес или другой запрос к геокодеру</param>
+    /// <param name="factory">Запрос к сервису, если в кэше ответа нет</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <param name="scope">Чем ещё различаются ответы: сервис и язык адреса</param>
     public static async Task<GeocodingResult> GetOrCreateGeocodingResultAsync(
         this ICachingService cachingService,
         string address,
         Func<CancellationToken, Task<GeocodingResult>> factory,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string scope = "")
     {
-        var key = $"geocoding:{address.GetHashCode()}";
+        var key = $"geocoding:{scope}:{address}";
         var result = await cachingService.GetOrCreateAsync(
             key,
             factory,

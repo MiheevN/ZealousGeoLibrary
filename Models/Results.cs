@@ -52,6 +52,12 @@ public class GeocodingResult
     /// Причина неудачи; <see cref="GeocodingError.None"/> при успехе.
     /// </summary>
     public GeocodingError Error { get; set; }
+
+    /// <summary>
+    /// Чьими данными найден адрес, если источник требует об этом сообщать (например,
+    /// «Data © OpenStreetMap contributors, ODbL 1.0»). Форма показывает её под адресом.
+    /// </summary>
+    public string? Attribution { get; set; }
 }
 
 /// <summary>

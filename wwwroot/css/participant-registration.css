@@ -174,6 +174,16 @@
     color: var(--zgl-text);
 }
 
+.geodata-participant-form .geodata-hint-warning {
+    color: var(--zgl-warning);
+}
+
+.geodata-participant-form .location-attribution {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 640px) {
     .geodata-participant-form {
         padding: 1rem;
