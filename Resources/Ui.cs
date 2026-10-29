@@ -35,8 +35,9 @@ internal static class Ui
     public static string FormSaveFailed => Text(nameof(FormSaveFailed));
     public static string FormError => Text(nameof(FormError));
     public static string FormEnterAddress => Text(nameof(FormEnterAddress));
-    public static string FormAddressNotFound(params object?[] arguments) => Format(nameof(FormAddressNotFound), arguments);
+    public static string FormAddressNotFound => Text(nameof(FormAddressNotFound));
     public static string FormGeocodingFailed => Text(nameof(FormGeocodingFailed));
+    public static string FormGeocodingUnavailable => Text(nameof(FormGeocodingUnavailable));
     public static string ValidationNameRequired => Text(nameof(ValidationNameRequired));
     public static string ValidationNameTooLong => Text(nameof(ValidationNameTooLong));
     public static string ValidationAddressRequired => Text(nameof(ValidationAddressRequired));
@@ -92,9 +93,12 @@ internal static class Ui
     public static string GlobeLoading => Text(nameof(GlobeLoading));
     public static string GlobeRetry => Text(nameof(GlobeRetry));
     public static string GlobeBadSize(params object?[] arguments) => Format(nameof(GlobeBadSize), arguments);
-    public static string GlobeInitFailed(params object?[] arguments) => Format(nameof(GlobeInitFailed), arguments);
-    public static string GlobeAddPointsFailed(params object?[] arguments) => Format(nameof(GlobeAddPointsFailed), arguments);
-    public static string GlobeLoadPointsFailed(params object?[] arguments) => Format(nameof(GlobeLoadPointsFailed), arguments);
+    public static string GlobeErrorWebGl => Text(nameof(GlobeErrorWebGl));
+    public static string GlobeErrorScripts => Text(nameof(GlobeErrorScripts));
+    public static string GlobeErrorContainer => Text(nameof(GlobeErrorContainer));
+    public static string GlobeErrorUnknown => Text(nameof(GlobeErrorUnknown));
+    public static string GlobeAddPointsFailed => Text(nameof(GlobeAddPointsFailed));
+    public static string GlobeLoadPointsFailed => Text(nameof(GlobeLoadPointsFailed));
     public static string GlobeRotation => Text(nameof(GlobeRotation));
     public static string GlobeToggleRotation => Text(nameof(GlobeToggleRotation));
     public static string GlobePointCount => Text(nameof(GlobePointCount));
@@ -134,7 +138,7 @@ internal static class Ui
     public static string ManagerRandom => Text(nameof(ManagerRandom));
     public static string ManagerRandomName(params object?[] arguments) => Format(nameof(ManagerRandomName), arguments);
     public static string ManagerCentered => Text(nameof(ManagerCentered));
-    public static string ManagerCenterFailed(params object?[] arguments) => Format(nameof(ManagerCenterFailed), arguments);
+    public static string ManagerCenterFailed => Text(nameof(ManagerCenterFailed));
     public static string ManagerEnterName => Text(nameof(ManagerEnterName));
     public static string ManagerEnterCoordinates => Text(nameof(ManagerEnterCoordinates));
     public static string ManagerLatitudeRange => Text(nameof(ManagerLatitudeRange));
@@ -288,6 +292,23 @@ internal static class Ui
         ["clusterFew"] = MapClusterFew,
         ["clusterMany"] = MapClusterMany,
         ["clusterOther"] = MapClusterOther
+    };
+
+    /// <summary>Понятная пользователю причина, по которой глобус не запустился.</summary>
+    public static string GlobeInitializationError(Models.GlobeInitializationError error) => error switch
+    {
+        Models.GlobeInitializationError.WebGlUnavailable => GlobeErrorWebGl,
+        Models.GlobeInitializationError.ScriptsUnavailable => GlobeErrorScripts,
+        Models.GlobeInitializationError.ContainerNotFound => GlobeErrorContainer,
+        _ => GlobeErrorUnknown
+    };
+
+    /// <summary>Понятная пользователю причина, по которой адрес не нашёлся.</summary>
+    public static string GeocodingError(Models.GeocodingError error) => error switch
+    {
+        Models.GeocodingError.NotFound => FormAddressNotFound,
+        Models.GeocodingError.Unavailable => FormGeocodingUnavailable,
+        _ => FormGeocodingFailed
     };
 
     private static string Text(string name) => Resources.GetString(name, CultureInfo.CurrentUICulture) ?? name;

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using ZealousMindedPeopleGeo.Models;
@@ -23,10 +24,10 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
     public async ValueTask<GlobeInitializationResult> InitializeGlobeAsync(string containerId, GlobeOptions options, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(containerId))
-            return new GlobeInitializationResult { Success = false, ErrorMessage = "ContainerId cannot be null or empty" };
+            return Failed(GlobeInitializationError.ContainerNotFound, "ContainerId cannot be null or empty");
 
         if (options == null)
-            return new GlobeInitializationResult { Success = false, ErrorMessage = "Options cannot be null" };
+            return Failed(GlobeInitializationError.Unknown, "Options cannot be null");
 
         try
         {
@@ -40,11 +41,16 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
                 _logger.LogDebug("Globe module loaded successfully");
             }
 
-            // Создаем глобус
-            var success = await _module.InvokeAsync<bool>("createGlobe", containerId, options);
-            if (!success)
+            // Создаем глобус: JS дожидается запуска и сообщает код причины, если не вышло.
+            var created = await _module.InvokeAsync<JsonElement>("createGlobe", containerId, options);
+            if (!(created.ValueKind == JsonValueKind.Object
+                  && created.TryGetProperty("success", out var success)
+                  && success.ValueKind == JsonValueKind.True))
             {
-                return new GlobeInitializationResult { Success = false, ErrorMessage = "Failed to create globe instance" };
+                var error = ParseError(StringProperty(created, "errorCode"));
+                var message = StringProperty(created, "errorMessage") ?? "Failed to create globe instance";
+                _logger.LogWarning("Globe {ContainerId} did not start ({Error}): {Message}", containerId, error, message);
+                return Failed(error, message);
             }
 
             // Устанавливаем callback если он был сохранен
@@ -77,15 +83,35 @@ public class ThreeJsGlobeService : IThreeJsGlobeService, IAsyncDisposable
         }
         catch (JSException ex)
         {
+            // Модуль не импортировался — скорее всего, скрипт не загрузился по сети.
             _logger.LogError(ex, "JavaScript error initializing 3D globe for container: {ContainerId}", containerId);
-            return new GlobeInitializationResult { Success = false, ErrorMessage = ex.Message };
+            return Failed(_module == null ? GlobeInitializationError.ScriptsUnavailable : GlobeInitializationError.Unknown, ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error initializing 3D globe for container: {ContainerId}", containerId);
-            return new GlobeInitializationResult { Success = false, ErrorMessage = ex.Message };
+            return Failed(GlobeInitializationError.Unknown, ex.Message);
         }
     }
+
+    private static GlobeInitializationResult Failed(GlobeInitializationError error, string message) =>
+        new() { Success = false, Error = error, ErrorMessage = message };
+
+    /// <summary>Коды из GLOBE_ERROR_CODES в community-globe.js.</summary>
+    private static GlobeInitializationError ParseError(string? code) => code switch
+    {
+        "webgl-unavailable" => GlobeInitializationError.WebGlUnavailable,
+        "scripts-unavailable" => GlobeInitializationError.ScriptsUnavailable,
+        "container-not-found" => GlobeInitializationError.ContainerNotFound,
+        _ => GlobeInitializationError.Unknown
+    };
+
+    private static string? StringProperty(JsonElement element, string name) =>
+        element.ValueKind == JsonValueKind.Object
+        && element.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     public ValueTask<GlobeOperationResult> AddParticipantsAsync(string containerId, IEnumerable<Participant> participants, CancellationToken ct = default)
     {

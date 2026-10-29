@@ -269,7 +269,8 @@
 
             if (!_geocodingResult.Success)
             {
-                _statusMessage = Ui.FormAddressNotFound(_geocodingResult.ErrorMessage);
+                Logger.LogWarning("Geocoding failed for address {Address} ({Reason}): {Error}", _model.Address, _geocodingResult.Error, _geocodingResult.ErrorMessage);
+                _statusMessage = Ui.GeocodingError(_geocodingResult.Error);
                 _statusClass = "alert-warning";
                 return false;
             }
@@ -307,6 +308,7 @@
             _geocodingResult = new GeocodingResult
             {
                 Success = false,
+                Error = GeocodingError.Failed,
                 ErrorMessage = ex.Message
             };
         }

@@ -302,6 +302,40 @@ function clusterMarkerParticipant(group, participants) {
 const PARTICIPANT_LABEL_FADE_OUT_SECONDS = 0.12;
 
 /**
+ * Причины, по которым глобус не запустился. Компонент показывает по коду понятный текст
+ * на языке пользователя, а технические подробности остаются в консоли и журнале.
+ */
+export const GLOBE_ERROR_CODES = Object.freeze({
+    webGlUnavailable: 'webgl-unavailable',
+    scriptsUnavailable: 'scripts-unavailable',
+    containerNotFound: 'container-not-found',
+    unknown: 'unknown'
+});
+
+function globeError(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+}
+
+/**
+ * Итог создания глобуса для .NET: успех или код причины с техническим текстом.
+ * @param {unknown} error - Ошибка инициализации или null при успехе
+ */
+export function globeCreationResult(error) {
+    if (!error) {
+        return { success: true, errorCode: null, errorMessage: null };
+    }
+
+    const knownCodes = Object.values(GLOBE_ERROR_CODES);
+    return {
+        success: false,
+        errorCode: knownCodes.includes(error.code) ? error.code : GLOBE_ERROR_CODES.unknown,
+        errorMessage: String(error.message ?? error)
+    };
+}
+
+/**
  * Класс для создания и управления интерактивным 3D глобусом сообщества
  * Поддерживает добавление/удаление участников, настройку освещения,
  * управление камерой и визуализацию географических данных
@@ -485,7 +519,8 @@ class CommunityGlobe {
         this.initializeAutoRotationInteractionState();
 
         debugLog(`🔧 Создание глобуса для контейнера: ${containerId}`);
-        this.init();
+        // createGlobe ждёт этот промис, чтобы сообщить .NET, запустился ли глобус.
+        this.ready = this.init();
     }
 
     /**
@@ -503,11 +538,11 @@ class CommunityGlobe {
             }
 
             if (!dependenciesLoaded) {
-                throw new Error('Не удалось загрузить зависимости Three.js');
+                throw globeError(GLOBE_ERROR_CODES.scriptsUnavailable, 'Three.js dependencies did not load');
             }
 
             if (!this.isWebGLSupported()) {
-                throw new Error('WebGL is not supported in this browser');
+                throw globeError(GLOBE_ERROR_CODES.webGlUnavailable, 'WebGL is not supported in this browser');
             }
 
             this.setupScene();
@@ -525,13 +560,15 @@ class CommunityGlobe {
 
             this.animate();
             
-            // Вызываем callback после задержки
+            // Вызываем callback после задержки. Если .NET ещё не успел его передать,
+            // setGlobeReadyCallbackDirect вызовет его сразу при установке.
             setTimeout(() => {
                 if (this.callbacks.onGlobeReady) {
                     debugLog(`📞 Вызов callback onGlobeReady для ${this.containerId}`);
                     this.callbacks.onGlobeReady(this.state);
                 } else {
                     debugLog(`⚠️ Callback не установлен для ${this.containerId}`);
+                    this.readyNotificationPending = true;
                 }
             }, 200);
         } catch (error) {
@@ -623,7 +660,7 @@ class CommunityGlobe {
         debugLog('🔍 Проверка THREE.js:', typeof THREE);
         if (typeof THREE === 'undefined') {
             console.error('❌ Three.js не загружен. setupScene не может быть выполнен.');
-            throw new Error('Three.js не загружен. setupScene не может быть выполнен.');
+            throw globeError(GLOBE_ERROR_CODES.scriptsUnavailable, 'Three.js is not loaded');
         }
 
         debugLog('🔍 Поиск контейнера:', this.containerId);
@@ -633,7 +670,9 @@ class CommunityGlobe {
 
         if (!this.container) {
             console.error('❌ Контейнер не найден для ID:', this.containerId);
-            throw new Error(`Container with id '${this.containerId}' not found after multiple attempts`);
+            throw globeError(
+                GLOBE_ERROR_CODES.containerNotFound,
+                `Container with id '${this.containerId}' not found after multiple attempts`);
         }
 
         this.applyConfiguredContainerSize(this.options.width, this.options.height);
@@ -652,10 +691,15 @@ class CommunityGlobe {
             this.state.cameraPosition.z
         );
 
-        this.renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            preserveDrawingBuffer: Boolean(this.options.preserveDrawingBuffer)
-        });
+        try {
+            this.renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                preserveDrawingBuffer: Boolean(this.options.preserveDrawingBuffer)
+            });
+        } catch (error) {
+            // WebGL заявлен, но контекст не создаётся: отключено ускорение, видеодрайвер в чёрном списке.
+            throw globeError(GLOBE_ERROR_CODES.webGlUnavailable, `Could not create a WebGL context: ${error?.message ?? error}`);
+        }
         this.renderer.setSize(renderSize.width, renderSize.height, false);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
@@ -3170,7 +3214,7 @@ class CommunityGlobe {
 
             debugLog('🗑️ Обход сцены для освобождения ресурсов');
             let disposedObjects = 0;
-            this.scene.traverse(object => {
+            this.scene?.traverse(object => {
                 debugLog('🗑️ Обработка объекта:', object.type, object.constructor.name);
                 if (object.geometry) {
                     debugLog('  - Освобождение geometry');
@@ -3300,21 +3344,28 @@ export async function initializeScripts() {
 }
 
 /**
- * Создает экземпляр 3D глобуса в указанном контейнере
+ * Создает экземпляр 3D глобуса в указанном контейнере и ждёт его запуска
  * @param {string} containerId - ID HTML элемента-контейнера
  * @param {Object} options - Настройки глобуса
- * @returns {boolean} true если глобус успешно создан
+ * @returns {Promise<{success: boolean, errorCode: string|null, errorMessage: string|null}>}
+ *   успех или код причины из GLOBE_ERROR_CODES
  */
-export function createGlobe(containerId, options) {
+export async function createGlobe(containerId, options) {
+    let globe = null;
     try {
         debugLog('Creating globe for container:', containerId);
-        const globe = new CommunityGlobe(containerId, options);
+        globe = new CommunityGlobe(containerId, options);
         globeInstances.set(containerId, globe);
+        await globe.ready;
         debugLog('Globe created successfully');
-        return true;
+        return globeCreationResult(null);
     } catch (error) {
         console.error('Error creating globe:', error);
-        return false;
+        if (globe && globeInstances.get(containerId) === globe) {
+            globeInstances.delete(containerId);
+            globe.dispose();
+        }
+        return globeCreationResult(error ?? new Error('Unknown error'));
     }
 }
 
@@ -3676,6 +3727,11 @@ export function setGlobeReadyCallbackDirect(containerId, dotNetReference) {
                 await dotNetReference.invokeMethodAsync('Invoke', state);
             };
             debugLog(`✅ Прямой callback установлен для ${containerId}`);
+            if (globe.readyNotificationPending) {
+                // Глобус запустился раньше, чем пришёл callback: сообщаем о готовности сейчас.
+                globe.readyNotificationPending = false;
+                globe.callbacks.onGlobeReady(globe.state);
+            }
             return true;
         }
         console.error(`❌ Глобус ${containerId} не найден`);

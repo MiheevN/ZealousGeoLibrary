@@ -44,6 +44,7 @@ namespace ZealousMindedPeopleGeo.Services.Geocoding
                 return new GeocodingResult
                 {
                     Success = false,
+                    Error = GeocodingError.Failed,
                     ErrorMessage = ex.Message
                 };
             }
@@ -63,7 +64,8 @@ namespace ZealousMindedPeopleGeo.Services.Geocoding
                 return new GeocodingResult
                 {
                     Success = false,
-                    ErrorMessage = "Обратное геокодирование не реализовано в текущей версии"
+                    Error = GeocodingError.Unavailable,
+                    ErrorMessage = "Reverse geocoding is not implemented"
                 };
             }
             catch (Exception ex)
@@ -73,6 +75,7 @@ namespace ZealousMindedPeopleGeo.Services.Geocoding
                 return new GeocodingResult
                 {
                     Success = false,
+                    Error = GeocodingError.Failed,
                     ErrorMessage = ex.Message
                 };
             }

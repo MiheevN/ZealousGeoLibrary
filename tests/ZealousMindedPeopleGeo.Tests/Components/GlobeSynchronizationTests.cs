@@ -139,6 +139,40 @@ public class GlobeSynchronizationTests : BunitContext
         Assert.Equal("{0} точек", options.Texts["clusterMany"]);
     }
 
+    [Theory]
+    [InlineData("ru", "Браузер не может показать 3D-глобус: WebGL выключен")]
+    [InlineData("en", "Your browser cannot show the 3D globe: WebGL is turned off")]
+    public void Viewer_WithoutWebGl_ExplainsWhyInTheUserLanguage(string language, string message)
+    {
+        using var culture = new CultureScope(language);
+        _mediator.Failures["globe-nogl"] = GlobeInitializationError.WebGlUnavailable;
+
+        var globe = Render<CommunityGlobeViewer>(p => p.Add(c => c.GlobeId, "nogl").Add(c => c.DataContainerId, ContainerId));
+
+        globe.WaitForAssertion(() => Assert.StartsWith(message, globe.Find(".globe-error-message").TextContent));
+        Assert.DoesNotContain("technical detail", globe.Markup);
+        // Повтор не поможет, пока браузер не умеет WebGL.
+        Assert.Empty(globe.FindAll(".globe-error-overlay button"));
+    }
+
+    [Fact]
+    public void Viewer_ScriptsDidNotLoad_RetryStartsTheGlobe()
+    {
+        using var culture = new CultureScope("ru");
+        _mediator.Failures["globe-retry"] = GlobeInitializationError.ScriptsUnavailable;
+
+        var globe = Render<CommunityGlobeViewer>(p => p.Add(c => c.GlobeId, "retry").Add(c => c.DataContainerId, ContainerId));
+        globe.WaitForAssertion(() => Assert.Equal(
+            "Не удалось загрузить глобус. Проверьте соединение и попробуйте ещё раз.",
+            globe.Find(".globe-error-message").TextContent));
+
+        _mediator.Failures.TryRemove("globe-retry", out _);
+        globe.Find(".globe-error-overlay button").Click();
+
+        globe.WaitForAssertion(() => Assert.True(_mediator.IsReady("globe-retry")), TimeSpan.FromSeconds(5));
+        globe.WaitForAssertion(() => Assert.Empty(globe.FindAll(".globe-error-overlay")));
+    }
+
     private IGeoDataContainer Container(string id) => _containers.GetOrCreateContainer(id);
 
     private int ContainerSubscriberCount() =>
@@ -189,6 +223,9 @@ public class GlobeSynchronizationTests : BunitContext
 
         public ConcurrentDictionary<string, GlobeOptions> Options { get; } = new();
 
+        /// <summary>Глобусы, которые не запустятся, и почему.</summary>
+        public ConcurrentDictionary<string, GlobeInitializationError> Failures { get; } = new();
+
         public bool IsReady(string containerId) => _ready.ContainsKey(containerId);
 
         public int AddPointsCalls(string containerId) => _points.TryGetValue(containerId, out var calls) ? calls.Count : 0;
@@ -205,6 +242,10 @@ public class GlobeSynchronizationTests : BunitContext
         public async Task<GlobeInitializationResult> InitializeGlobeAsync(string containerId, GlobeOptions options)
         {
             Options[containerId] = options;
+            if (Failures.TryGetValue(containerId, out var failure))
+            {
+                return new GlobeInitializationResult { Success = false, Error = failure, ErrorMessage = "technical detail" };
+            }
             if (_callbacks.TryGetValue(containerId, out var callback))
             {
                 await callback(new GlobeState { IsInitialized = true });

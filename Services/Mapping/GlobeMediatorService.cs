@@ -50,6 +50,7 @@ public class GlobeMediatorService : IGlobeMediator
             return new GlobeInitializationResult
             {
                 Success = false,
+                Error = GlobeInitializationError.Unknown,
                 ErrorMessage = ex.Message
             };
         }

@@ -241,6 +241,27 @@ public class GlobeOptions
 }
 
 /// <summary>
+/// Почему 3D-глобус не запустился.
+/// </summary>
+public enum GlobeInitializationError
+{
+    /// <summary>Глобус запустился.</summary>
+    None,
+
+    /// <summary>Браузер не поддерживает WebGL или он выключен (нет аппаратного ускорения).</summary>
+    WebGlUnavailable,
+
+    /// <summary>Скрипты глобуса (Three.js) не загрузились.</summary>
+    ScriptsUnavailable,
+
+    /// <summary>На странице нет элемента, в котором рисуется глобус.</summary>
+    ContainerNotFound,
+
+    /// <summary>Прочие ошибки; подробности в <see cref="GlobeInitializationResult.ErrorMessage"/>.</summary>
+    Unknown
+}
+
+/// <summary>
 /// Результат инициализации глобуса
 /// </summary>
 public class GlobeInitializationResult
@@ -251,9 +272,15 @@ public class GlobeInitializationResult
     public bool Success { get; set; }
 
     /// <summary>
-    /// Сообщение об ошибке
+    /// Техническое описание ошибки для журнала (на английском). Пользователю показывайте
+    /// текст по <see cref="Error"/>.
     /// </summary>
     public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// Причина неудачи; <see cref="GlobeInitializationError.None"/> при успехе.
+    /// </summary>
+    public GlobeInitializationError Error { get; set; }
 
     /// <summary>
     /// Идентификатор глобуса

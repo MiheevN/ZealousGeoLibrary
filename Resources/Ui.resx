@@ -82,11 +82,13 @@
     <value>Please enter an address</value>
   </data>
   <data name="FormAddressNotFound" xml:space="preserve">
-    <value>Could not find the address: {0}</value>
-    <comment>{0} — ответ сервиса геокодирования</comment>
+    <value>Could not find this address. Check the spelling or add the city and country.</value>
   </data>
   <data name="FormGeocodingFailed" xml:space="preserve">
     <value>Could not look up the address. Please try again.</value>
+  </data>
+  <data name="FormGeocodingUnavailable" xml:space="preserve">
+    <value>Address lookup is not available on this site. Contact the site administrator.</value>
   </data>
   <data name="ValidationNameRequired" xml:space="preserve">
     <value>Name is required</value>
@@ -273,20 +275,26 @@
     <value>Retry</value>
   </data>
   <data name="GlobeBadSize" xml:space="preserve">
-    <value>Invalid container size: Width={0}, Height={1}</value>
+    <value>The globe size must be greater than zero: Width={0}, Height={1}</value>
     <comment>{0}, {1} — параметры Width и Height</comment>
   </data>
-  <data name="GlobeInitFailed" xml:space="preserve">
-    <value>Initialization failed: {0}</value>
-    <comment>{0} — текст исключения</comment>
+  <data name="GlobeErrorWebGl" xml:space="preserve">
+    <value>Your browser cannot show the 3D globe: WebGL is turned off or not supported. Turn on hardware acceleration in the browser settings or open the page in another browser.</value>
+  </data>
+  <data name="GlobeErrorScripts" xml:space="preserve">
+    <value>Could not load the globe. Check your connection and try again.</value>
+  </data>
+  <data name="GlobeErrorContainer" xml:space="preserve">
+    <value>The globe has nowhere to draw: its element is missing from the page. Reload the page.</value>
+  </data>
+  <data name="GlobeErrorUnknown" xml:space="preserve">
+    <value>Could not start the 3D globe. Please try again.</value>
   </data>
   <data name="GlobeAddPointsFailed" xml:space="preserve">
-    <value>Could not add points: {0}</value>
-    <comment>{0} — текст ошибки</comment>
+    <value>Could not show the points on the globe. Please try again.</value>
   </data>
   <data name="GlobeLoadPointsFailed" xml:space="preserve">
-    <value>Could not load points: {0}</value>
-    <comment>{0} — текст ошибки</comment>
+    <value>Could not load the points. Please try again.</value>
   </data>
   <data name="GlobeRotation" xml:space="preserve">
     <value>Rotation</value>
@@ -407,8 +415,7 @@
     <value>Centered on the form coordinates</value>
   </data>
   <data name="ManagerCenterFailed" xml:space="preserve">
-    <value>Could not center: {0}</value>
-    <comment>{0} — текст ошибки</comment>
+    <value>Could not turn the globe to these coordinates. Please try again.</value>
   </data>
   <data name="ManagerEnterName" xml:space="preserve">
     <value>Enter a participant name</value>

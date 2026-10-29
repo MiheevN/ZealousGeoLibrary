@@ -25,10 +25,13 @@
     {
         <div class="globe-error-overlay text-center p-4">
             <div class="fs-1 mb-3">⚠️</div>
-            <div class="text-danger mb-3">@_errorMessage</div>
-            <button class="btn btn-primary" @onclick="RetryInitializationAsync">
-                @Ui.GlobeRetry
-            </button>
+            <div class="globe-error-message mb-3" role="alert">@_errorMessage</div>
+            @if (_canRetry)
+            {
+                <button class="btn btn-primary" @onclick="RetryAsync">
+                    @Ui.GlobeRetry
+                </button>
+            }
         </div>
     }
 </div>
@@ -74,6 +77,8 @@
 
     private bool _isInitializing;
     private string? _errorMessage;
+    // Повтор бесполезен, если браузер не умеет WebGL: кнопку не показываем.
+    private bool _canRetry = true;
     private bool _isRendering;
     private bool _isDisposed;
 
@@ -176,13 +181,15 @@
             }
             else
             {
-                _errorMessage = result.ErrorMessage;
-                Logger.LogWarning("Globe {GlobeId} failed to initialize: {Error}", GlobeId, _errorMessage);
+                // Пользователь видит понятную причину на своём языке, подробности — в журнале.
+                _errorMessage = Ui.GlobeInitializationError(result.Error);
+                _canRetry = result.Error != GlobeInitializationError.WebGlUnavailable;
+                Logger.LogWarning("Globe {GlobeId} failed to initialize ({Reason}): {Error}", GlobeId, result.Error, result.ErrorMessage);
             }
         }
         catch (Exception ex)
         {
-            _errorMessage = Ui.GlobeInitFailed(ex.Message);
+            _errorMessage = Ui.GlobeInitializationError(GlobeInitializationError.Unknown);
             Logger.LogError(ex, "Globe {GlobeId} failed to initialize", GlobeId);
         }
         finally
@@ -246,20 +253,28 @@
                 else
                 {
                     Logger.LogWarning("Globe {GlobeId}: points not added: {Error}", GlobeId, result.ErrorMessage);
-                    _errorMessage = Ui.GlobeAddPointsFailed(result.ErrorMessage);
+                    _errorMessage = Ui.GlobeAddPointsFailed;
                 }
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Globe {GlobeId}: failed to load points", GlobeId);
-            _errorMessage = Ui.GlobeLoadPointsFailed(ex.Message);
+            _errorMessage = Ui.GlobeLoadPointsFailed;
         }
     }
 
-    private async Task RetryInitializationAsync()
+    private async Task RetryAsync()
     {
         _errorMessage = null;
+        _canRetry = true;
+        if (State.IsInitialized)
+        {
+            // Глобус работает, не удалось только показать точки.
+            await LoadParticipantsAsync();
+            return;
+        }
+
         await InitializeGlobeAsync();
     }
 

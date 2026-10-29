@@ -43,9 +43,33 @@ public class GeocodingResult
     public bool Success { get; set; }
 
     /// <summary>
-    /// Сообщение об ошибке
+    /// Техническое описание ошибки для журнала (на английском). Пользователю показывайте
+    /// текст по <see cref="Error"/>.
     /// </summary>
     public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// Причина неудачи; <see cref="GeocodingError.None"/> при успехе.
+    /// </summary>
+    public GeocodingError Error { get; set; }
+}
+
+/// <summary>
+/// Почему адрес не удалось превратить в координаты.
+/// </summary>
+public enum GeocodingError
+{
+    /// <summary>Адрес найден.</summary>
+    None,
+
+    /// <summary>Сервис ответил, но такого адреса не знает.</summary>
+    NotFound,
+
+    /// <summary>Геокодирование выключено или не настроено (нет ключа API) — дело администратора сайта.</summary>
+    Unavailable,
+
+    /// <summary>Сбой сети или сервиса; можно попробовать ещё раз.</summary>
+    Failed
 }
 
 /// <summary>
