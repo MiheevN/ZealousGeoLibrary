@@ -60,7 +60,8 @@ public class GlobeOptions
 (`TextureQuality = "auto"`; 8K-текстура занимает в видеопамяти около 180 МБ), рельеф,
 шероховатость (суша матовая, океан блестит) и маска облаков — 4K. Свои текстуры задаются
 в `EarthTextureUrl`, `NormalTextureUrl`, `RoughnessTextureUrl` и `CloudsTextureUrl`; маска
-облаков — белые облака на чёрном.
+облаков — белые облака на чёрном. Другую планету целиком задаёт `GlobeOptions.Planet`
+(см. [Своя планета](components.md#своя-планета)).
 
 ## Сервисы
 

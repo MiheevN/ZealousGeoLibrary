@@ -180,7 +180,7 @@ test('night lights load only when day and night is on', async () => {
     const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
 
     assert.match(source, /dayNightMode: 'off'/, 'day and night is opt-in');
-    assert.match(source, /if \(enabled && this\.nightUniforms && !this\.nightUniforms\.nightMap\.value\)/);
+    assert.match(source, /if \(enabled && nightUrl && this\.nightUniforms && !this\.nightUniforms\.nightMap\.value\)/);
     await access(new URL('../wwwroot/assets/earth/4k_earth_nightmap.jpg', import.meta.url));
     await access(new URL('../wwwroot/assets/earth/8k_earth_nightmap.jpg', import.meta.url));
 });

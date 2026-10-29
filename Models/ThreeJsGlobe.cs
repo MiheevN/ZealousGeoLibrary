@@ -206,6 +206,12 @@ public class GlobeOptions
     public double NightLightsIntensity { get; set; } = 1.6;
 
     /// <summary>
+    /// Своя планета вместо Земли (см. <see cref="GlobePlanet"/>). Пусто — Земля. Задана —
+    /// текстуры Земли (<see cref="EarthTextureUrl"/>, облака, огни, рельеф) не используются.
+    /// </summary>
+    public GlobePlanet? Planet { get; set; }
+
+    /// <summary>
     /// Цвет точек стран
     /// </summary>
     public string CountryPointColor { get; set; } = "#ffffff";
@@ -285,6 +291,45 @@ public class GlobeOptions
     /// Цвет дополнительного атмосферного свечения
     /// </summary>
     public string AtmosphereLightColor { get; set; } = "#8fdcff";
+}
+
+/// <summary>
+/// Своя планета на 3D-глобусе: Марс, Луна, выдуманный мир. Все карты — в равнопромежуточной
+/// проекции (ширина вдвое больше высоты, слева долгота −180°, сверху северный полюс), как
+/// текстуры Земли: тогда точки встают по тем же широте и долготе. От Земли ничего не
+/// подмешивается: каких карт нет, тех слоёв нет и на глобусе.
+/// </summary>
+public class GlobePlanet
+{
+    /// <summary>Карта цвета поверхности (sRGB). Без неё глобус остаётся Землёй.</summary>
+    public string DayTextureUrl { get; set; } = string.Empty;
+
+    /// <summary>Карта нормалей (рельеф). Пусто — гладкая поверхность.</summary>
+    public string? NormalTextureUrl { get; set; }
+
+    /// <summary>
+    /// Карта шероховатости: светлое — матовое, тёмное — блестящее. Пусто — вся поверхность
+    /// с шероховатостью <see cref="Roughness"/>.
+    /// </summary>
+    public string? RoughnessTextureUrl { get; set; }
+
+    /// <summary>Шероховатость без карты, от 0 (зеркало) до 1 (совсем матовая).</summary>
+    public double Roughness { get; set; } = 0.9;
+
+    /// <summary>Маска облаков: белое — облако, чёрное — чистое небо. Пусто — облаков нет.</summary>
+    public string? CloudsTextureUrl { get; set; }
+
+    /// <summary>
+    /// Карта огней ночной стороны для <see cref="GlobeDayNightMode.RealTime"/>. Пусто — ночная
+    /// сторона просто тёмная.
+    /// </summary>
+    public string? NightTextureUrl { get; set; }
+
+    /// <summary>Цвет свечения атмосферы (CSS). Пусто — атмосферы нет.</summary>
+    public string? AtmosphereColor { get; set; }
+
+    /// <summary>Яркость свечения атмосферы, от 0 до 1.</summary>
+    public double AtmosphereOpacity { get; set; } = 0.7;
 }
 
 /// <summary>

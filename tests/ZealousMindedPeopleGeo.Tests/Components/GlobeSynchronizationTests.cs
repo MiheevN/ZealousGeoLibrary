@@ -168,6 +168,24 @@ public class GlobeSynchronizationTests : BunitContext
         Assert.Equal(GlobeDayNightMode.Off, _mediator.Options["globe-plain"].DayNightMode);
     }
 
+    [Fact]
+    public void Viewer_PassesOwnPlanetToTheScript()
+    {
+        var mars = new GlobePlanet { DayTextureUrl = "/maps/mars.jpg", AtmosphereColor = "#e8a070", AtmosphereOpacity = 0.3 };
+        Render<CommunityGlobeComponent>(p => p
+            .Add(c => c.GlobeId, "mars")
+            .Add(c => c.DataContainerId, ContainerId)
+            .Add(c => c.Planet, mars));
+
+        WaitForAssertion(() => Assert.True(_mediator.IsReady("globe-mars")), TimeSpan.FromSeconds(5));
+        Assert.Same(mars, _mediator.Options["globe-mars"].Planet);
+
+        // Скрипт ждёт planet.dayTextureUrl и т. д. (applyPlanetOptions).
+        var json = System.Text.Json.JsonSerializer.Serialize(_mediator.Options["globe-mars"], new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.Contains("\"planet\":{\"dayTextureUrl\":\"/maps/mars.jpg\"", json);
+        Assert.Contains("\"atmosphereColor\":\"#e8a070\"", json);
+    }
+
     [Theory]
     [InlineData("ru", "Браузер не может показать 3D-глобус: WebGL выключен")]
     [InlineData("en", "Your browser cannot show the 3D globe: WebGL is turned off")]

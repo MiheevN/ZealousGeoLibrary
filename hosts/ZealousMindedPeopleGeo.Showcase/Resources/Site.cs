@@ -75,6 +75,11 @@ public static class Site
     public static string LightingDayDescription => Text(nameof(LightingDayDescription));
     public static string LightingRealTime => Text(nameof(LightingRealTime));
     public static string LightingRealTimeDescription => Text(nameof(LightingRealTimeDescription));
+    public static string Planet => Text(nameof(Planet));
+    public static string PlanetEarth => Text(nameof(PlanetEarth));
+    public static string PlanetEarthDescription => Text(nameof(PlanetEarthDescription));
+    public static string PlanetDemo => Text(nameof(PlanetDemo));
+    public static string PlanetDemoDescription => Text(nameof(PlanetDemoDescription));
     public static string NoCategory => Text(nameof(NoCategory));
     public static string Points => Text(nameof(Points));
 

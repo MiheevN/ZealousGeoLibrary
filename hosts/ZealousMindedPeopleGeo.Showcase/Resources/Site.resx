@@ -214,6 +214,21 @@
   <data name="LightingRealTimeDescription" xml:space="preserve">
     <value>The real sun position; city lights on the night side</value>
   </data>
+  <data name="Planet" xml:space="preserve">
+    <value>Planet</value>
+  </data>
+  <data name="PlanetEarth" xml:space="preserve">
+    <value>Earth</value>
+  </data>
+  <data name="PlanetEarthDescription" xml:space="preserve">
+    <value>Built-in textures: day, night, relief, clouds</value>
+  </data>
+  <data name="PlanetDemo" xml:space="preserve">
+    <value>Made-up planet</value>
+  </data>
+  <data name="PlanetDemoDescription" xml:space="preserve">
+    <value>Your own GlobePlanet: one surface map and an orange atmosphere, no clouds or city lights</value>
+  </data>
   <data name="NoCategory" xml:space="preserve">
     <value>No category</value>
   </data>

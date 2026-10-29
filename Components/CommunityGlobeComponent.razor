@@ -5,7 +5,8 @@
     <CommunityGlobeViewer GlobeId="@GlobeId" Width="@Width" Height="@Height"
                           DataContainerId="@DataContainerId" CategoryColors="@CategoryColors"
                           ClusterPoints="@ClusterPoints" ClusterRadius="@ClusterRadius"
-                          DayNightMode="@DayNightMode" DayNightTime="@DayNightTime" />
+                          DayNightMode="@DayNightMode" DayNightTime="@DayNightTime"
+                          Planet="@Planet" />
     
     @if (ShowControls)
     {
@@ -53,4 +54,7 @@
 
     /// <summary>Момент для границы дня и ночи (см. <see cref="CommunityGlobeViewer.DayNightTime"/>).</summary>
     [Parameter] public DateTimeOffset? DayNightTime { get; set; }
+
+    /// <summary>Своя планета вместо Земли (см. <see cref="CommunityGlobeViewer.Planet"/>).</summary>
+    [Parameter] public GlobePlanet? Planet { get; set; }
 }
