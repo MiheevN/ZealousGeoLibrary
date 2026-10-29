@@ -150,6 +150,10 @@
                 <div id="atmosphereSettings" class="accordion-collapse collapse @(IsOpen("atmosphereSettings") ? "show" : null)">
                     <div class="accordion-body">
                         <div class="mb-2 form-check">
+                            <input type="checkbox" class="form-check-input" id="dayNight" @bind="Settings.DayNight" @bind:after="ApplySettingsAsync" />
+                            <label class="form-check-label" for="dayNight">@Ui.SettingsDayNight</label>
+                        </div>
+                        <div class="mb-2 form-check">
                             <input type="checkbox" class="form-check-input" id="enableAtmosphere" @bind="Settings.EnableAtmosphereGlow" />
                             <label class="form-check-label" for="enableAtmosphere">@Ui.SettingsEnableAtmosphere</label>
                         </div>
@@ -375,5 +379,8 @@
         public string HemisphereGroundColor { get; set; } = "#253042";
         public double AtmosphereLightIntensity { get; set; }
         public string AtmosphereLightColor { get; set; } = "#8fdcff";
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool DayNight { get; set; }
+        public string DayNightMode => DayNight ? "realtime" : "off";
     }
 }

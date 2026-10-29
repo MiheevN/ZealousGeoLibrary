@@ -68,6 +68,17 @@
     /// </summary>
     [Parameter] public int ClusterRadius { get; set; } = 40;
 
+    /// <summary>
+    /// День и ночь: <see cref="GlobeDayNightMode.RealTime"/> показывает, где сейчас день, а где
+    /// ночь с огнями городов. По умолчанию выключено — видимая сторона освещена.
+    /// </summary>
+    [Parameter] public GlobeDayNightMode DayNightMode { get; set; } = GlobeDayNightMode.Off;
+
+    /// <summary>
+    /// Момент, для которого рисуется граница дня и ночи. Пусто — сейчас.
+    /// </summary>
+    [Parameter] public DateTimeOffset? DayNightTime { get; set; }
+
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
     private int SafeWidth => Math.Max(Width, 1);
@@ -170,6 +181,8 @@
                 Height = Height,
                 ClusterPoints = ClusterPoints,
                 ClusterRadius = Math.Clamp(ClusterRadius, 0, 200),
+                DayNightMode = DayNightMode,
+                DayNightTime = DayNightTime,
                 // Подписи для экранного диктора — на языке пользователя, как и разметка.
                 Texts = Ui.GlobeScriptTexts(),
                 Locale = System.Globalization.CultureInfo.CurrentUICulture.Name

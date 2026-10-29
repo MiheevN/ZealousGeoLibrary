@@ -397,6 +397,27 @@ initializeCommunityMap('', 20, 0, 1, 'map', {
 опции `clusterPoints` и `clusterRadius`. `participantCount` в состоянии глобуса —
 по-прежнему число точек, а не маркеров.
 
+При открытии глобус поворачивается к своим точкам (к их среднему направлению); если точки
+разбросаны по всему миру, остаётся вид по умолчанию. Туда же возвращает клавиша Home.
+
+#### День и ночь
+
+По умолчанию солнце светит со стороны зрителя, и видимая сторона всегда днём. С
+`DayNightMode="GlobeDayNightMode.RealTime"` солнце стоит там, где оно сейчас: ночная сторона
+тёмная, с огнями городов, атмосфера над ней гаснет, а граница дня и ночи сдвигается сама.
+`DayNightTime` фиксирует момент, например для иллюстрации к событию:
+
+```razor
+<CommunityGlobeViewer GlobeId="live" DataContainerId="offices" DayNightMode="GlobeDayNightMode.RealTime" />
+<CommunityGlobeViewer GlobeId="solstice" DataContainerId="offices"
+                      DayNightMode="GlobeDayNightMode.RealTime"
+                      DayNightTime="@(new DateTimeOffset(2025, 6, 21, 12, 0, 0, TimeSpan.Zero))" />
+```
+
+Карта ночных огней (8K на компьютере, 4K на телефоне) загружается, только когда режим
+включён. Яркость огней — `GlobeOptions.NightLightsIntensity`, своя карта — `NightTextureUrl`.
+В `CommunityGlobeSettings` режим включается галочкой «День и ночь».
+
 На телефоне глобус вращают пальцем, а приближают щипком: раздвинутые вдвое пальцы вдвое
 приближают поверхность, так что щипок не проскакивает к самой земле. Быстрый вертикальный
 взмах по глобусу прокручивает страницу (с инерцией), а медленное движение и взмах вбок
@@ -660,7 +681,7 @@ public class GlobeOptions
     public int Height { get; set; } = 600;
     public string BackgroundColor { get; set; } = "#000011";
     public bool AutoRotate { get; set; } = true;
-    public double AutoRotateSpeed { get; set; } = 0.5;
+    public double AutoRotateSpeed { get; set; } = 0.1;      // радиан в секунду
     public bool EnableMouseControls { get; set; } = true;
     public bool EnableZoom { get; set; } = true;
     public double MinZoom { get; set; } = 1.03;

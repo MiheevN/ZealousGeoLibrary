@@ -102,7 +102,7 @@ public class GlobeOptions
     /// <summary>
     /// Скорость автоповорота
     /// </summary>
-    public double AutoRotateSpeed { get; set; } = 0.5;
+    public double AutoRotateSpeed { get; set; } = 0.1;
 
     /// <summary>
     /// Включить управление мышью
@@ -181,6 +181,29 @@ public class GlobeOptions
     /// Звёзды на фоне
     /// </summary>
     public bool EnableStars { get; set; } = true;
+
+    /// <summary>
+    /// День и ночь: <see cref="GlobeDayNightMode.Off"/> — освещена видимая сторона;
+    /// <see cref="GlobeDayNightMode.RealTime"/> — солнце там, где оно сейчас, ночная сторона
+    /// тёмная, с огнями городов.
+    /// </summary>
+    public GlobeDayNightMode DayNightMode { get; set; } = GlobeDayNightMode.Off;
+
+    /// <summary>
+    /// Момент для <see cref="GlobeDayNightMode.RealTime"/>. Пусто — текущее время: граница
+    /// дня и ночи сдвигается сама.
+    /// </summary>
+    public DateTimeOffset? DayNightTime { get; set; }
+
+    /// <summary>
+    /// Путь к своей карте ночных огней. Пусто — встроенная.
+    /// </summary>
+    public string? NightTextureUrl { get; set; }
+
+    /// <summary>
+    /// Яркость огней городов на ночной стороне
+    /// </summary>
+    public double NightLightsIntensity { get; set; } = 1.6;
 
     /// <summary>
     /// Цвет точек стран
@@ -262,6 +285,19 @@ public class GlobeOptions
     /// Цвет дополнительного атмосферного свечения
     /// </summary>
     public string AtmosphereLightColor { get; set; } = "#8fdcff";
+}
+
+/// <summary>
+/// Как освещён 3D-глобус.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<GlobeDayNightMode>))]
+public enum GlobeDayNightMode
+{
+    /// <summary>Солнце светит со стороны зрителя: видимая сторона всегда днём.</summary>
+    Off,
+
+    /// <summary>Солнце стоит там, где оно в заданный момент; на ночной стороне — огни городов.</summary>
+    RealTime
 }
 
 /// <summary>

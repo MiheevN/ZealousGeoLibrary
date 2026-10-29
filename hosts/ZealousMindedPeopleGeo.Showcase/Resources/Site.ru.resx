@@ -189,6 +189,21 @@
   <data name="Categories" xml:space="preserve">
     <value>Категории</value>
   </data>
+  <data name="Lighting" xml:space="preserve">
+    <value>Освещение</value>
+  </data>
+  <data name="LightingDay" xml:space="preserve">
+    <value>Всегда день</value>
+  </data>
+  <data name="LightingDayDescription" xml:space="preserve">
+    <value>Солнце светит со стороны зрителя</value>
+  </data>
+  <data name="LightingRealTime" xml:space="preserve">
+    <value>День и ночь сейчас</value>
+  </data>
+  <data name="LightingRealTimeDescription" xml:space="preserve">
+    <value>Солнце там, где оно сейчас; на ночной стороне — огни городов</value>
+  </data>
   <data name="NoCategory" xml:space="preserve">
     <value>Без категории</value>
   </data>

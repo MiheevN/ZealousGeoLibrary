@@ -93,6 +93,8 @@ function createGlobe(cameraDistance, options = {}) {
     const globe = Object.create(globe3d.CommunityGlobe.prototype);
     globe.options = { minZoom: 1.03, maxZoom: 4, cameraSurfaceClearance: 0.02, earthRadius: 1, clusterPoints: true, clusterRadius: 40, ...options };
     globe.camera = { fov: 75, position: { length: () => cameraDistance } };
+    // Камера-заглушка не двигается: начальный поворот к точкам здесь не проверяется.
+    globe.initialViewChosen = true;
     globe.container = { clientWidth: 800, clientHeight: 600 };
     globe.state = { isInitialized: true, participantCount: 0 };
     globe.pointMetadata = new Map();

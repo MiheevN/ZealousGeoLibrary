@@ -139,6 +139,35 @@ public class GlobeSynchronizationTests : BunitContext
         Assert.Equal("{0} точек", options.Texts["clusterMany"]);
     }
 
+    [Fact]
+    public void Viewer_PassesDayAndNightToTheScript()
+    {
+        var moment = new DateTimeOffset(2024, 6, 20, 20, 51, 0, TimeSpan.Zero);
+        Render<CommunityGlobeViewer>(p => p
+            .Add(c => c.GlobeId, "daynight")
+            .Add(c => c.DataContainerId, ContainerId)
+            .Add(c => c.DayNightMode, GlobeDayNightMode.RealTime)
+            .Add(c => c.DayNightTime, moment));
+
+        WaitForAssertion(() => Assert.True(_mediator.IsReady("globe-daynight")), TimeSpan.FromSeconds(5));
+        var options = _mediator.Options["globe-daynight"];
+        Assert.Equal(GlobeDayNightMode.RealTime, options.DayNightMode);
+        Assert.Equal(moment, options.DayNightTime);
+
+        // Скрипт получает режим строкой, как его ждёт normalizeDayNightMode.
+        var json = System.Text.Json.JsonSerializer.Serialize(options, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.Contains("\"dayNightMode\":\"RealTime\"", json);
+    }
+
+    [Fact]
+    public void Viewer_DayAndNightIsOffByDefault()
+    {
+        Render<CommunityGlobeViewer>(p => p.Add(c => c.GlobeId, "plain").Add(c => c.DataContainerId, ContainerId));
+
+        WaitForAssertion(() => Assert.True(_mediator.IsReady("globe-plain")), TimeSpan.FromSeconds(5));
+        Assert.Equal(GlobeDayNightMode.Off, _mediator.Options["globe-plain"].DayNightMode);
+    }
+
     [Theory]
     [InlineData("ru", "Браузер не может показать 3D-глобус: WebGL выключен")]
     [InlineData("en", "Your browser cannot show the 3D globe: WebGL is turned off")]

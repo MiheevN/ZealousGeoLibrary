@@ -368,6 +368,68 @@ export function sunDirectionFromCamera(cameraPosition, offsetDegrees = 0) {
 }
 
 /**
+ * Точка, над которой Солнце стоит в зените, в заданный момент (точность — доли градуса,
+ * для границы дня и ночи на глобусе этого достаточно).
+ * @param {Date} date
+ * @returns {{latitude: number, longitude: number}}
+ */
+export function subsolarPoint(date) {
+    const DEG = Math.PI / 180;
+    // Дни от эпохи J2000.0 (1 января 2000, 12:00 UT).
+    const n = date.getTime() / 86400000 + 2440587.5 - 2451545.0;
+    const meanLongitude = 280.460 + 0.9856474 * n;
+    const meanAnomaly = (357.528 + 0.9856003 * n) * DEG;
+    const eclipticLongitude = (meanLongitude + 1.915 * Math.sin(meanAnomaly) + 0.020 * Math.sin(2 * meanAnomaly)) * DEG;
+    const obliquity = (23.439 - 0.0000004 * n) * DEG;
+
+    const declination = Math.asin(Math.sin(obliquity) * Math.sin(eclipticLongitude));
+    const rightAscension = Math.atan2(Math.cos(obliquity) * Math.sin(eclipticLongitude), Math.cos(eclipticLongitude));
+    const siderealTime = (280.46061837 + 360.98564736629 * n) * DEG;
+
+    let longitude = (rightAscension - siderealTime) / DEG;
+    longitude = ((longitude + 180) % 360 + 360) % 360 - 180;
+    return { latitude: declination / DEG, longitude };
+}
+
+/**
+ * Куда повернуть глобус при открытии, чтобы точки были на виду: среднее направление на точки.
+ * Если точки раскиданы по всему миру и среднего направления нет, возвращает null.
+ * Широта ограничена ±60°: на шар не смотрят с полюса.
+ * @param {Array<{latitude: number, longitude: number}>} points
+ * @returns {{latitude: number, longitude: number} | null}
+ */
+export function pointsViewCenter(points) {
+    const DEG = Math.PI / 180;
+    let x = 0, y = 0, z = 0, count = 0;
+    for (const point of points ?? []) {
+        const latitude = Number(point?.latitude);
+        const longitude = Number(point?.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+        x += Math.cos(latitude * DEG) * Math.cos(longitude * DEG);
+        y += Math.cos(latitude * DEG) * Math.sin(longitude * DEG);
+        z += Math.sin(latitude * DEG);
+        count++;
+    }
+    if (count === 0) return null;
+    const length = Math.hypot(x, y, z) / count;
+    if (length < 0.3) return null;
+    const latitude = Math.atan2(z, Math.hypot(x, y)) / DEG;
+    return {
+        latitude: Math.max(-60, Math.min(60, latitude)),
+        longitude: Math.atan2(y, x) / DEG
+    };
+}
+
+/**
+ * Режим дня и ночи из настроек: 'realtime' — солнце там, где оно сейчас (или в dayNightTime),
+ * ночная сторона с огнями городов; иначе — 'off', освещена видимая сторона.
+ * @param {unknown} mode
+ */
+export function normalizeDayNightMode(mode) {
+    return String(mode ?? '').replace(/[^a-z]/gi, '').toLowerCase() === 'realtime' ? 'realtime' : 'off';
+}
+
+/**
  * Звёзды фона: детерминированные точки на сфере, чтобы картинка не менялась от загрузки к загрузке.
  * Яркость разная: большинство звёзд тусклые, редкие — яркие, как на настоящем небе.
  * @param {number} count
@@ -542,6 +604,13 @@ class CommunityGlobe {
             enableAtmosphereGlow: true,
             enableStars: true,
             starCount: 1500,
+            // День и ночь: 'off' — освещена видимая сторона; 'realtime' — солнце стоит там, где
+            // оно сейчас, ночная сторона тёмная, с огнями городов.
+            dayNightMode: 'off',
+            // Момент для 'realtime' (ISO 8601). Пусто — текущее время, граница сдвигается сама.
+            dayNightTime: null,
+            nightTextureUrl: null,
+            nightLightsIntensity: 1.6,
             countryPointColor: '#ffffff',
             countryPointSize: 0.1,
             countryLineColor: '#444444',
@@ -663,6 +732,7 @@ class CommunityGlobe {
             this.createClouds();
             this.createStarfield();
             this.setupLighting();
+            this.applyDayNightMode();
             this.setupControls();
             this.setupEventListeners();
 
@@ -903,11 +973,68 @@ class CommunityGlobe {
             roughness: 1,
             metalness: 0
         });
+        this.setupNightLights(earthMaterial);
 
         const earth = new THREE.Mesh(earthGeometry, earthMaterial);
         earth.receiveShadow = true;
         this.earthGroup.add(earth);
         this.earthRotation = 0;
+    }
+
+    /**
+     * Огни городов на ночной стороне. Ночная текстура грузится, только когда включён режим
+     * дня и ночи; яркость зависит от того, насколько точка Земли отвёрнута от солнца.
+     */
+    setupNightLights(material) {
+        this.nightUniforms = {
+            nightMap: { value: null },
+            nightStrength: { value: 0 },
+            sunDirectionView: { value: new THREE.Vector3(0, 0, 1) }
+        };
+        material.onBeforeCompile = shader => {
+            Object.assign(shader.uniforms, this.nightUniforms);
+            shader.fragmentShader = shader.fragmentShader
+                .replace('#include <common>', `#include <common>
+                    uniform sampler2D nightMap;
+                    uniform float nightStrength;
+                    uniform vec3 sunDirectionView;`)
+                .replace('#include <opaque_fragment>', `
+                    if (nightStrength > 0.0) {
+                        float sunAmount = dot(normalize(nonPerturbedNormal), normalize(sunDirectionView));
+                        float night = 1.0 - smoothstep(-0.12, 0.18, sunAmount);
+                        outgoingLight += texture2D(nightMap, vMapUv).rgb * night * nightStrength;
+                    }
+                    #include <opaque_fragment>`);
+        };
+        material.customProgramCacheKey = () => 'zealous-geo-earth-night';
+        this.earthMaterial = material;
+    }
+
+    isDayNightEnabled() {
+        return normalizeDayNightMode(this.options.dayNightMode) === 'realtime';
+    }
+
+    applyDayNightMode() {
+        const enabled = this.isDayNightEnabled();
+        if (enabled && this.nightUniforms && !this.nightUniforms.nightMap.value) {
+            const url = this.options.nightTextureUrl
+                || `${EARTH_ASSETS}${this.textureQuality === 'high' ? '8k' : '4k'}_earth_nightmap.jpg`;
+            const texture = new THREE.TextureLoader().load(url);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = this.renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
+            this.nightUniforms.nightMap.value = texture;
+        }
+        if (this.nightUniforms) {
+            this.nightUniforms.nightStrength.value = enabled ? Math.max(0, Number(this.options.nightLightsIntensity) || 0) : 0;
+        }
+        // Ночью нечему подсвечивать тёмную сторону: заливающий свет почти гаснет.
+        if (this.ambientLight) {
+            this.ambientLight.intensity = Math.max(0, Number(this.options.ambientLightIntensity) || 0) * (enabled ? 0.15 : 1);
+        }
+        if (this.hemisphereLight) {
+            this.hemisphereLight.intensity = enabled ? 0 : Math.max(0, Number(this.options.hemisphereLightIntensity) || 0);
+        }
+        this.syncSunLightWithCamera();
     }
 
     resolveEarthTextureUrl() {
@@ -928,6 +1055,13 @@ class CommunityGlobe {
     createAtmosphere() {
         if (!this.options.enableAtmosphereGlow) return;
 
+        // Общие для обеих оболочек: где солнце и включён ли режим дня и ночи.
+        this.atmosphereSun = this.atmosphereSun ?? { value: new THREE.Vector3(0, 0, 1) };
+        this.atmosphereDayNight = this.atmosphereDayNight ?? { value: 0 };
+        // На ночной стороне атмосфера почти не светится.
+        const sunSide = `
+                        float sunSide = mix(1.0, mix(0.08, 1.0, smoothstep(-0.3, 0.35, dot(normalize(vNormal), normalize(sunDirectionView)))), dayNight);`;
+
         // Свечение по краю: снаружи — ореол, тающий в космос, внутри — голубая дымка у горизонта.
         const vertexShader = `
             varying vec3 vNormal;
@@ -939,6 +1073,8 @@ class CommunityGlobe {
                 gl_Position = projectionMatrix * viewPosition;
             }`;
         const uniforms = () => ({
+            sunDirectionView: this.atmosphereSun,
+            dayNight: this.atmosphereDayNight,
             glowColor: { value: new THREE.Color(this.options.atmosphereColor) },
             strength: { value: this.clamp(Number(this.options.atmosphereOpacity) || 0, 0, 1) },
             // Где на оболочке ореола проходит край Земли (для далёкой камеры).
@@ -954,14 +1090,16 @@ class CommunityGlobe {
                     uniform vec3 glowColor;
                     uniform float strength;
                     uniform float limbEdge;
+                    uniform vec3 sunDirectionView;
+                    uniform float dayNight;
                     varying vec3 vNormal;
                     varying vec3 vView;
-                    void main() {
+                    void main() {${sunSide}
                         // Задняя сторона оболочки: ноль на внешнем краю ореола, максимум у края Земли
                         // (дальше оболочку закрывает сама Земля).
                         float edge = clamp(-dot(vNormal, vView), 0.0, 1.0);
                         float glow = pow(smoothstep(0.0, limbEdge, edge), 3.0);
-                        gl_FragColor = vec4(glowColor * glow * strength * 0.8, 1.0);
+                        gl_FragColor = vec4(glowColor * glow * strength * 0.8 * sunSide, 1.0);
                     }`,
                 side: THREE.BackSide,
                 blending: THREE.AdditiveBlending,
@@ -978,11 +1116,13 @@ class CommunityGlobe {
                 fragmentShader: `
                     uniform vec3 glowColor;
                     uniform float strength;
+                    uniform vec3 sunDirectionView;
+                    uniform float dayNight;
                     varying vec3 vNormal;
                     varying vec3 vView;
-                    void main() {
+                    void main() {${sunSide}
                         float fresnel = pow(1.0 - clamp(dot(vNormal, vView), 0.0, 1.0), 4.0);
-                        gl_FragColor = vec4(glowColor, fresnel * strength * 0.55);
+                        gl_FragColor = vec4(glowColor, fresnel * strength * 0.55 * sunSide);
                     }`,
                 blending: THREE.AdditiveBlending,
                 transparent: true,
@@ -1127,14 +1267,48 @@ class CommunityGlobe {
     }
 
     syncSunLightWithCamera() {
-        if (!this.sunLight || !this.camera || this.options.sunLightFollowCamera === false) {
+        if (!this.sunLight || !this.camera) {
             return;
         }
 
-        this.sunLight.position.copy(this.getCameraAlignedSunPosition());
+        if (this.isDayNightEnabled()) {
+            // Солнце там, где оно на самом деле; направление пересчитывается раз в минуту
+            // (за минуту граница дня и ночи сдвигается на четверть градуса).
+            const now = Date.now();
+            if (!this.realSunLocal || now - (this.realSunComputedAt ?? 0) > 60000) {
+                this.realSunComputedAt = now;
+                const time = this.options.dayNightTime ? new Date(this.options.dayNightTime) : new Date();
+                const { latitude, longitude } = subsolarPoint(Number.isNaN(time.getTime()) ? new Date() : time);
+                this.realSunLocal = this.latLngToVector3(latitude, longitude, 1);
+            }
+            const direction = new THREE.Vector3(this.realSunLocal.x, this.realSunLocal.y, this.realSunLocal.z);
+            if (this.earthGroup) {
+                this.earthGroup.updateMatrixWorld();
+                direction.transformDirection(this.earthGroup.matrixWorld);
+            }
+            this.sunLight.position.copy(direction.multiplyScalar(this.getPositiveNumber(this.options.sunLightDistance, 6)));
+        } else if (this.options.sunLightFollowCamera === false) {
+            this.updateSunDirectionUniforms();
+            return;
+        } else {
+            this.sunLight.position.copy(this.getCameraAlignedSunPosition());
+        }
+        this.updateSunDirectionUniforms();
         this.sunLight.target.position.set(0, 0, 0);
         this.sunLight.target.updateMatrixWorld();
         this.sunLight.updateMatrixWorld();
+    }
+
+    /** Направление на солнце в координатах камеры — для огней городов и атмосферы. */
+    updateSunDirectionUniforms() {
+        if (!this.sunLight || !this.camera?.matrixWorldInverse) return;
+        const dayNight = this.isDayNightEnabled() ? 1 : 0;
+        const view = this.sunLight.position.clone().normalize();
+        this.camera.updateMatrixWorld();
+        view.transformDirection(this.camera.matrixWorldInverse);
+        if (this.nightUniforms) this.nightUniforms.sunDirectionView.value.copy(view);
+        if (this.atmosphereSun) this.atmosphereSun.value.copy(view);
+        if (this.atmosphereDayNight) this.atmosphereDayNight.value = dayNight;
     }
 
     setupControls() {
@@ -1163,7 +1337,10 @@ class CommunityGlobe {
         this.controls.rotateSpeed = this.calculateCameraRotateSpeed(this.camera.position.length());
         this.controls.autoRotate = this.state.isAutoRotating;
         this.controls.autoRotateSpeed = this.options.autoRotateSpeed;
-        this.controls.addEventListener('start', () => this.pauseAutoRotationForInteraction());
+        this.controls.addEventListener('start', () => {
+            this.userMovedCamera = true;
+            this.pauseAutoRotationForInteraction();
+        });
         this.controls.addEventListener('end', () => this.scheduleAutoRotationResume());
     }
 
@@ -1300,6 +1477,7 @@ class CommunityGlobe {
             return false;
         }
 
+        this.userMovedCamera = true;
         const step = keyboardRotationStep(this.camera.position.length(), Number(this.camera.fov) || 75);
         const rotations = {
             ArrowLeft: [-step, 0],
@@ -1668,6 +1846,7 @@ class CommunityGlobe {
             this.sourceParticipants = valid;
             this.state.participantCount = valid.length;
             this.renderParticipantMarkers();
+            this.faceParticipantsOnFirstLoad(valid);
             const markerIndex = this.participantMarkers.length;
 
             debugLog(`🎯 Создано ${markerIndex} 3D меток участников`);
@@ -3005,6 +3184,21 @@ class CommunityGlobe {
         }
     }
 
+    /**
+     * При первой загрузке точек глобус поворачивается к ним (если пользователь ещё не
+     * двигал его сам); туда же потом возвращает кнопка «домой».
+     */
+    faceParticipantsOnFirstLoad(points) {
+        if (this.initialViewChosen || this.userMovedCamera || !this.camera) return;
+        this.initialViewChosen = true;
+        const center = pointsViewCenter(points);
+        if (!center) return;
+
+        const position = this.latLngToWorldVector3(center.latitude, center.longitude, this.camera.position.length());
+        this.moveCameraTo(position);
+        this.initialCameraPosition = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
+    }
+
     centerOn(latitude, longitude, zoom = 2.0) {
         if (!this.state.isInitialized) return false;
         try {
@@ -3362,8 +3556,12 @@ class CommunityGlobe {
                 'hemisphereSkyColor',
                 'hemisphereGroundColor',
                 'atmosphereLightIntensity',
-                'atmosphereLightColor'
+                'atmosphereLightColor',
+                'dayNightMode',
+                'dayNightTime',
+                'nightLightsIntensity'
             ].forEach(key => this.updateOptionFromSettings(settings, key));
+            this.realSunLocal = null;
             
             this.setAutoRotation(settings.autoRotate, settings.autoRotateSpeed);
             this.setSunLightIntensity(settings.sunLightIntensity);
@@ -3377,6 +3575,7 @@ class CommunityGlobe {
             this.toggleAtmosphere(settings.enableAtmosphereGlow);
             this.toggleClouds(settings.enableClouds);
             this.refreshAtmosphereAppearance();
+            this.applyDayNightMode();
             
             if (settings.width && settings.height) {
                 this.applyConfiguredContainerSize(settings.width, settings.height);

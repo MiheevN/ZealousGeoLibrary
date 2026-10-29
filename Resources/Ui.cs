@@ -174,6 +174,7 @@ internal static class Ui
     public static string SettingsAtmosphereClouds => Text(nameof(SettingsAtmosphereClouds));
     public static string SettingsEnableAtmosphere => Text(nameof(SettingsEnableAtmosphere));
     public static string SettingsAtmosphereColor => Text(nameof(SettingsAtmosphereColor));
+    public static string SettingsDayNight => Text(nameof(SettingsDayNight));
     public static string SettingsAtmosphereOpacity(params object?[] arguments) => Format(nameof(SettingsAtmosphereOpacity), arguments);
     public static string SettingsEnableClouds => Text(nameof(SettingsEnableClouds));
     public static string SettingsCloudsOpacity(params object?[] arguments) => Format(nameof(SettingsCloudsOpacity), arguments);
