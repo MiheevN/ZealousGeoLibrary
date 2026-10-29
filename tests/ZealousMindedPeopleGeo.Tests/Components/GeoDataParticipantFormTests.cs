@@ -182,6 +182,46 @@ public class GeoDataParticipantFormTests : BunitContext
         Assert.Empty(await Container.GetPointsAsync());
     }
 
+    [Fact]
+    public void EnteredAddress_IsLookedUpBeforeSubmit_WithDataAttribution()
+    {
+        using var english = new CultureScope("en");
+        _geocoder.Attribution = "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright";
+        var cut = Render<GeoDataParticipantForm>(p => p.Add(c => c.DataContainerId, ContainerId));
+
+        cut.Find("#address").Change("Berlin, Alexanderplatz 1");
+
+        cut.WaitForAssertion(() => Assert.Contains("Berlin, Alexanderplatz 1", cut.Find(".location-preview").TextContent));
+        Assert.Equal(_geocoder.Attribution, cut.Find(".location-attribution").TextContent);
+        Assert.Equal(1, _geocoder.Calls);
+    }
+
+    [Fact]
+    public void EnteredAddress_NotFound_SaysSoUnderTheField()
+    {
+        using var russian = new CultureScope("ru");
+        _geocoder.Failure = GeocodingError.NotFound;
+        var cut = Render<GeoDataParticipantForm>(p => p.Add(c => c.DataContainerId, ContainerId));
+
+        cut.Find("#address").Change("Nowhere 1");
+
+        cut.WaitForAssertion(() => Assert.Equal(
+            "Адрес не найден. Проверьте написание или добавьте город и страну.",
+            cut.Find(".geodata-hint-warning").TextContent));
+        Assert.Empty(cut.FindAll(".location-preview"));
+    }
+
+    [Fact]
+    public void AutoGeocodeOff_DoesNotLookUpWhileTyping()
+    {
+        var cut = RenderForm();
+
+        cut.Find("#address").Change("Berlin, Alexanderplatz 1");
+
+        Assert.Equal(0, _geocoder.Calls);
+        Assert.Empty(cut.FindAll(".location-preview"));
+    }
+
     private IGeoDataContainer Container => _containers.GetOrCreateContainer(ContainerId);
 
     private IRenderedComponent<GeoDataParticipantForm> RenderForm(Func<Participant, Task<string?>>? onSubmitting = null) =>
@@ -204,6 +244,8 @@ public class GeoDataParticipantFormTests : BunitContext
         /// <summary>Причина, по которой адрес «не найдётся»; None — найдётся.</summary>
         public GeocodingError Failure { get; set; }
 
+        public string? Attribution { get; set; }
+
         public ValueTask<GeocodingResult> GeocodeAddressAsync(string address, CancellationToken ct = default)
         {
             Calls++;
@@ -217,7 +259,8 @@ public class GeoDataParticipantFormTests : BunitContext
                 Success = true,
                 Latitude = 52.5219,
                 Longitude = 13.4132,
-                FormattedAddress = address
+                FormattedAddress = address,
+                Attribution = Attribution
             });
         }
 

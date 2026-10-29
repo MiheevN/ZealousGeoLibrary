@@ -34,11 +34,16 @@
 
         <div class="form-group mb-3">
             <label for="address">@Ui.FormAddress</label>
-            <InputText id="address" @bind-Value="_model.Address" class="form-control" placeholder="@Ui.FormAddressPlaceholder" />
+            <InputText id="address" @bind-Value="_model.Address" @bind-Value:after="OnAddressChangedAsync" class="form-control" placeholder="@Ui.FormAddressPlaceholder" />
             <ValidationMessage For="@(() => _model.Address)" />
             @if (_isGeocoding)
             {
-                <small class="geodata-hint">@Ui.FormGeocoding</small>
+                <small class="geodata-hint" role="status">@Ui.FormGeocoding</small>
+            }
+            else if (_geocodingResult is { Success: false } failed)
+            {
+                @* Пользователь узнаёт, что адрес не найден, ещё до отправки формы. *@
+                <small class="geodata-hint geodata-hint-warning" role="status">@Ui.GeocodingError(failed.Error)</small>
             }
         </div>
 
@@ -77,6 +82,11 @@
             <h5>@Ui.FormLocationFound</h5>
             <p class="mb-1"><strong>@Ui.FormFoundAddress:</strong> @_geocodingResult.FormattedAddress</p>
             <p class="mb-0"><strong>@Ui.Coordinates:</strong> @_geocodingResult.Latitude.ToString("F6"), @_geocodingResult.Longitude.ToString("F6")</p>
+            @if (!string.IsNullOrEmpty(_geocodingResult.Attribution))
+            {
+                @* Источник данных требует подписи (у OpenStreetMap — лицензия ODbL). *@
+                <p class="location-attribution mb-0">@_geocodingResult.Attribution</p>
+            }
         </div>
     }
 </div>
@@ -113,7 +123,8 @@
     [Parameter] public bool ShowClearButton { get; set; } = true;
 
     /// <summary>
-    /// Автоматически геокодировать адрес при вводе
+    /// Искать адрес, как только пользователь его ввёл (поле потеряло фокус), и показывать,
+    /// что нашлось, ещё до отправки формы
     /// </summary>
     [Parameter] public bool AutoGeocode { get; set; } = true;
 
@@ -135,19 +146,8 @@
     private GeocodingResult? _geocodingResult;
     private string? _statusMessage;
     private string _statusClass = "";
-    private System.Timers.Timer? _geocodingTimer;
 
     private string EffectiveGlobeContainerId => GlobeContainerId ?? (GlobeId != null ? $"globe-{GlobeId}" : null) ?? "";
-
-    protected override void OnInitialized()
-    {
-        if (AutoGeocode)
-        {
-            _geocodingTimer = new System.Timers.Timer(1000);
-            _geocodingTimer.Elapsed += async (s, e) => await TryGeocodeAddressAsync();
-            _geocodingTimer.AutoReset = false;
-        }
-    }
 
     private async Task HandleSubmitAsync()
     {
@@ -290,33 +290,32 @@
         }
     }
 
-    private async Task TryGeocodeAddressAsync()
+    private async Task OnAddressChangedAsync()
     {
-        if (string.IsNullOrWhiteSpace(_model.Address)) return;
-
-        _isGeocoding = true;
         _geocodingResult = null;
-        await InvokeAsync(StateHasChanged);
+        if (!AutoGeocode || string.IsNullOrWhiteSpace(_model.Address)) return;
 
+        var address = _model.Address;
+        _isGeocoding = true;
+        StateHasChanged();
+
+        GeocodingResult result;
         try
         {
-            _geocodingResult = await GeocodingService.GeocodeAddressAsync(_model.Address);
+            result = await GeocodingService.GeocodeAddressAsync(address);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Auto-geocoding failed");
-            _geocodingResult = new GeocodingResult
-            {
-                Success = false,
-                Error = GeocodingError.Failed,
-                ErrorMessage = ex.Message
-            };
+            result = new GeocodingResult { Success = false, Error = GeocodingError.Failed, ErrorMessage = ex.Message };
         }
-        finally
+
+        // Пока искали, адрес могли поменять или отправить форму: старый ответ уже не нужен.
+        if (_model.Address == address)
         {
-            _isGeocoding = false;
-            await InvokeAsync(StateHasChanged);
+            _geocodingResult = result;
         }
+        _isGeocoding = false;
     }
 
     private void ClearForm()
@@ -329,10 +328,5 @@
     {
         _model = new ParticipantRegistrationModel();
         _geocodingResult = null;
-    }
-
-    public void Dispose()
-    {
-        _geocodingTimer?.Dispose();
     }
 }

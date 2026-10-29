@@ -128,6 +128,51 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
+    public void WithoutGoogleKey_AddressesAreLookedUpInOpenStreetMap()
+    {
+        var geocoder = Resolve<IGeocodingService>(s => s.AddZealousMindedPeopleGeo());
+
+        Assert.IsType<NominatimGeocodingService>(geocoder);
+    }
+
+    [Fact]
+    public void WithGoogleKey_AddressesAreLookedUpInGoogle()
+    {
+        var geocoder = Resolve<IGeocodingService>(s => s.AddZealousMindedPeopleGeo(options => options.GoogleMapsApiKey = "maps-key"));
+
+        Assert.IsType<GoogleMapsGeocodingService>(geocoder);
+    }
+
+    [Fact]
+    public void OwnGeocoder_IsKept()
+    {
+        var own = System.Reflection.DispatchProxy.Create<IGeocodingService, ZealousMindedPeopleGeo.Tests.Components.GeoDataParticipantFormTests.UnusedService>();
+
+        var geocoder = Resolve<IGeocodingService>(s =>
+        {
+            s.AddSingleton(own);
+            s.AddZealousMindedPeopleGeo(options => options.GoogleMapsApiKey = "maps-key");
+        });
+
+        Assert.Same(own, geocoder);
+    }
+
+    [Fact]
+    public void Configuration_BindsNominatimServer()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ZealousMindedPeopleGeo:NominatimUrl"] = "https://geo.example.org/"
+            })
+            .Build();
+
+        var options = Resolve<IOptions<ZealousMindedPeopleGeoOptions>>(s => s.AddZealousMindedPeopleGeo(configuration)).Value;
+
+        Assert.Equal("https://geo.example.org/", options.NominatimUrl);
+    }
+
+    [Fact]
     public void RepeatedRegistration_DoesNotDuplicateServices()
     {
         var services = CreateServices();

@@ -13,7 +13,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // Всё, что нужно компонентам библиотеки. Стили и скрипты она подключает сама.
-builder.Services.AddZealousMindedPeopleGeo();
+builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
 var app = builder.Build();
 

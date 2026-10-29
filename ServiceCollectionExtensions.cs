@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using ZealousMindedPeopleGeo.Models;
 using ZealousMindedPeopleGeo.Services;
 using ZealousMindedPeopleGeo.Services.Repositories;
@@ -87,9 +88,21 @@ namespace ZealousMindedPeopleGeo
 
             services.AddHttpClient<IGoogleMapsService, GoogleMapsService>(client =>
             {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("ZealousMindedPeopleGeo/1.0");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
             });
-            services.TryAddScoped<IGeocodingService, GoogleMapsGeocodingService>();
+            // Nominatim требует User-Agent, по которому видно приложение.
+            services.AddHttpClient<NominatimGeocodingService>(client =>
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
+            services.TryAddScoped<GoogleMapsGeocodingService>();
+            // Есть ключ Google — ищет Google, нет — OpenStreetMap. Свой геокодер приложение
+            // регистрирует как IGeocodingService до вызова AddZealousMindedPeopleGeo.
+            services.TryAddScoped<IGeocodingService>(provider =>
+                string.IsNullOrWhiteSpace(provider.GetRequiredService<IOptions<ZealousMindedPeopleGeoOptions>>().Value.GoogleMapsApiKey)
+                    ? provider.GetRequiredService<NominatimGeocodingService>()
+                    : provider.GetRequiredService<GoogleMapsGeocodingService>());
             services.TryAddScoped<IParticipantRepository, InMemoryParticipantRepository>();
             services.TryAddScoped<ICachingService, CachingService>();
             services.TryAddScoped<IPwaService, PwaService>();
@@ -104,6 +117,8 @@ namespace ZealousMindedPeopleGeo
 
             return services;
         }
+
+        private const string UserAgent = "ZealousMindedPeopleGeo/1.1 (+https://github.com/MiheevN/ZealousGeoLibrary)";
 
         private sealed class ZealousMindedPeopleGeoMarker
         {

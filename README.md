@@ -496,8 +496,8 @@ initializeCommunityMap('', 20, 0, 1, 'map', {
 ## 🔧 Конфигурация
 
 Настройки необязательны: без них работают глобус, карта, контейнеры гео-данных и PWA,
-участники хранятся в памяти. Ключ Google нужен только для поиска координат по адресу,
-таблица Google — только чтобы хранить участников в ней.
+участники хранятся в памяти, а адреса ищутся в OpenStreetMap без ключа. Ключ Google нужен,
+только если адреса должен искать Google.
 
 Библиотека читает секцию `ZealousMindedPeopleGeo`, если сервисы зарегистрированы с
 конфигурацией:
@@ -510,6 +510,7 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 {
   "ZealousMindedPeopleGeo": {
     "GoogleMapsApiKey": "",
+    "NominatimUrl": "",
     "EnableGeocoding": true,
     "Map": {
       "Projection": "EqualEarth",
@@ -524,8 +525,9 @@ builder.Services.AddZealousMindedPeopleGeo(builder.Configuration);
 
 | Ключ | По умолчанию | Что делает |
 |---|---|---|
-| `GoogleMapsApiKey` | пусто | Ключ Google Maps Platform с включённым Geocoding API. По нему `GeoDataParticipantForm` находит координаты адреса. Ключ необязателен: без него всё остальное работает, а форма сообщает, что поиск адресов недоступен, и точку не добавляет. Карта и глобус ключ не используют. |
-| `EnableGeocoding` | `true` | `false` выключает запросы к Google, даже если ключ задан. |
+| `GoogleMapsApiKey` | пусто | Необязательный ключ Google Maps Platform с включённым Geocoding API. Задан — адреса для `GeoDataParticipantForm` ищет Google, не задан — Nominatim (OpenStreetMap). Карта и глобус ключ не используют. |
+| `NominatimUrl` | пусто | Сервер Nominatim для поиска без ключа Google. Пусто — публичный `https://nominatim.openstreetmap.org/`: бесплатно, но не больше запроса в секунду на приложение. Для большой нагрузки укажите свой сервер или платного поставщика с API Nominatim. |
+| `EnableGeocoding` | `true` | `false` выключает поиск адресов совсем: форма сообщает, что он недоступен, и точку не добавляет. |
 | `Map:Projection` | `EqualEarth` | Проекция 2D-карты: `EqualEarth` или `Equirectangular`. |
 | `Map:CentralMeridian` | `0` | Центральный меридиан 2D-карты в градусах, от −180 до 180. |
 | `Map:DefaultLatitude` | `20` | Широта начального центра 2D-карты. |
@@ -679,15 +681,23 @@ public class GlobeOptions
 реализует приложение (см. «Своё хранилище»).
 
 #### IGeocodingService
-Сервис геокодирования:
+Поиск адреса для `GeoDataParticipantForm`:
 ```csharp
 public interface IGeocodingService
 {
-    Task<GeocodingResult> GeocodeAddressAsync(string address, string? language = null);
-    Task<ReverseGeocodingResult> ReverseGeocodeAsync(double latitude, double longitude, string? language = null);
-    Task<IEnumerable<GeocodingSuggestion>> GetSuggestionsAsync(string query, string? language = null);
+    ValueTask<GeocodingResult> GeocodeAddressAsync(string address, CancellationToken ct = default);
+    ValueTask<GeocodingResult> ReverseGeocodeAsync(double latitude, double longitude, CancellationToken ct = default);
+    bool ValidateCoordinates(double latitude, double longitude);
+    ValueTask<bool> IsAvailableAsync(CancellationToken ct = default);
 }
 ```
+
+Без ключа Google работает `NominatimGeocodingService` (OpenStreetMap): адрес приходит на
+языке `CurrentUICulture`, ответы кэшируются на сутки, к одному серверу уходит не больше
+запроса в секунду, а в `GeocodingResult.Attribution` лежит подпись источника
+(«Data © OpenStreetMap contributors, ODbL 1.0») — форма показывает её под найденным адресом.
+С ключом работает `GoogleMapsGeocodingService`. Свой геокодер зарегистрируйте как
+`IGeocodingService` до вызова `AddZealousMindedPeopleGeo` — библиотека его не заменит.
 
 #### IThreeJsGlobeService
 Сервис для управления 3D глобусом:
@@ -1269,8 +1279,8 @@ if (started.Error == GlobeInitializationError.WebGlUnavailable)
 }
 
 var found = await GeocodingService.GeocodeAddressAsync(address);
-// found.Error: NotFound — уточнить адрес; Unavailable — нет ключа API или геокодирование
-// выключено; Failed — сбой сети или сервиса, можно повторить (такой ответ не кэшируется).
+// found.Error: NotFound — уточнить адрес; Unavailable — поиск выключен или сервер отказал
+// приложению (неверный ключ Google, блокировка Nominatim); Failed — сбой сети или сервиса, можно повторить (такой ответ не кэшируется).
 ```
 
 ### Журнал
@@ -1408,8 +1418,8 @@ dotnet build ZealousMindedPeopleGeo.csproj
 ## 🙏 Благодарности
 
 - **Three.js** - Библиотека для 3D графики
-- **Google Maps API** - Картографические сервисы
-- **OpenStreetMap** - Бесплатные географические данные
+- **OpenStreetMap и Nominatim** - Поиск адресов без ключа
+- **Google Maps API** - Поиск адресов по ключу
 - **ASP.NET Core** - Платформа веб-разработки
 
 ---

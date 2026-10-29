@@ -35,7 +35,8 @@ namespace ZealousMindedPeopleGeo.Services.Geocoding
                         _logger.LogDebug("Geocoding address (not cached): {Address}", address);
                         return await _googleMapsService.GeocodeAddressAsync(address);
                     },
-                    ct);
+                    ct,
+                    scope: "google");
             }
             catch (Exception ex)
             {

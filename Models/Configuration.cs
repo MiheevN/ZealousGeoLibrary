@@ -8,14 +8,21 @@ namespace ZealousMindedPeopleGeo.Models
         public const string SectionName = "ZealousMindedPeopleGeo";
 
         /// <summary>
-        /// Необязательный ключ Google Maps Platform с включённым Geocoding API. По нему
-        /// <c>GeoDataParticipantForm</c> находит координаты адреса. Без ключа всё остальное
-        /// работает, а форма сообщает, что поиск адресов недоступен. Карта и глобус ключ не используют.
+        /// Необязательный ключ Google Maps Platform с включённым Geocoding API. Если он задан,
+        /// адреса ищет Google; иначе — бесплатный Nominatim (OpenStreetMap), ключ ему не нужен.
+        /// Карта и глобус ключ не используют.
         /// </summary>
         public string GoogleMapsApiKey { get; set; } = string.Empty;
 
         /// <summary>
-        /// <c>false</c> выключает запросы к Google, даже если ключ задан.
+        /// Сервер Nominatim для поиска адресов без ключа Google. Пусто — публичный
+        /// https://nominatim.openstreetmap.org/ (не больше запроса в секунду на приложение).
+        /// Для большой нагрузки укажите свой сервер или платного поставщика с API Nominatim.
+        /// </summary>
+        public string NominatimUrl { get; set; } = string.Empty;
+
+        /// <summary>
+        /// <c>false</c> выключает поиск адресов совсем: форма сообщает, что он недоступен.
         /// </summary>
         public bool EnableGeocoding { get; set; } = true;
 
