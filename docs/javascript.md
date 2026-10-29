@@ -3,9 +3,9 @@
 [← Документация](README.md) · Раздел для JavaScript
 
 Карта, глобус, PWA и подключение стилей работают в браузере, их код лежит в `wwwroot/`.
-Скрипты — обычные ES-модули. Они входят в пакет и отдаются как статические файлы
+Скрипты — обычные ES-модули. Они входят в библиотеку и отдаются как статические файлы
 `/_content/ZealousMindedPeopleGeo/...`. Сборки нет: нет ни `package.json`, ни npm, ни
-бандлера. Three.js r180 тоже лежит в пакете (`js/libs/`), а не берётся с CDN.
+бандлера. Three.js r180 тоже лежит в библиотеке (`js/libs/`), а не берётся с CDN.
 
 Приложению на Blazor эта страница не нужна: компоненты загружают скрипты сами, а C#
 вызывает их через JS interop. Она пригодится, если вы:
@@ -22,7 +22,7 @@ Node.js нужен только для тестов этих скриптов п
 
 | Файл | Что делает | Кто загружает |
 |---|---|---|
-| `ZealousMindedPeopleGeo.lib.module.js` | JS-инициализатор: добавляет `css/zealous-geo.css` в `<head>` | Blazor, сам, в каждом приложении с пакетом |
+| `ZealousMindedPeopleGeo.lib.module.js` | JS-инициализатор: добавляет `css/zealous-geo.css` в `<head>` | Blazor, сам, в каждом приложении с библиотекой |
 | `js/community-globe.js` | 3D-глобус на Three.js: текстуры, атмосфера, день и ночь, маркеры, подписи, группы, касания и клавиатура | `ThreeJsGlobeService` (`import`) |
 | `js/label-layout.js`, `js/label-scale.js` | Раскладка подписей глобуса без наложений и их размер на экране | `community-globe.js` |
 | `js/libs/three.module.js`, `three.core.js`, `OrbitControls.js` | Three.js r180 | `community-globe.js` |

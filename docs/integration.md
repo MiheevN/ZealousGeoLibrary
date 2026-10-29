@@ -2,17 +2,41 @@
 
 [← Документация](README.md) · Раздел для C# / Blazor
 
-Как подключить библиотеку к приложению Blazor. Node.js и npm приложению не нужны: JavaScript библиотеки уже лежит в пакете и загружается сам.
+Как подключить библиотеку к приложению Blazor. Node.js и npm приложению не нужны: JavaScript библиотеки уже лежит в ней и загружается сам.
 
 Достаточно двух шагов.
 
-1. **Установите пакет**
+1. **Подключите проект библиотеки.** В NuGet библиотека не публикуется: приложение
+   ссылается на её проект. Удобнее всего держать исходники подмодулем git. Из корня
+   репозитория приложения:
    ```bash
-   dotnet add package ZealousMindedPeopleGeo
+   git submodule add https://github.com/MiheevN/ZealousGeoLibrary.git libs/ZealousGeoLibrary
+   dotnet add MyApp/MyApp.csproj reference libs/ZealousGeoLibrary/ZealousMindedPeopleGeo.csproj
    ```
+
+   Получится такая раскладка:
+   ```
+   my-repo/
+   ├── MyApp/                    # проект приложения, в нём MyApp.csproj
+   └── libs/ZealousGeoLibrary/   # библиотека, в ней ZealousMindedPeopleGeo.csproj
+   ```
+
+   **Библиотека не должна лежать внутри папки проекта приложения** (например,
+   `MyApp/libs/...`). SDK собирает в проект все `.cs` и `.razor` из его папки и подпапок,
+   и в приложение попали бы тесты и витрина библиотеки — сборка упадёт.
+
+   Подойдёт и обычная копия репозитория вместо подмодуля, важна только ссылка
+   `<ProjectReference>` на `ZealousMindedPeopleGeo.csproj`. Стили, скрипты и текстуры
+   приходят по ней сами, по адресам `_content/ZealousMindedPeopleGeo/...`.
+
+   - Обновить библиотеку: `git submodule update --remote libs/ZealousGeoLibrary`.
+   - Клонировать приложение: `git clone --recurse-submodules ...` (или после клонирования
+     `git submodule update --init`).
 
 2. **Зарегистрируйте сервисы в `Program.cs`**
    ```csharp
+   using ZealousMindedPeopleGeo;
+
    builder.Services.AddZealousMindedPeopleGeo();
    ```
 
