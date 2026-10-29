@@ -32,7 +32,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 });
 
 // Необязательно: офлайн-кэш. Без этого заголовка сайт и установка PWA работают,
-// но сервис-воркер библиотеки не регистрируется (см. README, раздел PWA).
+// но сервис-воркер библиотеки не регистрируется (см. docs/pwa.md).
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.Equals("/_content/ZealousMindedPeopleGeo/sw.js", StringComparison.OrdinalIgnoreCase))

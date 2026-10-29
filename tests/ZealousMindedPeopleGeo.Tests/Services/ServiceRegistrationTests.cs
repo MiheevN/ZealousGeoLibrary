@@ -85,7 +85,7 @@ public class ServiceRegistrationTests
     [Fact]
     public void Configuration_BindsKeysDocumentedInReadme()
     {
-        // Ключи из раздела README «Конфигурация».
+        // Ключи из docs/configuration.md.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {

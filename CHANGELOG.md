@@ -7,6 +7,10 @@
 
 ## [Unreleased] - 2024-12-XX
 
+### Документация
+- **Документация разделена по темам и по языкам.** README стал коротким: что входит в библиотеку, быстрый старт и ссылки. Остальное перенесено в `docs/`: отдельно разделы для приложения на C# / Blazor (встраивание, компоненты, гео-данные, хранилище, конфигурация, сервисы и ошибки, язык, PWA), отдельно JavaScript в браузере (`docs/javascript.md`) и разработка библиотеки (`docs/development.md`). В разработке теперь явно сказано, что Node.js нужен только для тестов JavaScript, а тесты C# (`dotnet test`) и тесты JavaScript (`node --test`) описаны в разных разделах
+- Описание `IThreeJsGlobeService` приведено к настоящему интерфейсу; повторяющиеся разделы «Архитектура», «Множественные глобусы» и «Использование в Blazor проектах» объединены
+
 ### Удалено
 - **Встроенное постоянное хранение.** Библиотека даёт интерфейсы хранилищ (`IGeoDataContainerManager`/`IGeoDataContainer`, `IParticipantRepository`) и реализации в памяти. Постоянное хранение реализует приложение (см. README, «Своё хранилище»). Удалены:
   - хранение контейнеров в базе через EF Core: `AddGeoDataDatabase`, `EnsureGeoDataDatabaseCreatedAsync`, `DatabaseGeoDataContainerManager`, `GeoDataDbContext`, `GeoDataDatabaseInitializer`, пример `examples/GeoDataDatabaseExample.razor`;

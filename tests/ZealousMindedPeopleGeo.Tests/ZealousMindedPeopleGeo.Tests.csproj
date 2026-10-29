@@ -12,7 +12,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <!-- Сбор покрытия кода (XPlat Code Coverage), команда запуска описана в README -->
+    <!-- Сбор покрытия кода (XPlat Code Coverage), команда запуска описана в docs/development.md -->
     <PackageReference Include="coverlet.collector" Version="10.1.0" />
     <!-- Рендеринг Razor-компонентов и подмена JS interop в тестах -->
     <PackageReference Include="bunit" Version="2.11.3" />
