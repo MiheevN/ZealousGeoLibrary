@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bunit;
 using Microsoft.Extensions.Logging.Abstractions;
 using ZealousMindedPeopleGeo.Models;
@@ -19,11 +20,42 @@ public class ThreeJsGlobeServiceTests : BunitContext
     public ThreeJsGlobeServiceTests()
     {
         _module = JSInterop.SetupModule(GlobeScript);
-        _module.Setup<bool>("createGlobe", _ => true).SetResult(true);
+        CreateGlobeAnswers("globe-a", """{"success":true,"errorCode":null,"errorMessage":null}""");
+        CreateGlobeAnswers("globe-no-webgl", """{"success":false,"errorCode":"webgl-unavailable","errorMessage":"WebGL is not supported in this browser"}""");
+        CreateGlobeAnswers("globe-odd", """{"success":false,"errorCode":"something-new","errorMessage":"boom"}""");
         _module.Setup<string>("getThreeJsVersion").SetResult("test");
         _module.Setup<bool>("addParticipants", _ => true).SetResult(true);
         _module.Setup<bool>("addTestParticipant", _ => true).SetResult(true);
         _service = new ThreeJsGlobeService(JSInterop.JSRuntime, NullLogger<ThreeJsGlobeService>.Instance);
+    }
+
+    [Fact]
+    public async Task InitializeGlobeAsync_Started_ReportsNoError()
+    {
+        var result = await _service.InitializeGlobeAsync("globe-a", new GlobeOptions());
+
+        Assert.True(result.Success);
+        Assert.Equal(GlobeInitializationError.None, result.Error);
+    }
+
+    [Fact]
+    public async Task InitializeGlobeAsync_WithoutWebGl_ReportsTheReason()
+    {
+        var result = await _service.InitializeGlobeAsync("globe-no-webgl", new GlobeOptions());
+
+        Assert.False(result.Success);
+        Assert.Equal(GlobeInitializationError.WebGlUnavailable, result.Error);
+        Assert.Equal("WebGL is not supported in this browser", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task InitializeGlobeAsync_UnknownScriptCode_IsUnknown()
+    {
+        var result = await _service.InitializeGlobeAsync("globe-odd", new GlobeOptions());
+
+        Assert.False(result.Success);
+        Assert.Equal(GlobeInitializationError.Unknown, result.Error);
+        Assert.Equal("boom", result.ErrorMessage);
     }
 
     [Fact]
@@ -122,6 +154,10 @@ public class ThreeJsGlobeServiceTests : BunitContext
         Assert.Equal("globe-a", invocation.Arguments[0]);
         return ((System.Collections.IEnumerable)invocation.Arguments[1]!).Cast<object>().ToArray();
     }
+
+    private void CreateGlobeAnswers(string containerId, string json) =>
+        _module.Setup<JsonElement>("createGlobe", invocation => Equals(invocation.Arguments[0], containerId))
+            .SetResult(JsonDocument.Parse(json).RootElement.Clone());
 
     private static T Field<T>(object marker, string name) => (T)marker.GetType().GetProperty(name)!.GetValue(marker)!;
 

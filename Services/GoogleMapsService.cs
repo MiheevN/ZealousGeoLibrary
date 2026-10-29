@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZealousMindedPeopleGeo.Models;
@@ -31,7 +32,8 @@ namespace ZealousMindedPeopleGeo.Services
                 return new GeocodingResult
                 {
                     Success = false,
-                    ErrorMessage = "Геокодирование отключено в конфигурации"
+                    Error = GeocodingError.Unavailable,
+                    ErrorMessage = "Geocoding is disabled in the configuration"
                 };
             }
 
@@ -40,7 +42,8 @@ namespace ZealousMindedPeopleGeo.Services
                 return new GeocodingResult
                 {
                     Success = false,
-                    ErrorMessage = "Google Maps API ключ не настроен"
+                    Error = GeocodingError.Unavailable,
+                    ErrorMessage = "Google Maps API key is not configured"
                 };
             }
 
@@ -58,7 +61,8 @@ namespace ZealousMindedPeopleGeo.Services
                     return new GeocodingResult
                     {
                         Success = false,
-                        ErrorMessage = $"HTTP ошибка: {response.StatusCode}"
+                        Error = GeocodingError.Failed,
+                        ErrorMessage = $"HTTP error: {response.StatusCode}"
                     };
                 }
 
@@ -67,10 +71,17 @@ namespace ZealousMindedPeopleGeo.Services
 
                 if (geocodingResponse?.Results == null || geocodingResponse.Results.Length == 0)
                 {
+                    var status = geocodingResponse?.Status ?? "no status";
+                    if (status != "ZERO_RESULTS")
+                    {
+                        _logger.LogError("Google geocoding answered {Status}: {Message}", status, geocodingResponse?.ErrorMessage);
+                    }
+
                     return new GeocodingResult
                     {
                         Success = false,
-                        ErrorMessage = "Адрес не найден"
+                        Error = ErrorForStatus(status),
+                        ErrorMessage = $"Google geocoding status: {status}"
                     };
                 }
 
@@ -82,7 +93,8 @@ namespace ZealousMindedPeopleGeo.Services
                     return new GeocodingResult
                     {
                         Success = false,
-                        ErrorMessage = "Не удалось получить координаты"
+                        Error = GeocodingError.NotFound,
+                        ErrorMessage = "The response has no coordinates"
                     };
                 }
 
@@ -101,10 +113,20 @@ namespace ZealousMindedPeopleGeo.Services
                 return new GeocodingResult
                 {
                     Success = false,
+                    Error = GeocodingError.Failed,
                     ErrorMessage = ex.Message
                 };
             }
         }
+
+        // https://developers.google.com/maps/documentation/geocoding/requests-geocoding#StatusCodes
+        private static GeocodingError ErrorForStatus(string status) => status switch
+        {
+            "ZERO_RESULTS" => GeocodingError.NotFound,
+            // Ключ не подходит или API не включён — исправить может только администратор сайта.
+            "REQUEST_DENIED" => GeocodingError.Unavailable,
+            _ => GeocodingError.Failed
+        };
 
         public bool ValidateCoordinates(double latitude, double longitude)
         {
@@ -142,24 +164,37 @@ namespace ZealousMindedPeopleGeo.Services
         /// </summary>
         private class GeocodingResponse
         {
+            [JsonPropertyName("results")]
             public GeocodingResultItem[]? Results { get; set; }
+
+            [JsonPropertyName("status")]
             public string? Status { get; set; }
+
+            [JsonPropertyName("error_message")]
+            public string? ErrorMessage { get; set; }
         }
 
         private class GeocodingResultItem
         {
+            [JsonPropertyName("formatted_address")]
             public string? FormattedAddress { get; set; }
+
+            [JsonPropertyName("geometry")]
             public Geometry? Geometry { get; set; }
         }
 
         private class Geometry
         {
+            [JsonPropertyName("location")]
             public LocationInfo? Location { get; set; }
         }
 
         private class LocationInfo
         {
+            [JsonPropertyName("lat")]
             public double Latitude { get; set; }
+
+            [JsonPropertyName("lng")]
             public double Longitude { get; set; }
         }
     }

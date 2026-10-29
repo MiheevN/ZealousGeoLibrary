@@ -82,10 +82,13 @@
     <value>Укажите адрес</value>
   </data>
   <data name="FormAddressNotFound" xml:space="preserve">
-    <value>Адрес не найден: {0}</value>
+    <value>Адрес не найден. Проверьте написание или добавьте город и страну.</value>
   </data>
   <data name="FormGeocodingFailed" xml:space="preserve">
     <value>Не удалось найти адрес. Попробуйте ещё раз.</value>
+  </data>
+  <data name="FormGeocodingUnavailable" xml:space="preserve">
+    <value>Поиск адресов на этом сайте недоступен. Обратитесь к администратору сайта.</value>
   </data>
   <data name="ValidationNameRequired" xml:space="preserve">
     <value>Укажите имя</value>
@@ -250,16 +253,25 @@
     <value>Повторить</value>
   </data>
   <data name="GlobeBadSize" xml:space="preserve">
-    <value>Некорректные размеры контейнера: Width={0}, Height={1}</value>
+    <value>Размеры глобуса должны быть больше нуля: Width={0}, Height={1}</value>
   </data>
-  <data name="GlobeInitFailed" xml:space="preserve">
-    <value>Ошибка инициализации: {0}</value>
+  <data name="GlobeErrorWebGl" xml:space="preserve">
+    <value>Браузер не может показать 3D-глобус: WebGL выключен или не поддерживается. Включите аппаратное ускорение в настройках браузера или откройте страницу в другом браузере.</value>
+  </data>
+  <data name="GlobeErrorScripts" xml:space="preserve">
+    <value>Не удалось загрузить глобус. Проверьте соединение и попробуйте ещё раз.</value>
+  </data>
+  <data name="GlobeErrorContainer" xml:space="preserve">
+    <value>Глобусу негде отрисоваться: его элемента нет на странице. Обновите страницу.</value>
+  </data>
+  <data name="GlobeErrorUnknown" xml:space="preserve">
+    <value>Не удалось запустить 3D-глобус. Попробуйте ещё раз.</value>
   </data>
   <data name="GlobeAddPointsFailed" xml:space="preserve">
-    <value>Ошибка добавления точек: {0}</value>
+    <value>Не удалось показать точки на глобусе. Попробуйте ещё раз.</value>
   </data>
   <data name="GlobeLoadPointsFailed" xml:space="preserve">
-    <value>Ошибка загрузки точек: {0}</value>
+    <value>Не удалось загрузить точки. Попробуйте ещё раз.</value>
   </data>
   <data name="GlobeRotation" xml:space="preserve">
     <value>Вращение</value>
@@ -379,7 +391,7 @@
     <value>Центрировано на координатах формы</value>
   </data>
   <data name="ManagerCenterFailed" xml:space="preserve">
-    <value>Ошибка центрирования: {0}</value>
+    <value>Не удалось повернуть глобус к этим координатам. Попробуйте ещё раз.</value>
   </data>
   <data name="ManagerEnterName" xml:space="preserve">
     <value>Введите имя участника</value>

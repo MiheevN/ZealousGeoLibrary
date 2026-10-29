@@ -1254,6 +1254,25 @@ if (!result.Success)
 }
 ```
 
+### Глобус и геокодирование
+
+Если 3D-глобус не запустился или адрес не нашёлся, компоненты показывают понятную причину
+на языке пользователя. Технические подробности уходят только в журнал. Без WebGL глобус
+просит включить аппаратное ускорение или открыть страницу в другом браузере и не предлагает
+«Повторить». Свой интерфейс строится по кодам:
+
+```csharp
+var started = await GlobeMediator.InitializeGlobeAsync("globe-team", options);
+if (started.Error == GlobeInitializationError.WebGlUnavailable)
+{
+    // Показать 2D-карту вместо глобуса. started.ErrorMessage — технический текст для журнала.
+}
+
+var found = await GeocodingService.GeocodeAddressAsync(address);
+// found.Error: NotFound — уточнить адрес; Unavailable — нет ключа API или геокодирование
+// выключено; Failed — сбой сети или сервиса, можно повторить (такой ответ не кэшируется).
+```
+
 ### Журнал
 
 Библиотека пишет в `ILogger`: ошибки и предупреждения — на уровнях `Error` и `Warning`,

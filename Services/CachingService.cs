@@ -405,7 +405,7 @@ public static class CachingExtensions
         CancellationToken cancellationToken = default)
     {
         var key = $"geocoding:{address.GetHashCode()}";
-        return await cachingService.GetOrCreateAsync(
+        var result = await cachingService.GetOrCreateAsync(
             key,
             factory,
             new CachingOptions
@@ -414,5 +414,13 @@ public static class CachingExtensions
                 Priority = CacheItemPriority.Normal
             },
             cancellationToken);
+
+        // Сбой сети или сервиса не запоминаем на сутки: следующая попытка спросит заново.
+        if (!result.Success && result.Error != GeocodingError.NotFound)
+        {
+            await cachingService.RemoveAsync(key, cancellationToken);
+        }
+
+        return result;
     }
 }

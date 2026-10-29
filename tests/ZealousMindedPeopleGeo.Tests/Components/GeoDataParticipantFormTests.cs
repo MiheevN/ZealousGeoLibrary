@@ -163,6 +163,25 @@ public class GeoDataParticipantFormTests : BunitContext
         Assert.Equal("Сохранить офис", cut.Find("button[type=submit]").TextContent.Trim());
     }
 
+    [Theory]
+    [InlineData("ru", GeocodingError.NotFound, "Адрес не найден. Проверьте написание или добавьте город и страну.")]
+    [InlineData("en", GeocodingError.NotFound, "Could not find this address. Check the spelling or add the city and country.")]
+    [InlineData("ru", GeocodingError.Unavailable, "Поиск адресов на этом сайте недоступен. Обратитесь к администратору сайта.")]
+    [InlineData("en", GeocodingError.Failed, "Could not look up the address. Please try again.")]
+    public async Task Submit_AddressNotLookedUp_ExplainsWhyWithoutTechnicalDetails(string language, GeocodingError failure, string message)
+    {
+        using var culture = new CultureScope(language);
+        _geocoder.Failure = failure;
+        var cut = RenderForm();
+
+        Fill(cut, name: "Anna Petrova", email: "", address: "Nowhere 1");
+        await cut.Find("form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal(message, cut.Find("[role=alert]").TextContent.Trim()));
+        Assert.DoesNotContain("technical detail", cut.Markup);
+        Assert.Empty(await Container.GetPointsAsync());
+    }
+
     private IGeoDataContainer Container => _containers.GetOrCreateContainer(ContainerId);
 
     private IRenderedComponent<GeoDataParticipantForm> RenderForm(Func<Participant, Task<string?>>? onSubmitting = null) =>
@@ -182,9 +201,17 @@ public class GeoDataParticipantFormTests : BunitContext
     {
         public int Calls { get; private set; }
 
+        /// <summary>Причина, по которой адрес «не найдётся»; None — найдётся.</summary>
+        public GeocodingError Failure { get; set; }
+
         public ValueTask<GeocodingResult> GeocodeAddressAsync(string address, CancellationToken ct = default)
         {
             Calls++;
+            if (Failure != GeocodingError.None)
+            {
+                return ValueTask.FromResult(new GeocodingResult { Success = false, Error = Failure, ErrorMessage = "technical detail" });
+            }
+
             return ValueTask.FromResult(new GeocodingResult
             {
                 Success = true,
