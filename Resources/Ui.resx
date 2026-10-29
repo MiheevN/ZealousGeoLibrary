@@ -524,6 +524,9 @@
   <data name="SettingsAtmosphereColor" xml:space="preserve">
     <value>Atmosphere color</value>
   </data>
+  <data name="SettingsDayNight" xml:space="preserve">
+    <value>Day and night (real sun position)</value>
+  </data>
   <data name="SettingsAtmosphereOpacity" xml:space="preserve">
     <value>Atmosphere glow: {0}</value>
   </data>

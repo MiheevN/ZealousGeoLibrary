@@ -4,7 +4,8 @@
 <div class="community-globe-shell d-flex flex-column align-items-center gap-3">
     <CommunityGlobeViewer GlobeId="@GlobeId" Width="@Width" Height="@Height"
                           DataContainerId="@DataContainerId" CategoryColors="@CategoryColors"
-                          ClusterPoints="@ClusterPoints" ClusterRadius="@ClusterRadius" />
+                          ClusterPoints="@ClusterPoints" ClusterRadius="@ClusterRadius"
+                          DayNightMode="@DayNightMode" DayNightTime="@DayNightTime" />
     
     @if (ShowControls)
     {
@@ -46,4 +47,10 @@
 
     /// <summary>Цвета категорий точек (см. <see cref="CommunityGlobeViewer.CategoryColors"/>).</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? CategoryColors { get; set; }
+
+    /// <summary>День и ночь (см. <see cref="CommunityGlobeViewer.DayNightMode"/>).</summary>
+    [Parameter] public GlobeDayNightMode DayNightMode { get; set; } = GlobeDayNightMode.Off;
+
+    /// <summary>Момент для границы дня и ночи (см. <see cref="CommunityGlobeViewer.DayNightTime"/>).</summary>
+    [Parameter] public DateTimeOffset? DayNightTime { get; set; }
 }

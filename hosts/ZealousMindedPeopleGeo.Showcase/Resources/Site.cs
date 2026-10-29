@@ -70,6 +70,11 @@ public static class Site
     public static string GlobeDescriptionBefore => Text(nameof(GlobeDescriptionBefore));
     public static string GlobeDescriptionAfter => Text(nameof(GlobeDescriptionAfter));
     public static string Categories => Text(nameof(Categories));
+    public static string Lighting => Text(nameof(Lighting));
+    public static string LightingDay => Text(nameof(LightingDay));
+    public static string LightingDayDescription => Text(nameof(LightingDayDescription));
+    public static string LightingRealTime => Text(nameof(LightingRealTime));
+    public static string LightingRealTimeDescription => Text(nameof(LightingRealTimeDescription));
     public static string NoCategory => Text(nameof(NoCategory));
     public static string Points => Text(nameof(Points));
 

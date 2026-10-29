@@ -122,3 +122,65 @@ test('clouds are an alpha mask and the day map is read as sRGB', async () => {
     assert.match(source, /alphaMap: loadCloudTexture\(/, 'clouds should mask, not veil the planet');
     assert.match(source, /prepare\(loadTexture\(this\.resolveEarthTextureUrl\(\)\), THREE\.SRGBColorSpace\)/);
 });
+
+test('the subsolar point matches known solstices and equinoxes', () => {
+    const { subsolarPoint } = globe3d;
+
+    // Летнее солнцестояние 2024: 20 июня, 20:51 UTC — Солнце над тропиком Рака.
+    const solstice = subsolarPoint(new Date('2024-06-20T20:51:00Z'));
+    assert.ok(Math.abs(solstice.latitude - 23.44) < 0.1, `${solstice.latitude}`);
+    // Полдень там, где 20:51 UTC минус 12 часов, с поправкой уравнения времени (−1,5 мин).
+    assert.ok(Math.abs(solstice.longitude - -132.4) < 0.6, `${solstice.longitude}`);
+
+    // Весеннее равноденствие 2024: 20 марта, 03:06 UTC — Солнце над экватором.
+    const equinox = subsolarPoint(new Date('2024-03-20T03:06:00Z'));
+    assert.ok(Math.abs(equinox.latitude) < 0.1, `${equinox.latitude}`);
+
+    // Зимнее солнцестояние 2025: Солнце над тропиком Козерога.
+    assert.ok(Math.abs(subsolarPoint(new Date('2025-12-21T15:03:00Z')).latitude + 23.44) < 0.1);
+
+    // В полдень по Гринвичу Солнце близко к нулевому меридиану.
+    assert.ok(Math.abs(subsolarPoint(new Date('2024-04-15T12:00:00Z')).longitude) < 1.5);
+});
+
+test('day and night is off unless explicitly set to real time', () => {
+    const { normalizeDayNightMode: mode } = globe3d;
+
+    assert.equal(mode('realtime'), 'realtime');
+    assert.equal(mode('RealTime'), 'realtime');
+    assert.equal(mode('real-time'), 'realtime');
+    assert.equal(mode('off'), 'off');
+    assert.equal(mode(undefined), 'off');
+    assert.equal(mode('night'), 'off');
+});
+
+test('the globe opens facing the points, but not when they cover the whole world', () => {
+    const { pointsViewCenter: center } = globe3d;
+
+    const russia = center([
+        { latitude: 55.76, longitude: 37.62 }, { latitude: 59.93, longitude: 30.34 },
+        { latitude: 55.01, longitude: 82.94 }, { latitude: 43.12, longitude: 131.89 }
+    ]);
+    assert.ok(russia.latitude > 45 && russia.latitude <= 60, `${russia.latitude}`);
+    assert.ok(russia.longitude > 50 && russia.longitude < 90, `${russia.longitude}`);
+
+    // Через линию перемены дат: среднее направление, а не среднее чисел.
+    const pacific = center([{ latitude: 0, longitude: 170 }, { latitude: 0, longitude: -170 }]);
+    assert.ok(Math.abs(Math.abs(pacific.longitude) - 180) < 1e-9, `${pacific.longitude}`);
+
+    // У полюса камера не смотрит сверху.
+    assert.equal(center([{ latitude: 89, longitude: 0 }]).latitude, 60);
+
+    assert.equal(center([{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 180 }]), null);
+    assert.equal(center([]), null);
+    assert.equal(center([{ latitude: 'x', longitude: 1 }]), null);
+});
+
+test('night lights load only when day and night is on', async () => {
+    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+
+    assert.match(source, /dayNightMode: 'off'/, 'day and night is opt-in');
+    assert.match(source, /if \(enabled && this\.nightUniforms && !this\.nightUniforms\.nightMap\.value\)/);
+    await access(new URL('../wwwroot/assets/earth/4k_earth_nightmap.jpg', import.meta.url));
+    await access(new URL('../wwwroot/assets/earth/8k_earth_nightmap.jpg', import.meta.url));
+});

@@ -498,6 +498,9 @@
   <data name="SettingsAtmosphereColor" xml:space="preserve">
     <value>Цвет атмосферы</value>
   </data>
+  <data name="SettingsDayNight" xml:space="preserve">
+    <value>День и ночь (солнце по реальному времени)</value>
+  </data>
   <data name="SettingsAtmosphereOpacity" xml:space="preserve">
     <value>Яркость атмосферы: {0}</value>
   </data>

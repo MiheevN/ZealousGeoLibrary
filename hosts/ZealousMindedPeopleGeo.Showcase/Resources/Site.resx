@@ -199,6 +199,21 @@
   <data name="Categories" xml:space="preserve">
     <value>Categories</value>
   </data>
+  <data name="Lighting" xml:space="preserve">
+    <value>Lighting</value>
+  </data>
+  <data name="LightingDay" xml:space="preserve">
+    <value>Always day</value>
+  </data>
+  <data name="LightingDayDescription" xml:space="preserve">
+    <value>The sun shines from the viewer's side</value>
+  </data>
+  <data name="LightingRealTime" xml:space="preserve">
+    <value>Day and night now</value>
+  </data>
+  <data name="LightingRealTimeDescription" xml:space="preserve">
+    <value>The real sun position; city lights on the night side</value>
+  </data>
   <data name="NoCategory" xml:space="preserve">
     <value>No category</value>
   </data>
