@@ -525,13 +525,13 @@
     <value>Atmosphere color</value>
   </data>
   <data name="SettingsAtmosphereOpacity" xml:space="preserve">
-    <value>Atmosphere opacity: {0}</value>
+    <value>Atmosphere glow: {0}</value>
   </data>
   <data name="SettingsEnableClouds" xml:space="preserve">
     <value>Show clouds</value>
   </data>
   <data name="SettingsCloudsOpacity" xml:space="preserve">
-    <value>Cloud opacity: {0}</value>
+    <value>Cloud density: {0}</value>
   </data>
   <data name="SettingsCloudsSpeed" xml:space="preserve">
     <value>Cloud speed: {0}</value>

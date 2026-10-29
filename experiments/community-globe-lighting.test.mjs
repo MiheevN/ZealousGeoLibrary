@@ -85,6 +85,24 @@ test('sun light is aligned with the camera so the visible globe face stays lit',
     assert.equal(Math.round(sunLight.position.length()), 6, 'sun should keep a stable configured distance for shadows');
 });
 
+test('with an offset the sun keeps lighting the visible face but from the side', async () => {
+    const { CommunityGlobe } = await loadCommunityGlobeClass();
+    const globe = createLightingGlobe(CommunityGlobe);
+    globe.options.sunLightOffsetDegrees = 30;
+
+    globe.camera.position.set(-2, 1, 4);
+    globe.setupLighting();
+    const sunLight = globe.scene.children.find(child => child instanceof THREE.DirectionalLight);
+    const angle = sunLight.position.angleTo(globe.camera.position) * 180 / Math.PI;
+
+    assert.ok(Math.abs(angle - 30) < 1e-6, `sun should be 30° off the camera, got ${angle}`);
+
+    globe.camera.position.set(3, -2, 1);
+    globe.syncSunLightWithCamera();
+    assert.ok(Math.abs(sunLight.position.angleTo(globe.camera.position) * 180 / Math.PI - 30) < 1e-6, 'offset follows the camera');
+    assert.equal(Math.round(sunLight.position.length()), 6);
+});
+
 test('lighting defaults describe a clear camera-facing day setup', async () => {
     const { source } = await loadCommunityGlobeClass();
 

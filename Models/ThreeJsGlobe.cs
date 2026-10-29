@@ -27,14 +27,14 @@ public class GlobeOptions
     public string BackgroundColor { get; set; } = "#000011";
 
     /// <summary>
-    /// Цвет атмосферы
+    /// Цвет свечения атмосферы по краю шара
     /// </summary>
-    public string AtmosphereColor { get; set; } = "#00aaff";
+    public string AtmosphereColor { get; set; } = "#4fb4ff";
 
     /// <summary>
-    /// Прозрачность атмосферы (0-1)
+    /// Яркость свечения атмосферы (0-1)
     /// </summary>
-    public double AtmosphereOpacity { get; set; } = 0.3;
+    public double AtmosphereOpacity { get; set; } = 0.7;
 
     /// <summary>
     /// Размер точек участников
@@ -130,39 +130,57 @@ public class GlobeOptions
     public int LevelOfDetail { get; set; } = 2;
 
     /// <summary>
-    /// Путь к текстуре Земли
+    /// Путь к своей карте дня (цвет Земли, sRGB). Пусто — встроенная 8K или 4K по <see cref="TextureQuality"/>.
     /// </summary>
     public string? EarthTextureUrl { get; set; }
 
     /// <summary>
-    /// Путь к текстуре нормалей
+    /// Путь к карте нормалей (рельеф). Пусто — встроенная 4K.
     /// </summary>
     public string? NormalTextureUrl { get; set; }
 
     /// <summary>
-    /// Путь к текстуре specular карты
+    /// Путь к карте шероховатости: светлое — матовое (суша), тёмное — блестящее (океан).
+    /// Пусто — встроенная 4K.
     /// </summary>
+    public string? RoughnessTextureUrl { get; set; }
+
+    /// <summary>
+    /// Не используется: браузеры не открывали прежнюю TIFF-карту. Задайте <see cref="RoughnessTextureUrl"/>.
+    /// </summary>
+    [Obsolete("Use RoughnessTextureUrl: light is rough (land), dark is glossy (ocean).")]
     public string? SpecularTextureUrl { get; set; }
 
     /// <summary>
-    /// Путь к текстуре облаков
+    /// Путь к маске облаков: белое — облако, чёрное — чистое небо. Пусто — встроенная 4K.
     /// </summary>
     public string? CloudsTextureUrl { get; set; }
 
     /// <summary>
-    /// Прозрачность облаков (0-1)
+    /// Качество встроенных текстур: <c>auto</c> — 8K на компьютере, 4K на телефоне и слабых
+    /// видеокартах; <c>high</c> — всегда 8K; <c>standard</c> — всегда 4K.
     /// </summary>
-    public double CloudsOpacity { get; set; } = 0.4;
+    public string TextureQuality { get; set; } = "auto";
+
+    /// <summary>
+    /// Плотность облаков (0-1)
+    /// </summary>
+    public double CloudsOpacity { get; set; } = 0.85;
 
     /// <summary>
     /// Скорость движения облаков
     /// </summary>
-    public double CloudsSpeed { get; set; } = 0.2;
+    public double CloudsSpeed { get; set; } = 0.01;
 
     /// <summary>
     /// Включить эффект свечения атмосферы
     /// </summary>
     public bool EnableAtmosphereGlow { get; set; } = true;
+
+    /// <summary>
+    /// Звёзды на фоне
+    /// </summary>
+    public bool EnableStars { get; set; } = true;
 
     /// <summary>
     /// Цвет точек стран
@@ -195,9 +213,15 @@ public class GlobeOptions
     public double SunLightDistance { get; set; } = 6.0;
 
     /// <summary>
+    /// На сколько градусов солнце смещено от камеры вверх-влево (0 — светит из-за камеры).
+    /// Свет сбоку даёт шару объём.
+    /// </summary>
+    public double SunLightOffsetDegrees { get; set; } = 30;
+
+    /// <summary>
     /// Интенсивность основного солнечного света
     /// </summary>
-    public double SunLightIntensity { get; set; } = 2.8;
+    public double SunLightIntensity { get; set; } = 2.6;
 
     /// <summary>
     /// Цвет основного солнечного света
@@ -207,7 +231,7 @@ public class GlobeOptions
     /// <summary>
     /// Интенсивность мягкого общего освещения
     /// </summary>
-    public double AmbientLightIntensity { get; set; } = 1.2;
+    public double AmbientLightIntensity { get; set; } = 0.3;
 
     /// <summary>
     /// Цвет мягкого общего освещения
@@ -217,7 +241,7 @@ public class GlobeOptions
     /// <summary>
     /// Интенсивность небесного заполнения для ясного дневного освещения
     /// </summary>
-    public double HemisphereLightIntensity { get; set; } = 0.8;
+    public double HemisphereLightIntensity { get; set; } = 0.25;
 
     /// <summary>
     /// Цвет верхнего небесного заполнения
@@ -232,7 +256,7 @@ public class GlobeOptions
     /// <summary>
     /// Интенсивность дополнительного атмосферного свечения
     /// </summary>
-    public double AtmosphereLightIntensity { get; set; } = 0.7;
+    public double AtmosphereLightIntensity { get; set; } = 0;
 
     /// <summary>
     /// Цвет дополнительного атмосферного свечения

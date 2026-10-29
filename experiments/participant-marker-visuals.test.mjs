@@ -32,7 +32,10 @@ async function loadCommunityGlobeClass() {
 test('participant visuals use compact faceted pyramid markers instead of yellow point sprites', async () => {
     const { source } = await loadCommunityGlobeClass();
 
-    assert.doesNotMatch(source, /new THREE\.Points\(/, 'participants should no longer be rendered as point sprites');
+    // Точки-спрайты остались только у звёздного фона.
+    const pointSprites = [...source.matchAll(/new THREE\.Points\(/g)];
+    assert.equal(pointSprites.length, 1, 'participants should no longer be rendered as point sprites');
+    assert.match(source, /createStarfield\(\) \{[\s\S]*?this\.stars = new THREE\.Points\(/, 'the only point sprites are the background stars');
     assert.match(source, /participantMarkerFacets:\s*4/, 'default marker should read as a pyramid instead of a round pencil');
     assert.match(source, /const markerFacets = this\.getParticipantMarkerFacetCount\(\);/, 'marker should use the configured faceted profile');
     assert.match(source, /new THREE\.CylinderGeometry\([^;]*markerFacets/s, 'marker cap should use the configured faceted profile');
