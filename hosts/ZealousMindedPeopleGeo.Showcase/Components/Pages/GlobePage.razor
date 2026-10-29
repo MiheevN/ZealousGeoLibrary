@@ -21,6 +21,7 @@
         <CommunityGlobeViewer GlobeId="@GlobeId"
                               DataContainerId="@ContainerId"
                               DayNightMode="@(_dayNight ? GlobeDayNightMode.RealTime : GlobeDayNightMode.Off)"
+                              Planet="@(_demoPlanet ? DemoPlanet : null)"
                               Width="900"
                               Height="640" />
     </section>
@@ -47,6 +48,18 @@
             <button type="button" class="option @(_dayNight ? "active" : null)" aria-pressed="@_dayNight" @onclick="() => SelectLighting(true)">
                 <span class="option-title">@Site.LightingRealTime</span>
                 <span class="option-description">@Site.LightingRealTimeDescription</span>
+            </button>
+        </div>
+
+        <h2 class="panel-title">@Site.Planet</h2>
+        <div class="option-list">
+            <button type="button" class="option @(!_demoPlanet ? "active" : null)" aria-pressed="@(!_demoPlanet)" @onclick="() => SelectPlanet(false)">
+                <span class="option-title">@Site.PlanetEarth</span>
+                <span class="option-description">@Site.PlanetEarthDescription</span>
+            </button>
+            <button type="button" class="option @(_demoPlanet ? "active" : null)" aria-pressed="@_demoPlanet" @onclick="() => SelectPlanet(true)">
+                <span class="option-title">@Site.PlanetDemo</span>
+                <span class="option-description">@Site.PlanetDemoDescription</span>
             </button>
         </div>
 
@@ -77,8 +90,19 @@
 @code {
     [SupplyParameterFromQuery(Name = "set")] public string? DataSetKey { get; set; }
     [SupplyParameterFromQuery(Name = "daynight")] public bool DayNight { get; set; }
+    [SupplyParameterFromQuery(Name = "planet")] public string? PlanetKey { get; set; }
+
+    // Выдуманная планета: карта поверхности сгенерирована шумом на сфере, своих облаков и огней нет.
+    private static readonly GlobePlanet DemoPlanet = new()
+    {
+        DayTextureUrl = "img/demo-planet.jpg",
+        Roughness = 0.85,
+        AtmosphereColor = "#ffb070",
+        AtmosphereOpacity = 0.45
+    };
 
     private bool _dayNight;
+    private bool _demoPlanet;
 
     private DemoDataSets.DataSetInfo _dataSet = DemoDataSets.All[0];
     private List<GeoPoint> _points = new();
@@ -91,6 +115,7 @@
     {
         _dataSet = DemoDataSets.FindByKey(DataSetKey ?? "") ?? DemoDataSets.All[0];
         _dayNight = DayNight;
+        _demoPlanet = PlanetKey == "demo";
         _points = _dataSet.Create();
         _palette = GeoPointPalette.For(_points);
         await ContainerManager.LoadPointsAsync(ContainerId, _points);
@@ -101,7 +126,7 @@
         if (key != _dataSet.Key)
         {
             // Полная перезагрузка: при пересоздании глобус не освобождает WebGL-контекст.
-            Navigation.NavigateTo(GlobeUrl(key, _dayNight), forceLoad: true);
+            Navigation.NavigateTo(GlobeUrl(key, _dayNight, _demoPlanet), forceLoad: true);
         }
     }
 
@@ -109,12 +134,20 @@
     {
         if (dayNight != _dayNight)
         {
-            Navigation.NavigateTo(GlobeUrl(_dataSet.Key, dayNight), forceLoad: true);
+            Navigation.NavigateTo(GlobeUrl(_dataSet.Key, dayNight, _demoPlanet), forceLoad: true);
         }
     }
 
-    private static string GlobeUrl(string set, bool dayNight) =>
-        $"globe?set={Uri.EscapeDataString(set)}" + (dayNight ? "&daynight=true" : "");
+    private void SelectPlanet(bool demo)
+    {
+        if (demo != _demoPlanet)
+        {
+            Navigation.NavigateTo(GlobeUrl(_dataSet.Key, _dayNight, demo), forceLoad: true);
+        }
+    }
+
+    private static string GlobeUrl(string set, bool dayNight, bool demoPlanet) =>
+        $"globe?set={Uri.EscapeDataString(set)}" + (dayNight ? "&daynight=true" : "") + (demoPlanet ? "&planet=demo" : "");
 
     private static string FormatCoordinates(GeoPoint point) =>
         string.Create(CultureInfo.InvariantCulture, $"{point.Latitude:F2}, {point.Longitude:F2}");

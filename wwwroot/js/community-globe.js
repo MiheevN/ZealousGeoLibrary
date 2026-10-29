@@ -430,6 +430,45 @@ export function normalizeDayNightMode(mode) {
 }
 
 /**
+ * Своя планета вместо Земли. planet — { dayTextureUrl, normalTextureUrl, roughnessTextureUrl,
+ * roughness, cloudsTextureUrl, nightTextureUrl, atmosphereColor, atmosphereOpacity }; карты —
+ * в равнопромежуточной проекции (2:1), как у Земли. Карты Земли к чужой планете не
+ * подмешиваются: чего нет в planet, того нет и на глобусе — облаков, огней на ночной стороне,
+ * атмосферы, рельефа; без карты шероховатости поверхность везде одинаково матовая (roughness).
+ * Без dayTextureUrl остаётся Земля. Возвращает новые настройки, исходные не меняет.
+ * @param {Record<string, any>} options
+ */
+export function applyPlanetOptions(options) {
+    const planet = options?.planet;
+    const text = value => (typeof value === 'string' && value.trim() ? value.trim() : null);
+    const dayTextureUrl = planet && typeof planet === 'object' ? text(planet.dayTextureUrl) : null;
+    if (!dayTextureUrl) {
+        return { ...options, customPlanet: false };
+    }
+
+    const number = (value, fallback) => {
+        const parsed = value === null || value === undefined || value === '' ? NaN : Number(value);
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : fallback;
+    };
+    const cloudsTextureUrl = text(planet.cloudsTextureUrl);
+    const atmosphereColor = text(planet.atmosphereColor);
+    return {
+        ...options,
+        customPlanet: true,
+        earthTextureUrl: dayTextureUrl,
+        normalTextureUrl: text(planet.normalTextureUrl),
+        roughnessTextureUrl: text(planet.roughnessTextureUrl),
+        surfaceRoughness: number(planet.roughness, 0.9),
+        cloudsTextureUrl,
+        enableClouds: options.enableClouds !== false && cloudsTextureUrl !== null,
+        nightTextureUrl: text(planet.nightTextureUrl),
+        enableAtmosphereGlow: options.enableAtmosphereGlow !== false && atmosphereColor !== null,
+        atmosphereColor: atmosphereColor ?? options.atmosphereColor,
+        atmosphereOpacity: number(planet.atmosphereOpacity, options.atmosphereOpacity)
+    };
+}
+
+/**
  * Звёзды фона: детерминированные точки на сфере, чтобы картинка не менялась от загрузки к загрузке.
  * Яркость разная: большинство звёзд тусклые, редкие — яркие, как на настоящем небе.
  * @param {number} count
@@ -611,6 +650,8 @@ class CommunityGlobe {
             dayNightTime: null,
             nightTextureUrl: null,
             nightLightsIntensity: 1.6,
+            // Своя планета вместо Земли (см. applyPlanetOptions): { dayTextureUrl, ... }. Пусто — Земля.
+            planet: null,
             countryPointColor: '#ffffff',
             countryPointSize: 0.1,
             countryLineColor: '#444444',
@@ -636,6 +677,8 @@ class CommunityGlobe {
                 this.options[key] = value;
             }
         });
+        // Своя планета заменяет карты Земли целиком, а не по одной.
+        this.options = applyPlanetOptions(this.options);
 
         this.state = {
             isInitialized: false,
@@ -970,7 +1013,8 @@ class CommunityGlobe {
             normalMap,
             normalScale: new THREE.Vector2(0.6, 0.6),
             roughnessMap,
-            roughness: 1,
+            // С картой шероховатость берётся из неё; без карты — одна на всю поверхность.
+            roughness: roughnessMap ? 1 : (this.options.surfaceRoughness ?? 1),
             metalness: 0
         });
         this.setupNightLights(earthMaterial);
@@ -1016,16 +1060,18 @@ class CommunityGlobe {
 
     applyDayNightMode() {
         const enabled = this.isDayNightEnabled();
-        if (enabled && this.nightUniforms && !this.nightUniforms.nightMap.value) {
-            const url = this.options.nightTextureUrl
-                || `${EARTH_ASSETS}${this.textureQuality === 'high' ? '8k' : '4k'}_earth_nightmap.jpg`;
+        // У своей планеты огни на ночной стороне — только из её карты; огни Земли ей не подходят.
+        const nightUrl = this.options.nightTextureUrl
+            || (this.options.customPlanet ? null : `${EARTH_ASSETS}${this.textureQuality === 'high' ? '8k' : '4k'}_earth_nightmap.jpg`);
+        if (enabled && nightUrl && this.nightUniforms && !this.nightUniforms.nightMap.value) {
+            const url = nightUrl;
             const texture = new THREE.TextureLoader().load(url);
             texture.colorSpace = THREE.SRGBColorSpace;
             texture.anisotropy = this.renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
             this.nightUniforms.nightMap.value = texture;
         }
         if (this.nightUniforms) {
-            this.nightUniforms.nightStrength.value = enabled ? Math.max(0, Number(this.options.nightLightsIntensity) || 0) : 0;
+            this.nightUniforms.nightStrength.value = enabled && nightUrl ? Math.max(0, Number(this.options.nightLightsIntensity) || 0) : 0;
         }
         // Ночью нечему подсвечивать тёмную сторону: заливающий свет почти гаснет.
         if (this.ambientLight) {

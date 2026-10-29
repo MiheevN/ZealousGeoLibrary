@@ -79,6 +79,12 @@
     /// </summary>
     [Parameter] public DateTimeOffset? DayNightTime { get; set; }
 
+    /// <summary>
+    /// Своя планета вместо Земли (см. <see cref="GlobePlanet"/>). Пусто — Земля.
+    /// Применяется при создании глобуса.
+    /// </summary>
+    [Parameter] public GlobePlanet? Planet { get; set; }
+
     private string ContainerId => $"globe-{GlobeId}";
     private GlobeInstanceState State => GlobeStateService.GetOrCreateGlobe(GlobeId);
     private int SafeWidth => Math.Max(Width, 1);
@@ -183,6 +189,7 @@
                 ClusterRadius = Math.Clamp(ClusterRadius, 0, 200),
                 DayNightMode = DayNightMode,
                 DayNightTime = DayNightTime,
+                Planet = Planet,
                 // Подписи для экранного диктора — на языке пользователя, как и разметка.
                 Texts = Ui.GlobeScriptTexts(),
                 Locale = System.Globalization.CultureInfo.CurrentUICulture.Name

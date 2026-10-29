@@ -204,6 +204,21 @@
   <data name="LightingRealTimeDescription" xml:space="preserve">
     <value>Солнце там, где оно сейчас; на ночной стороне — огни городов</value>
   </data>
+  <data name="Planet" xml:space="preserve">
+    <value>Планета</value>
+  </data>
+  <data name="PlanetEarth" xml:space="preserve">
+    <value>Земля</value>
+  </data>
+  <data name="PlanetEarthDescription" xml:space="preserve">
+    <value>Встроенные текстуры: день, ночь, рельеф, облака</value>
+  </data>
+  <data name="PlanetDemo" xml:space="preserve">
+    <value>Выдуманная планета</value>
+  </data>
+  <data name="PlanetDemoDescription" xml:space="preserve">
+    <value>Своя GlobePlanet: одна карта поверхности и оранжевая атмосфера, без облаков и огней городов</value>
+  </data>
   <data name="NoCategory" xml:space="preserve">
     <value>Без категории</value>
   </data>

@@ -83,6 +83,7 @@ if (result.success) {
 | `participantLabelCollisionPadding` | `4` | Зазор между подписями в пикселях |
 | `clusterPoints`, `clusterRadius` | `true`, `40` | Группы близких маркеров |
 | `texts`, `locale` | английский | Надписи для экранного диктора и подсказки про клавиши |
+| `planet` | `null` | Своя планета: `{ dayTextureUrl, normalTextureUrl, roughnessTextureUrl, roughness, cloudsTextureUrl, nightTextureUrl, atmosphereColor, atmosphereOpacity }`, см. [Своя планета](components.md#своя-планета) |
 
 Полный список — `defaultOptions` в конструкторе класса `CommunityGlobe` в `community-globe.js`.
 
