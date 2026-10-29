@@ -499,13 +499,13 @@
     <value>Цвет атмосферы</value>
   </data>
   <data name="SettingsAtmosphereOpacity" xml:space="preserve">
-    <value>Прозрачность атмосферы: {0}</value>
+    <value>Яркость атмосферы: {0}</value>
   </data>
   <data name="SettingsEnableClouds" xml:space="preserve">
     <value>Включить облака</value>
   </data>
   <data name="SettingsCloudsOpacity" xml:space="preserve">
-    <value>Прозрачность облаков: {0}</value>
+    <value>Плотность облаков: {0}</value>
   </data>
   <data name="SettingsCloudsSpeed" xml:space="preserve">
     <value>Скорость облаков: {0}</value>

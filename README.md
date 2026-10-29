@@ -666,13 +666,25 @@ public class GlobeOptions
     public double MinZoom { get; set; } = 1.03;
     public double MaxZoom { get; set; } = 4.0;
     public int LevelOfDetail { get; set; } = 2;
+    public string TextureQuality { get; set; } = "auto";   // auto | high (8K) | standard (4K)
+    public double CloudsOpacity { get; set; } = 0.85;       // плотность облаков
+    public string AtmosphereColor { get; set; } = "#4fb4ff";
+    public double AtmosphereOpacity { get; set; } = 0.7;    // яркость свечения по краю
+    public bool EnableStars { get; set; } = true;
     public bool SunLightFollowCamera { get; set; } = true;
+    public double SunLightOffsetDegrees { get; set; } = 30; // свет сбоку, а не из-за камеры
     public double SunLightDistance { get; set; } = 6.0;
-    public double SunLightIntensity { get; set; } = 2.8;
-    public double AmbientLightIntensity { get; set; } = 1.2;
-    public double HemisphereLightIntensity { get; set; } = 0.8;
+    public double SunLightIntensity { get; set; } = 2.6;
+    public double AmbientLightIntensity { get; set; } = 0.3;
+    public double HemisphereLightIntensity { get; set; } = 0.25;
 }
 ```
+
+Текстуры Земли встроены: карта дня 8K на компьютере и 4K на телефоне и слабых видеокартах
+(`TextureQuality = "auto"`; 8K-текстура занимает в видеопамяти около 180 МБ), рельеф,
+шероховатость (суша матовая, океан блестит) и маска облаков — 4K. Свои текстуры задаются
+в `EarthTextureUrl`, `NormalTextureUrl`, `RoughnessTextureUrl` и `CloudsTextureUrl`; маска
+облаков — белые облака на чёрном.
 
 ### Сервисы
 
@@ -1390,7 +1402,7 @@ ZealousMindedPeopleGeo/
     │   ├── zealous-ui.css                # Общие токены темной темы
     │   └── community-globe.css и др.     # Стили отдельных компонентов
     └── assets/          # Ресурсы
-        └── earth/       # 8K текстуры Земли
+        └── earth/       # Текстуры Земли: день 8K и 4K, рельеф, шероховатость, облака 4K
 ```
 
 ### Сборка проекта

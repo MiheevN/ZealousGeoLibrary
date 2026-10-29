@@ -301,6 +301,107 @@ function clusterMarkerParticipant(group, participants) {
 }
 const PARTICIPANT_LABEL_FADE_OUT_SECONDS = 0.12;
 
+const EARTH_ASSETS = '/_content/ZealousMindedPeopleGeo/assets/earth/';
+const ATMOSPHERE_HALO_RADIUS = 1.1;
+
+/**
+ * Какие текстуры грузить. 8K-карта дня — только там, где видеокарта и память её потянут:
+ * на телефоне 8K-текстура занимает в видеопамяти около 180 МБ и легко роняет вкладку.
+ * @param {{quality?: string, coarsePointer?: boolean, maxTextureSize?: number, deviceMemory?: number}} environment
+ * @returns {'high'|'standard'}
+ */
+export function chooseGlobeTextureQuality({ quality = 'auto', coarsePointer = false, maxTextureSize = 0, deviceMemory } = {}) {
+    if (quality === 'high' || quality === 'standard') {
+        return quality;
+    }
+    if (coarsePointer || maxTextureSize < 8192 || (typeof deviceMemory === 'number' && deviceMemory < 4)) {
+        return 'standard';
+    }
+    return 'high';
+}
+
+/**
+ * Расстояние камеры, при котором шар занимает долю fill меньшей стороны холста.
+ * @param {number} fovDegrees - Вертикальный угол обзора камеры
+ * @param {number} aspect - Ширина холста, делённая на высоту
+ * @param {number} fill - Доля меньшей стороны, которую занимает диаметр шара
+ */
+export function fitGlobeCameraDistance(fovDegrees, aspect, fill = 0.72) {
+    const halfVertical = (fovDegrees * Math.PI / 180) / 2;
+    const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+    const halfHorizontal = Math.atan(Math.tan(halfVertical) * safeAspect);
+    const half = Math.min(halfVertical, halfHorizontal);
+    const globeHalfAngle = Math.atan(Math.tan(half) * fill);
+    return 1 / Math.sin(globeHalfAngle);
+}
+
+/**
+ * Направление на солнце: от камеры, сдвинутое вверх-влево на offsetDegrees. Так освещена
+ * видимая сторона, но свет падает сбоку и у шара появляется объём.
+ * @param {{x:number,y:number,z:number}} cameraPosition
+ * @param {number} offsetDegrees
+ * @returns {{x:number,y:number,z:number}} единичный вектор
+ */
+export function sunDirectionFromCamera(cameraPosition, offsetDegrees = 0) {
+    const length = Math.hypot(cameraPosition.x, cameraPosition.y, cameraPosition.z) || 1;
+    const d = { x: cameraPosition.x / length, y: cameraPosition.y / length, z: cameraPosition.z / length };
+    const angle = (Number(offsetDegrees) || 0) * Math.PI / 180;
+    if (angle === 0) {
+        return d;
+    }
+
+    // «Вправо» на экране: up × d, где up — мировая вертикаль (или ось z у полюса).
+    const up = Math.abs(d.y) > 0.999 ? { x: 0, y: 0, z: -1 } : { x: 0, y: 1, z: 0 };
+    let right = { x: up.y * d.z - up.z * d.y, y: up.z * d.x - up.x * d.z, z: up.x * d.y - up.y * d.x };
+    const rightLength = Math.hypot(right.x, right.y, right.z) || 1;
+    right = { x: right.x / rightLength, y: right.y / rightLength, z: right.z / rightLength };
+    // «Вверх» на экране: d × right.
+    const screenUp = { x: d.y * right.z - d.z * right.y, y: d.z * right.x - d.x * right.z, z: d.x * right.y - d.y * right.x };
+    const side = { x: screenUp.x * 0.6 - right.x * 0.8, y: screenUp.y * 0.6 - right.y * 0.8, z: screenUp.z * 0.6 - right.z * 0.8 };
+    const result = {
+        x: d.x * Math.cos(angle) + side.x * Math.sin(angle),
+        y: d.y * Math.cos(angle) + side.y * Math.sin(angle),
+        z: d.z * Math.cos(angle) + side.z * Math.sin(angle)
+    };
+    const resultLength = Math.hypot(result.x, result.y, result.z) || 1;
+    return { x: result.x / resultLength, y: result.y / resultLength, z: result.z / resultLength };
+}
+
+/**
+ * Звёзды фона: детерминированные точки на сфере, чтобы картинка не менялась от загрузки к загрузке.
+ * Яркость разная: большинство звёзд тусклые, редкие — яркие, как на настоящем небе.
+ * @param {number} count
+ * @param {number} radius
+ * @returns {{positions: Float32Array, colors: Float32Array}} координаты и цвета x, y, z / r, g, b подряд
+ */
+export function starfield(count, radius = 60) {
+    const total = Math.max(0, Math.floor(count) || 0);
+    const positions = new Float32Array(total * 3);
+    const colors = new Float32Array(total * 3);
+    let seed = 0x2f6b9a1;
+    const random = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+    };
+    for (let i = 0; i < total; i++) {
+        const z = random() * 2 - 1;
+        const phi = random() * Math.PI * 2;
+        const r = Math.sqrt(1 - z * z);
+        const distance = radius * (0.85 + random() * 0.3);
+        positions[i * 3] = Math.cos(phi) * r * distance;
+        positions[i * 3 + 1] = z * distance;
+        positions[i * 3 + 2] = Math.sin(phi) * r * distance;
+
+        const brightness = 0.25 + 0.75 * Math.pow(random(), 3);
+        // Слегка голубые и слегка тёплые звёзды вперемешку.
+        const warmth = random() - 0.5;
+        colors[i * 3] = brightness * (1 + warmth * 0.12);
+        colors[i * 3 + 1] = brightness;
+        colors[i * 3 + 2] = brightness * (1 - warmth * 0.12);
+    }
+    return { positions, colors };
+}
+
 /**
  * Причины, по которым глобус не запустился. Компонент показывает по коду понятный текст
  * на языке пользователя, а технические подробности остаются в консоли и журнале.
@@ -354,8 +455,9 @@ class CommunityGlobe {
             width: 800,
             height: 600,
             backgroundColor: '#000011',
-            atmosphereColor: '#00aaff',
-            atmosphereOpacity: 0.2,
+            atmosphereColor: '#4fb4ff',
+            // Яркость свечения атмосферы по краю шара, 0–1.
+            atmosphereOpacity: 0.7,
             participantPointSize: 0.06,
             participantPointColor: '#24dce7',
             // Близкие маркеры сливаются в группу со счётчиком (как на 2D-карте).
@@ -425,29 +527,38 @@ class CommunityGlobe {
             cameraRotateMaxSpeed: 1.0,
             cameraRotateSlowdownDistance: 1.5,
             levelOfDetail: 2,
-            earthTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_daymap.jpg",
-            normalTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_normal_map.tif",
-            specularTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_specular_map.tif",
-            cloudsTextureUrl: "/_content/ZealousMindedPeopleGeo/assets/earth/8k_earth_clouds.jpg",
+            // Пусто — встроенные текстуры: карта дня 8K или 4K (см. textureQuality),
+            // рельеф и шероховатость (суша матовая, океан блестит) — 4K.
+            earthTextureUrl: null,
+            normalTextureUrl: `${EARTH_ASSETS}4k_earth_normal_map.jpg`,
+            roughnessTextureUrl: `${EARTH_ASSETS}4k_earth_roughness_map.jpg`,
+            // Облака — маска прозрачности: белое — облако, чёрное — чистое небо.
+            cloudsTextureUrl: `${EARTH_ASSETS}4k_earth_clouds.jpg`,
+            // 'auto' — 8K на компьютере, 4K на телефоне и слабых видеокартах; 'high' или 'standard' — явно.
+            textureQuality: 'auto',
             enableClouds: true,
-            cloudsOpacity: 0.1,
+            cloudsOpacity: 0.85,
             cloudsSpeed: 0.01,
             enableAtmosphereGlow: true,
+            enableStars: true,
+            starCount: 1500,
             countryPointColor: '#ffffff',
             countryPointSize: 0.1,
             countryLineColor: '#444444',
             countryLineWidth: 0.5,
             // Настройки освещения
             sunLightFollowCamera: true,
+            // На сколько градусов солнце смещено от камеры вверх-влево: свет сбоку даёт объём.
+            sunLightOffsetDegrees: 30,
             sunLightDistance: 6,
-            sunLightIntensity: 2.8,
+            sunLightIntensity: 2.6,
             sunLightColor: '#ffffff',
-            ambientLightIntensity: 1.2,
+            ambientLightIntensity: 0.3,
             ambientLightColor: '#9db7d1',
-            hemisphereLightIntensity: 0.8,
+            hemisphereLightIntensity: 0.25,
             hemisphereSkyColor: '#d8f1ff',
             hemisphereGroundColor: '#253042',
-            atmosphereLightIntensity: 0.7,
+            atmosphereLightIntensity: 0,
             atmosphereLightColor: '#8fdcff',
         };
         this.options = { ...defaultOptions };
@@ -493,6 +604,7 @@ class CommunityGlobe {
         this.earthGroup = null;
         this.atmosphere = null;
         this.clouds = null;
+        this.stars = null;
         this.participantPoints = [];
         this.participantMarkers = [];
         this.participantMarkerHitTargets = [];
@@ -549,6 +661,7 @@ class CommunityGlobe {
             this.createEarth();
             this.createAtmosphere();
             this.createClouds();
+            this.createStarfield();
             this.setupLighting();
             this.setupControls();
             this.setupEventListeners();
@@ -685,6 +798,11 @@ class CommunityGlobe {
 
         const aspect = renderSize.width / renderSize.height;
         this.camera = new THREE.PerspectiveCamera(75, aspect, this.getPositiveNumber(this.options.cameraNearPlane, 0.02), 1000);
+        // Шар занимает около трёх четвертей холста, а не половину, с запасом на свечение атмосферы.
+        this.state.cameraPosition.z = this.clamp(
+            fitGlobeCameraDistance(this.camera.fov, aspect),
+            this.getPositiveNumber(this.options.minZoom, 1.03) + 0.5,
+            this.getPositiveNumber(this.options.maxZoom, 4));
         this.camera.position.set(
             this.state.cameraPosition.x,
             this.state.cameraPosition.y,
@@ -702,6 +820,9 @@ class CommunityGlobe {
         }
         this.renderer.setSize(renderSize.width, renderSize.height, false);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Плёночная тональная кривая: яркое солнце не выжигает облака, тени не проваливаются в чёрное.
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -748,7 +869,7 @@ class CommunityGlobe {
         debugLog('🌍 Загрузка текстур глобуса:');
         debugLog('Основная текстура:', this.options.earthTextureUrl);
         debugLog('Карта нормалей:', this.options.normalTextureUrl);
-        debugLog('Карта спекуляции:', this.options.specularTextureUrl);
+        debugLog('Карта шероховатости:', this.options.roughnessTextureUrl);
 
         // Загружаем текстуры асинхронно для избежания блокировок
         const loadTexture = (url) => {
@@ -762,12 +883,25 @@ class CommunityGlobe {
             }
         };
 
+        const anisotropy = this.renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
+        const prepare = (texture, colorSpace) => {
+            if (!texture) return null;
+            // Цветная карта хранится в sRGB: без этого цвета выходят выцветшими.
+            texture.colorSpace = colorSpace;
+            texture.anisotropy = anisotropy;
+            return texture;
+        };
+
+        const dayMap = prepare(loadTexture(this.resolveEarthTextureUrl()), THREE.SRGBColorSpace);
+        const normalMap = prepare(loadTexture(this.options.normalTextureUrl), THREE.NoColorSpace);
+        const roughnessMap = prepare(loadTexture(this.options.roughnessTextureUrl), THREE.NoColorSpace);
         const earthMaterial = new THREE.MeshStandardMaterial({
-            map: loadTexture(this.options.earthTextureUrl),
-            normalMap: loadTexture(this.options.normalTextureUrl),
-            roughnessMap: loadTexture(this.options.specularTextureUrl),
-            roughness: 0.8,
-            metalness: 0.1
+            map: dayMap,
+            normalMap,
+            normalScale: new THREE.Vector2(0.6, 0.6),
+            roughnessMap,
+            roughness: 1,
+            metalness: 0
         });
 
         const earth = new THREE.Mesh(earthGeometry, earthMaterial);
@@ -776,19 +910,124 @@ class CommunityGlobe {
         this.earthRotation = 0;
     }
 
+    resolveEarthTextureUrl() {
+        if (this.options.earthTextureUrl) {
+            return this.options.earthTextureUrl;
+        }
+
+        const gl = this.renderer?.getContext?.();
+        this.textureQuality = chooseGlobeTextureQuality({
+            quality: this.options.textureQuality,
+            coarsePointer: typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches === true,
+            maxTextureSize: this.renderer?.capabilities?.maxTextureSize ?? gl?.getParameter?.(gl.MAX_TEXTURE_SIZE) ?? 0,
+            deviceMemory: typeof navigator !== 'undefined' ? navigator.deviceMemory : undefined
+        });
+        return `${EARTH_ASSETS}${this.textureQuality === 'high' ? '8k' : '4k'}_earth_daymap.jpg`;
+    }
+
     createAtmosphere() {
         if (!this.options.enableAtmosphereGlow) return;
 
-        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 128, 128);
-        const atmosphereMaterial = new THREE.MeshPhongMaterial({
-            color: this.options.atmosphereColor,
-            transparent: true,
-            opacity: this.options.atmosphereOpacity,
-            side: THREE.BackSide
+        // Свечение по краю: снаружи — ореол, тающий в космос, внутри — голубая дымка у горизонта.
+        const vertexShader = `
+            varying vec3 vNormal;
+            varying vec3 vView;
+            void main() {
+                vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+                vNormal = normalize(normalMatrix * normal);
+                vView = normalize(-viewPosition.xyz);
+                gl_Position = projectionMatrix * viewPosition;
+            }`;
+        const uniforms = () => ({
+            glowColor: { value: new THREE.Color(this.options.atmosphereColor) },
+            strength: { value: this.clamp(Number(this.options.atmosphereOpacity) || 0, 0, 1) },
+            // Где на оболочке ореола проходит край Земли (для далёкой камеры).
+            limbEdge: { value: Math.sqrt(1 - 1 / (ATMOSPHERE_HALO_RADIUS * ATMOSPHERE_HALO_RADIUS)) }
         });
 
-        this.atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+        const halo = new THREE.Mesh(
+            new THREE.SphereGeometry(ATMOSPHERE_HALO_RADIUS, 96, 96),
+            new THREE.ShaderMaterial({
+                uniforms: uniforms(),
+                vertexShader,
+                fragmentShader: `
+                    uniform vec3 glowColor;
+                    uniform float strength;
+                    uniform float limbEdge;
+                    varying vec3 vNormal;
+                    varying vec3 vView;
+                    void main() {
+                        // Задняя сторона оболочки: ноль на внешнем краю ореола, максимум у края Земли
+                        // (дальше оболочку закрывает сама Земля).
+                        float edge = clamp(-dot(vNormal, vView), 0.0, 1.0);
+                        float glow = pow(smoothstep(0.0, limbEdge, edge), 3.0);
+                        gl_FragColor = vec4(glowColor * glow * strength * 0.8, 1.0);
+                    }`,
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                depthWrite: false
+            }));
+        halo.name = 'atmosphere-halo';
+
+        const rim = new THREE.Mesh(
+            new THREE.SphereGeometry(1.012, 96, 96),
+            new THREE.ShaderMaterial({
+                uniforms: uniforms(),
+                vertexShader,
+                fragmentShader: `
+                    uniform vec3 glowColor;
+                    uniform float strength;
+                    varying vec3 vNormal;
+                    varying vec3 vView;
+                    void main() {
+                        float fresnel = pow(1.0 - clamp(dot(vNormal, vView), 0.0, 1.0), 4.0);
+                        gl_FragColor = vec4(glowColor, fresnel * strength * 0.55);
+                    }`,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                depthWrite: false
+            }));
+        rim.name = 'atmosphere-rim';
+
+        this.atmosphere = new THREE.Group();
+        this.atmosphere.add(halo, rim);
         this.earthGroup.add(this.atmosphere);
+    }
+
+    refreshAtmosphereAppearance() {
+        this.atmosphere?.traverse(object => {
+            const uniforms = object.material?.uniforms;
+            if (!uniforms) return;
+            uniforms.glowColor.value.set(this.options.atmosphereColor);
+            uniforms.strength.value = this.clamp(Number(this.options.atmosphereOpacity) || 0, 0, 1);
+        });
+        if (this.clouds?.material) {
+            this.clouds.material.opacity = this.clamp(Number(this.options.cloudsOpacity) || 0, 0, 1);
+        }
+    }
+
+    createStarfield() {
+        if (!this.options.enableStars || this.stars) return;
+
+        const { positions, colors } = starfield(this.options.starCount);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        // Звёзды — фон: не вращаются вместе с Землёй и не участвуют в выборе маркеров.
+        // На плотном экране телефона звезда чуть мельче в CSS-пикселях, но не пропадает.
+        const pixelRatio = this.renderer?.getPixelRatio?.() ?? 1;
+        this.stars = new THREE.Points(geometry, new THREE.PointsMaterial({
+            vertexColors: true,
+            size: 1.6 / Math.sqrt(Math.max(1, pixelRatio)),
+            sizeAttenuation: false,
+            transparent: true,
+            depthWrite: false,
+            toneMapped: false
+        }));
+        this.stars.name = 'starfield';
+        this.stars.raycast = () => {};
+        this.scene.add(this.stars);
     }
 
     createClouds() {
@@ -810,10 +1049,15 @@ class CommunityGlobe {
             }
         };
 
-        const cloudsMaterial = new THREE.MeshPhongMaterial({
-            map: loadCloudTexture(this.options.cloudsTextureUrl),
+        // Текстура облаков — маска: облака белые, а земля между ними видна без серой пелены.
+        const cloudsMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            alphaMap: loadCloudTexture(this.options.cloudsTextureUrl),
             transparent: true,
-            opacity: this.options.cloudsOpacity
+            depthWrite: false,
+            roughness: 1,
+            metalness: 0,
+            opacity: this.clamp(Number(this.options.cloudsOpacity) || 0, 0, 1)
         });
 
         this.clouds = new THREE.Mesh(cloudsGeometry, cloudsMaterial);
@@ -878,7 +1122,8 @@ class CommunityGlobe {
             position.set(0, 0, 1);
         }
 
-        return position.setLength(distance);
+        const direction = sunDirectionFromCamera(position, this.options.sunLightOffsetDegrees);
+        return position.set(direction.x, direction.y, direction.z).setLength(distance);
     }
 
     syncSunLightWithCamera() {
@@ -3029,8 +3274,10 @@ class CommunityGlobe {
             this.createAtmosphere();
         } else if (!enabled && this.atmosphere) {
             this.earthGroup.remove(this.atmosphere);
-            this.atmosphere.geometry.dispose();
-            this.atmosphere.material.dispose();
+            this.atmosphere.traverse(object => {
+                object.geometry?.dispose();
+                object.material?.dispose();
+            });
             this.atmosphere = null;
             this.options.enableAtmosphereGlow = false;
         }
@@ -3129,6 +3376,7 @@ class CommunityGlobe {
             
             this.toggleAtmosphere(settings.enableAtmosphereGlow);
             this.toggleClouds(settings.enableClouds);
+            this.refreshAtmosphereAppearance();
             
             if (settings.width && settings.height) {
                 this.applyConfiguredContainerSize(settings.width, settings.height);
@@ -3148,12 +3396,6 @@ class CommunityGlobe {
                 this.controls.enableZoom = settings.enableZoom;
                 this.updateCameraControlLimits();
                 this.applyCameraDistanceSafety();
-            }
-            if (this.atmosphere) {
-                this.atmosphere.material.opacity = settings.atmosphereOpacity;
-            }
-            if (this.clouds) {
-                this.clouds.material.opacity = settings.cloudsOpacity;
             }
             
             const participants = Array.from(this.pointMetadata.values());
