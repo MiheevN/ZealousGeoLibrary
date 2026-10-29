@@ -2,7 +2,6 @@
 
 Библиотека для создания интерактивных 3D географических приложений сообщества людей, объединенных стремлением сделать мир добрее и гармоничнее.
 
-[![NuGet](https://img.shields.io/nuget/v/ZealousMindedPeopleGeo.svg)](https://www.nuget.org/packages/ZealousMindedPeopleGeo/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🌟 Возможности
@@ -23,17 +22,22 @@
 | Часть | Что это | Что нужно |
 |---|---|---|
 | C# / Blazor | Razor-компоненты, сервисы, модели (.NET 10) | .NET SDK 10 |
-| JavaScript | Глобус на Three.js, 2D-карта, PWA в `wwwroot/`. Входят в пакет и загружаются сами | Ничего: работают в браузере |
+| JavaScript | Глобус на Three.js, 2D-карта, PWA в `wwwroot/`. Входят в библиотеку и загружаются сами | Ничего: работают в браузере |
 | Тесты | C#: `dotnet test`. JavaScript: `node --test` | .NET SDK 10; Node.js 22 только для тестов JavaScript |
 
 ## Быстрый старт
 
-1. Подключите библиотеку:
+1. Подключите библиотеку ссылкой на проект: в NuGet она не публикуется. Библиотека должна
+   лежать рядом с проектом приложения, а не внутри его папки (почему — в
+   [Встраивании](docs/integration.md)). Из корня репозитория приложения:
    ```bash
-   dotnet add package ZealousMindedPeopleGeo
+   git submodule add https://github.com/MiheevN/ZealousGeoLibrary.git libs/ZealousGeoLibrary
+   dotnet add MyApp/MyApp.csproj reference libs/ZealousGeoLibrary/ZealousMindedPeopleGeo.csproj
    ```
 2. Зарегистрируйте сервисы в `Program.cs`:
    ```csharp
+   using ZealousMindedPeopleGeo;
+
    builder.Services.AddZealousMindedPeopleGeo();
    ```
 3. Добавьте компонент на страницу с интерактивным рендерингом:

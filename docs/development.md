@@ -2,7 +2,7 @@
 
 [← Документация](README.md) · Раздел для тех, кто меняет саму библиотеку
 
-Приложению, которое только подключает пакет, эта страница не нужна.
+Приложению, которое только подключает библиотеку, эта страница не нужна.
 
 ## Что нужно установить
 
@@ -147,7 +147,7 @@ Canvas и Three.js, браузер не нужен.
 | `community-globe-*.test.mjs` | Глобус: камера, вращение, освещение, день и ночь, текстуры, группы, касания, клавиатура, ошибки запуска, настройки |
 | `participant-marker-*.test.mjs`, `label-layout.test.mjs` | Маркеры и подписи глобуса |
 | `community-map-*.test.mjs` | 2D-карта: проекции, группы, жесты, клавиатура |
-| `pwa-*.test.mjs`, `service-worker-cache.test.mjs` | Манифест и иконки, `pwa.js`, кэши `sw.js` и совпадение `SW_VERSION` с версией пакета |
+| `pwa-*.test.mjs`, `service-worker-cache.test.mjs` | Манифест и иконки, `pwa.js`, кэши `sw.js` и совпадение `SW_VERSION` с версией библиотеки |
 | `library-*.test.mjs`, `unified-ui-theme.test.mjs`, `responsive-layout.test.mjs` | JS-инициализатор, сборка стилей, тема, адаптивная вёрстка |
 | `debug-logging.test.mjs` | Скрипты молчат в консоли без `zealousGeoDebug` |
 | `showcase-resources.test.mjs` | У каждой надписи витрины есть английский и русский текст |
@@ -164,7 +164,7 @@ JavaScript на Node 22.
 ## Правила
 
 - **Версия сервис-воркера.** `SW_VERSION` в `wwwroot/sw.js` равна `<Version>` в
-  `ZealousMindedPeopleGeo.csproj`: поднимая версию пакета, поднимайте и её (см.
+  `ZealousMindedPeopleGeo.csproj`: поднимая версию библиотеки, поднимайте и её (см.
   [Версия кэшей](pwa.md#версия-кэшей)). Проверяет тест JavaScript `service-worker-cache.test.mjs`.
 - **Переводы.** Новая надпись добавляется в `Resources/Ui.resx` и `Ui.ru.resx` и в `Ui.cs`
   (см. [Язык сообщений](localization.md)). Совпадение ключей проверяет тест C# `MessagesTests`.
