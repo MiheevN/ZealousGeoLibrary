@@ -20,6 +20,10 @@
 
   Ключи `GoogleSheetId` и `GoogleServiceAccountKey` в `appsettings.json` теперь просто игнорируются. Код, который вызывал удалённые методы, нужно перевести на свою реализацию интерфейса
 
+- **Неиспользуемые текстуры Земли:** `8k_earth_normal_map.tif`, `8k_earth_specular_map.tif` и `8k_earth_clouds.jpg` (около 23 МБ). Глобус берёт рельеф, шероховатость и облака из 4K-карт, а TIFF браузеры не открывают
+
+- **Пакет NuGet при каждой сборке.** `GeneratePackageOnBuild` выключен: библиотека подключается ссылкой на проект, а `.nupkg` в `bin/` никому не был нужен
+
 - **Неработающие и неиспользуемые части:**
   - `ValidationService`, `LocalizationService` и валидаторы FluentValidation (`ParticipantValidator` и др.) вместе с зависимостью от пакета FluentValidation. `ValidationService` не регистрировался, поэтому пример из README не работал; ввод формы проверяют атрибуты моделей, точки — `GeoPoint.Validate()`
   - `IMapService` и `GoogleMapsServiceAdapter` — регистрировались, но ими никто не пользовался

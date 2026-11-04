@@ -73,7 +73,8 @@
     </PackageReleaseNotes>
 
     <!-- Настройки сборки -->
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Пакет NuGet не собирается: библиотеку подключают ссылкой на проект (docs/integration.md) -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
 
