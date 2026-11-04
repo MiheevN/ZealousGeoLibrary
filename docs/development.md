@@ -58,7 +58,8 @@ ZealousMindedPeopleGeo/
     │   ├── zealous-ui.css                # Общие токены темной темы
     │   └── community-globe.css и др.     # Стили отдельных компонентов
     └── assets/          # Ресурсы
-        └── earth/       # Текстуры Земли: день и ночь 8K и 4K, рельеф, шероховатость, облака 4K
+        ├── earth/       # Текстуры Земли: день и ночь 8K и 4K, рельеф, шероховатость, облака 4K
+        └── planets/     # Карты Марса и Луны 2K (GlobePlanet.Mars, GlobePlanet.Moon)
 tests/ZealousMindedPeopleGeo.Tests/  # Тесты C#: xUnit + bUnit, запуск — dotnet test
 tests/js/                            # Тесты JavaScript: *.test.mjs, запуск — node --test
 hosts/ZealousMindedPeopleGeo.Showcase/ # Витрина для ручной проверки

@@ -330,6 +330,31 @@ public class GlobePlanet
 
     /// <summary>Яркость свечения атмосферы, от 0 до 1.</summary>
     public double AtmosphereOpacity { get; set; } = 0.7;
+
+    private const string PlanetAssets = "/_content/ZealousMindedPeopleGeo/assets/planets/";
+
+    /// <summary>
+    /// Марс со встроенной картой поверхности и тонкой пыльной атмосферой. Каждый вызов
+    /// возвращает новый объект, его можно менять. Карта — Solar System Scope, CC BY 4.0:
+    /// показывая её, укажите источник (см. docs/components.md).
+    /// </summary>
+    public static GlobePlanet Mars => new()
+    {
+        DayTextureUrl = PlanetAssets + "2k_mars.jpg",
+        Roughness = 0.95,
+        AtmosphereColor = "#e0a774",
+        AtmosphereOpacity = 0.3
+    };
+
+    /// <summary>
+    /// Луна со встроенной картой поверхности, без атмосферы. Каждый вызов возвращает новый
+    /// объект. Карта — Solar System Scope, CC BY 4.0: показывая её, укажите источник.
+    /// </summary>
+    public static GlobePlanet Moon => new()
+    {
+        DayTextureUrl = PlanetAssets + "2k_moon.jpg",
+        Roughness = 1
+    };
 }
 
 /// <summary>

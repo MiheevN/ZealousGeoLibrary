@@ -223,6 +223,18 @@
   <data name="PlanetEarthDescription" xml:space="preserve">
     <value>Built-in textures: day, night, relief, clouds</value>
   </data>
+  <data name="PlanetMars" xml:space="preserve">
+    <value>Mars</value>
+  </data>
+  <data name="PlanetMarsDescription" xml:space="preserve">
+    <value>GlobePlanet.Mars: built-in surface map and a thin dusty atmosphere. Map by Solar System Scope, CC BY 4.0</value>
+  </data>
+  <data name="PlanetMoon" xml:space="preserve">
+    <value>Moon</value>
+  </data>
+  <data name="PlanetMoonDescription" xml:space="preserve">
+    <value>GlobePlanet.Moon: built-in surface map, no atmosphere. Map by Solar System Scope, CC BY 4.0</value>
+  </data>
   <data name="PlanetDemo" xml:space="preserve">
     <value>Made-up planet</value>
   </data>
