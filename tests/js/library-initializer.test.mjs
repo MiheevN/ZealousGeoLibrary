@@ -6,7 +6,7 @@ const STYLESHEET = '_content/ZealousMindedPeopleGeo/css/zealous-geo.css';
 
 async function loadInitializer() {
     // Blazor находит инициализатор по имени файла {сборка}.lib.module.js и вызывает его экспорты.
-    const source = await readFile(new URL('../wwwroot/ZealousMindedPeopleGeo.lib.module.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/ZealousMindedPeopleGeo.lib.module.js', import.meta.url), 'utf8');
     return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 }
 

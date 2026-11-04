@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const readText = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const readText = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('globe settings range inputs keep their dragged value while editing', async () => {
     const source = await readText('Components/CommunityGlobeSettings.razor');

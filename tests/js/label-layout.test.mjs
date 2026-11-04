@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { layoutLabels, labelTextRect, rectsOverlap } from '../wwwroot/js/label-layout.js';
+import { layoutLabels, labelTextRect, rectsOverlap } from '../../wwwroot/js/label-layout.js';
 
 // --- Чистая раскладка -------------------------------------------------------------
 
@@ -102,9 +102,9 @@ test('label text rectangle excludes the transparent canvas padding', () => {
 // --- Глобус с настоящей камерой three.js -----------------------------------------
 
 async function loadCommunityGlobeClass() {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
-    const layoutSource = await readFile(new URL('../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
-    const scaleSource = await readFile(new URL('../wwwroot/js/label-scale.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const layoutSource = await readFile(new URL('../../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
+    const scaleSource = await readFile(new URL('../../wwwroot/js/label-scale.js', import.meta.url), 'utf8');
     const testSource = source
         .replace(
             /import \{ layoutLabels, labelTextRect \} from '\.\/label-layout\.js';\n/,
@@ -118,7 +118,7 @@ async function loadCommunityGlobeClass() {
             /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
             'dependenciesLoaded = true;\n\n// Глобальный реестр'
         );
-    const threeModuleUrl = new URL('../wwwroot/js/libs/three.module.js', import.meta.url).href;
+    const threeModuleUrl = new URL('../../wwwroot/js/libs/three.module.js', import.meta.url).href;
     const moduleSource = [
         `import * as TestThree from '${threeModuleUrl}';`,
         testSource.replace('let THREE, OrbitControls;', 'let THREE = TestThree, OrbitControls;'),
@@ -388,8 +388,8 @@ test('fade time does not depend on frame rate, and hiding is faster than showing
 });
 
 test('globe wires layout between marker transforms and label opacity, and exposes the options', async () => {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
-    const sw = await readFile(new URL('../wwwroot/sw.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const sw = await readFile(new URL('../../wwwroot/sw.js', import.meta.url), 'utf8');
 
     assert.match(source, /this\.updateParticipantMarkerTransforms\(\);\s*this\.updateParticipantLabelLayout\(\);\s*this\.updateParticipantLabelBillboards\(\);/);
     assert.match(source, /participantLabelCollisionAvoidance: true/);

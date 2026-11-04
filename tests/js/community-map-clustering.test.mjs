@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const readText = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const readText = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 // Тот же приём, что в community-map-2d.test.mjs: скрипт карты рассчитан на
 // браузер, поэтому подгружаем его в data: URL с минимальными заглушками DOM и
@@ -298,7 +298,7 @@ test('drawn markers become click targets; an open fan replaces its badge with it
 
 // Русские надписи — те же, что компонент Blazor берёт из Resources/Ui.ru.resx.
 async function russianTexts() {
-    const resx = await readFile(new URL('../Resources/Ui.ru.resx', import.meta.url), 'utf8');
+    const resx = await readFile(new URL('../../Resources/Ui.ru.resx', import.meta.url), 'utf8');
     const value = (key) => resx.match(new RegExp(`<data name="Map${key}"[^>]*>\\s*<value>([^<]*)</value>`))[1];
     return map.resolveTexts({
         locale: 'ru',

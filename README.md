@@ -78,7 +78,7 @@
 
 ```bash
 dotnet test tests/ZealousMindedPeopleGeo.Tests   # тесты C#
-node --test experiments/*.test.mjs               # тесты JavaScript (Node 22+)
+node --test tests/js/*.test.mjs               # тесты JavaScript (Node 22+)
 ```
 
 ## 🙏 Благодарности

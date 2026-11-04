@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import * as THREE from '../wwwroot/js/libs/three.module.js';
+import * as THREE from '../../wwwroot/js/libs/three.module.js';
 
 async function loadCommunityGlobeClass() {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
-    const layoutSource = await readFile(new URL('../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const layoutSource = await readFile(new URL('../../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
     const testSource = source
         // Раскладка подписей встраивается своим кодом: модуль из data: URL не видит соседних файлов.
         .replace(
@@ -23,7 +23,7 @@ async function loadCommunityGlobeClass() {
             /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
             'dependenciesLoaded = true;\n\n// Глобальный реестр'
         );
-    const threeModuleUrl = new URL('../wwwroot/js/libs/three.module.js', import.meta.url).href;
+    const threeModuleUrl = new URL('../../wwwroot/js/libs/three.module.js', import.meta.url).href;
     const moduleSource = [
         `import * as TestThree from '${threeModuleUrl}';`,
         testSource.replace('let THREE, OrbitControls;', 'let THREE = TestThree, OrbitControls;'),

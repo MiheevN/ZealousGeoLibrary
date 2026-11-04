@@ -4,7 +4,7 @@ import test from 'node:test';
 
 // Надписи витрины лежат в Site.resx (английский) и Site.ru.resx (русский); разметка
 // обращается к ним через Site.Ключ.
-const root = new URL('../hosts/ZealousMindedPeopleGeo.Showcase/', import.meta.url);
+const root = new URL('../../hosts/ZealousMindedPeopleGeo.Showcase/', import.meta.url);
 const keysOf = source => [...source.matchAll(/<data name="([^"]+)"/g)].map(match => match[1]);
 
 async function razorFiles(dir) {

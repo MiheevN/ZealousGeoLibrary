@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import test from 'node:test';
 
-const readText = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const readText = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 const LIBRARY_PREFIX = '/_content/ZealousMindedPeopleGeo/';
 
 // Путь вида /_content/ZealousMindedPeopleGeo/icons/x.png -> wwwroot/icons/x.png
@@ -10,13 +10,13 @@ const toWwwroot = (url) => `wwwroot/${url.slice(LIBRARY_PREFIX.length)}`;
 
 // Ширина и высота из заголовка IHDR: PNG-подпись (8 байт), длина и тип чанка (8 байт), затем размеры.
 async function pngSize(path) {
-    const data = await readFile(new URL(`../${path}`, import.meta.url));
+    const data = await readFile(new URL(`../../${path}`, import.meta.url));
     assert.equal(data.toString('ascii', 1, 4), 'PNG', `${path} is a PNG file`);
     return `${data.readUInt32BE(16)}x${data.readUInt32BE(20)}`;
 }
 
 async function assertExists(path) {
-    await assert.doesNotReject(stat(new URL(`../${path}`, import.meta.url)), `${path} exists`);
+    await assert.doesNotReject(stat(new URL(`../../${path}`, import.meta.url)), `${path} exists`);
 }
 
 test('manifest meets browser installability requirements', async () => {

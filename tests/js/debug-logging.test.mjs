@@ -6,7 +6,7 @@ import test from 'node:test';
 // в обычной работе консоль браузера остаётся чистой.
 for (const file of ['community-globe.js', 'community-map.js']) {
     test(`${file} logs details only in debug mode`, async () => {
-        const source = await readFile(new URL(`../wwwroot/js/${file}`, import.meta.url), 'utf8');
+        const source = await readFile(new URL(`../../wwwroot/js/${file}`, import.meta.url), 'utf8');
         // debugGlobeState вызывают вручную ради вывода — он пишет всегда.
         const withoutDebugApi = source.replace(/export function debugGlobeState[\s\S]*?\nexport /, 'export ');
         const calls = withoutDebugApi.match(/\bconsole\.log\(/g) ?? [];

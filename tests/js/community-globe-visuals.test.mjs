@@ -4,8 +4,8 @@ import test from 'node:test';
 
 // Модуль глобуса подгружается как в community-globe-keyboard.test.mjs.
 async function loadGlobeModule() {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
-    const layoutSource = await readFile(new URL('../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const layoutSource = await readFile(new URL('../../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
     const testSource = source
         .replace(
             /import \{ layoutLabels, labelTextRect \} from '\.\/label-layout\.js';\n/,
@@ -19,7 +19,7 @@ async function loadGlobeModule() {
             /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
             'dependenciesLoaded = true;\n\n// Глобальный реестр'
         );
-    const threeModuleUrl = new URL('../wwwroot/js/libs/three.module.js', import.meta.url).href;
+    const threeModuleUrl = new URL('../../wwwroot/js/libs/three.module.js', import.meta.url).href;
     const moduleSource = [
         `import * as TestThree from '${threeModuleUrl}';`,
         testSource.replace('let THREE, OrbitControls;', 'let THREE = TestThree, OrbitControls;'),
@@ -97,7 +97,7 @@ test('stars are the same on every load, mostly dim, and lie far behind the globe
 });
 
 test('built-in textures are formats a browser can decode and ship with the library', async () => {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
 
     assert.doesNotMatch(source, /\.tiff?['"`]/, 'browsers cannot decode TIFF');
     const names = [...source.matchAll(/\$\{EARTH_ASSETS\}([\w$.{}' ?:=]+?\.jpg)/g)].map(match => match[1]);
@@ -112,12 +112,12 @@ test('built-in textures are formats a browser can decode and ship with the libra
     }
     assert.ok(files.size >= 5, [...files].join(', '));
     for (const file of files) {
-        await access(new URL(`../wwwroot/assets/earth/${file}`, import.meta.url));
+        await access(new URL(`../../wwwroot/assets/earth/${file}`, import.meta.url));
     }
 });
 
 test('clouds are an alpha mask and the day map is read as sRGB', async () => {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
 
     assert.match(source, /alphaMap: loadCloudTexture\(/, 'clouds should mask, not veil the planet');
     assert.match(source, /prepare\(loadTexture\(this\.resolveEarthTextureUrl\(\)\), THREE\.SRGBColorSpace\)/);
@@ -177,10 +177,10 @@ test('the globe opens facing the points, but not when they cover the whole world
 });
 
 test('night lights load only when day and night is on', async () => {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
 
     assert.match(source, /dayNightMode: 'off'/, 'day and night is opt-in');
     assert.match(source, /if \(enabled && nightUrl && this\.nightUniforms && !this\.nightUniforms\.nightMap\.value\)/);
-    await access(new URL('../wwwroot/assets/earth/4k_earth_nightmap.jpg', import.meta.url));
-    await access(new URL('../wwwroot/assets/earth/8k_earth_nightmap.jpg', import.meta.url));
+    await access(new URL('../../wwwroot/assets/earth/4k_earth_nightmap.jpg', import.meta.url));
+    await access(new URL('../../wwwroot/assets/earth/8k_earth_nightmap.jpg', import.meta.url));
 });

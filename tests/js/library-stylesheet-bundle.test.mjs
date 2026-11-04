@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const readText = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const listFiles = (path) => readdir(new URL(`../${path}`, import.meta.url));
+const readText = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+const listFiles = (path) => readdir(new URL(`../../${path}`, import.meta.url));
 
 const BUNDLE = 'zealous-geo.css';
 

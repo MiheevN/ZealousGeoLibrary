@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const componentSourceUrl = new URL('../Components/CommunityGlobeComponent.razor', import.meta.url);
-const controlsSourceUrl = new URL('../Components/CommunityGlobeControls.razor', import.meta.url);
+const componentSourceUrl = new URL('../../Components/CommunityGlobeComponent.razor', import.meta.url);
+const controlsSourceUrl = new URL('../../Components/CommunityGlobeControls.razor', import.meta.url);
 
 test('CommunityGlobeComponent exposes optional current-location coordinates to controls', async () => {
     const source = await readFile(componentSourceUrl, 'utf8');

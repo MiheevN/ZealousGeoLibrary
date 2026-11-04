@@ -9,7 +9,7 @@
 | Инструмент | Зачем | Нужен приложению? |
 |---|---|---|
 | .NET SDK 10 | Сборка, тесты C#, витрина | Да |
-| Node.js 22 или новее | Только тесты JavaScript (`experiments/*.test.mjs`) | Нет |
+| Node.js 22 или новее | Только тесты JavaScript (`tests/js/*.test.mjs`) | Нет |
 
 Node не участвует в сборке, а npm и `package.json` в проекте не используются. Без Node
 всё собирается и работает, не запустятся только тесты JavaScript.
@@ -60,7 +60,7 @@ ZealousMindedPeopleGeo/
     └── assets/          # Ресурсы
         └── earth/       # Текстуры Земли: день и ночь 8K и 4K, рельеф, шероховатость, облака 4K
 tests/ZealousMindedPeopleGeo.Tests/  # Тесты C#: xUnit + bUnit, запуск — dotnet test
-experiments/                         # Тесты JavaScript: *.test.mjs, запуск — node --test
+tests/js/                            # Тесты JavaScript: *.test.mjs, запуск — node --test
 hosts/ZealousMindedPeopleGeo.Showcase/ # Витрина для ручной проверки
 docs/                                # Документация
 ```
@@ -133,10 +133,10 @@ dotnet test tests/ZealousMindedPeopleGeo.Tests --collect:"XPlat Code Coverage"
 модули Node (`node:test`, `node:assert`, `node:fs`, `node:vm`).
 
 ```bash
-node --test experiments/*.test.mjs
+node --test tests/js/*.test.mjs
 ```
 
-`node --test experiments/` без маски на Node 22 не работает: Node принимает папку за модуль.
+`node --test tests/js/` без маски на Node 22 не работает: Node принимает папку за модуль.
 
 Эти тесты нужны потому, что большая часть поведения карты и глобуса написана на JavaScript,
 а тесты C# его не выполняют. Скрипты из `wwwroot/` загружаются в Node с заглушками DOM,

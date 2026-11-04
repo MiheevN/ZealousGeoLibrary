@@ -57,7 +57,7 @@ async function loadPwaModule({ document = createDocument(), swAllowedHeader = nu
     console.error = (...args) => errors.push(args.join(' '));
     console.log = () => { };
 
-    const source = await readFile(new URL('../wwwroot/js/pwa.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/pwa.js', import.meta.url), 'utf8');
     // Каждая загрузка — отдельный экземпляр модуля, иначе состояние модуля общее между тестами.
     const module = await import(`data:text/javascript;base64,${Buffer.from(`${source}\n// ${Math.random()}`).toString('base64')}`);
     return {

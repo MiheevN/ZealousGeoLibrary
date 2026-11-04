@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { calculateLabelScaleForCamera } from '../wwwroot/js/label-scale.js';
+import { calculateLabelScaleForCamera } from '../../wwwroot/js/label-scale.js';
 
 const cameraFov = 75;
 const viewportHeight = 600;

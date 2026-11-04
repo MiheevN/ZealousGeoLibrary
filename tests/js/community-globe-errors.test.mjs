@@ -5,8 +5,8 @@ import test from 'node:test';
 // Модуль глобуса подгружается как в community-globe-keyboard.test.mjs. В Node нет document,
 // поэтому WebGL «не поддерживается» — как в браузере с выключенным ускорением.
 async function loadGlobeModule() {
-    const source = await readFile(new URL('../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
-    const layoutSource = await readFile(new URL('../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../wwwroot/js/community-globe.js', import.meta.url), 'utf8');
+    const layoutSource = await readFile(new URL('../../wwwroot/js/label-layout.js', import.meta.url), 'utf8');
     const testSource = source
         .replace(
             /import \{ layoutLabels, labelTextRect \} from '\.\/label-layout\.js';\n/,
@@ -20,7 +20,7 @@ async function loadGlobeModule() {
             /initializeDependencies\(\)\.then\(success => \{[\s\S]*?\n\}\);\n\n\/\/ Глобальный реестр/,
             'dependenciesLoaded = true;\n\n// Глобальный реестр'
         );
-    const threeModuleUrl = new URL('../wwwroot/js/libs/three.module.js', import.meta.url).href;
+    const threeModuleUrl = new URL('../../wwwroot/js/libs/three.module.js', import.meta.url).href;
     const moduleSource = [
         `import * as TestThree from '${threeModuleUrl}';`,
         testSource.replace('let THREE, OrbitControls;', 'let THREE = TestThree, OrbitControls;'),

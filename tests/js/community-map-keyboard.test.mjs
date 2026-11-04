@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const readText = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const readText = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 // Холст 800×500 в левом верхнем углу окна.
 const RECT = { left: 0, top: 0, width: 800, height: 500, right: 800, bottom: 500 };
