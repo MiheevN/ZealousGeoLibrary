@@ -80,6 +80,12 @@ public class GlobeOptions
     public double ParticipantMarkerOpacity { get; set; } = 0.72;
 
     /// <summary>
+    /// Отметка на поверхности под остриём метки: диск в цвете метки с тёмной каймой.
+    /// Показывает точное место, даже когда метка наклонена или стоит на облаках.
+    /// </summary>
+    public bool ParticipantMarkerAnchor { get; set; } = true;
+
+    /// <summary>
     /// Интервал между волнами при наведении на метку, мс
     /// </summary>
     public int ParticipantMarkerRippleIntervalMs { get; set; } = 2000;
