@@ -302,6 +302,24 @@ function clusterMarkerParticipant(group, participants) {
 const PARTICIPANT_LABEL_FADE_OUT_SECONDS = 0.12;
 
 const EARTH_ASSETS = '/_content/ZealousMindedPeopleGeo/assets/earth/';
+const PLANET_ASSETS = '/_content/ZealousMindedPeopleGeo/assets/planets/';
+
+/**
+ * Встроенные планеты: planet: 'mars' или 'moon' вместо объекта. Те же настройки дают
+ * GlobePlanet.Mars и GlobePlanet.Moon в C#. Карты — Solar System Scope, CC BY 4.0.
+ */
+export const PLANET_PRESETS = Object.freeze({
+    mars: Object.freeze({
+        dayTextureUrl: `${PLANET_ASSETS}2k_mars.jpg`,
+        roughness: 0.95,
+        atmosphereColor: '#e0a774',
+        atmosphereOpacity: 0.3
+    }),
+    moon: Object.freeze({
+        dayTextureUrl: `${PLANET_ASSETS}2k_moon.jpg`,
+        roughness: 1
+    })
+});
 const ATMOSPHERE_HALO_RADIUS = 1.1;
 
 /**
@@ -430,7 +448,8 @@ export function normalizeDayNightMode(mode) {
 }
 
 /**
- * Своя планета вместо Земли. planet — { dayTextureUrl, normalTextureUrl, roughnessTextureUrl,
+ * Своя планета вместо Земли. planet — имя встроенной ('mars', 'moon', см. PLANET_PRESETS)
+ * или объект { dayTextureUrl, normalTextureUrl, roughnessTextureUrl,
  * roughness, cloudsTextureUrl, nightTextureUrl, atmosphereColor, atmosphereOpacity }; карты —
  * в равнопромежуточной проекции (2:1), как у Земли. Карты Земли к чужой планете не
  * подмешиваются: чего нет в planet, того нет и на глобусе — облаков, огней на ночной стороне,
@@ -439,7 +458,10 @@ export function normalizeDayNightMode(mode) {
  * @param {Record<string, any>} options
  */
 export function applyPlanetOptions(options) {
-    const planet = options?.planet;
+    const requested = options?.planet;
+    const planet = typeof requested === 'string'
+        ? PLANET_PRESETS[requested.trim().toLowerCase()] ?? null
+        : requested;
     const text = value => (typeof value === 'string' && value.trim() ? value.trim() : null);
     const dayTextureUrl = planet && typeof planet === 'object' ? text(planet.dayTextureUrl) : null;
     if (!dayTextureUrl) {
@@ -571,6 +593,9 @@ class CommunityGlobe {
             participantMarkerTipHeight: 0.16,
             participantMarkerRadius: 0.018,
             participantMarkerFacets: 4,
+            // Плоская отметка в цвете маркера там, куда указывает его остриё: точное место видно,
+            // даже когда маркер наклонён или стоит на белых облаках и снегу.
+            participantMarkerAnchor: true,
             participantMarkerLabelGap: 0,
             participantMarkerRippleIntervalMs: 2000,
             participantMarkerRippleDurationMs: 500,
@@ -650,7 +675,7 @@ class CommunityGlobe {
             dayNightTime: null,
             nightTextureUrl: null,
             nightLightsIntensity: 1.6,
-            // Своя планета вместо Земли (см. applyPlanetOptions): { dayTextureUrl, ... }. Пусто — Земля.
+            // Своя планета вместо Земли (см. applyPlanetOptions): 'mars', 'moon' или { dayTextureUrl, ... }. Пусто — Земля.
             planet: null,
             countryPointColor: '#ffffff',
             countryPointSize: 0.1,
@@ -2184,6 +2209,12 @@ class CommunityGlobe {
             this.updateParticipantLabelConnector(marker);
         }
 
+        const anchor = this.createParticipantMarkerAnchor(color, dimensions);
+        if (anchor) {
+            marker.userData.anchor = anchor;
+            marker.add(anchor);
+        }
+
         const rippleGroup = this.createParticipantRippleGroup(participant, dimensions);
         marker.userData.rippleGroup = rippleGroup;
         marker.add(rippleGroup);
@@ -2345,6 +2376,39 @@ class CommunityGlobe {
         connector.renderOrder = 9;
 
         return connector;
+    }
+
+    /**
+     * Отметка на поверхности под остриём маркера: диск в цвете маркера и тёмная кайма вокруг,
+     * чтобы отметка читалась и на океане, и на облаках. Лежит в плоскости касательной к сфере
+     * на высоте волн (ripple), поэтому не прячется под слоем облаков.
+     */
+    createParticipantMarkerAnchor(color, dimensions) {
+        if (this.options.participantMarkerAnchor === false) {
+            return null;
+        }
+
+        const anchor = new THREE.Group();
+        const dotRadius = dimensions.radius * 1.15;
+        const parts = [
+            { geometry: new THREE.RingGeometry(dotRadius, dotRadius * 1.5, 32), color: '#000000', opacity: 0.45 },
+            { geometry: new THREE.CircleGeometry(dotRadius, 32), color, opacity: 0.95 }
+        ];
+        parts.forEach(({ geometry, color: partColor, opacity }, index) => {
+            geometry.rotateX(-Math.PI / 2);
+            geometry.translate(0, 0.002 + index * 0.0004, 0);
+            const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+                color: partColor,
+                transparent: true,
+                opacity,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            }));
+            mesh.renderOrder = 2 + index;
+            anchor.add(mesh);
+        });
+
+        return anchor;
     }
 
     createParticipantRippleGroup(participant, dimensions) {
@@ -2980,6 +3044,7 @@ class CommunityGlobe {
             if (!visual) return;
 
             visual.scale.setScalar(markerScale);
+            marker.userData.anchor?.scale.setScalar(markerScale);
             let markerWorldPosition = null;
             if (marker.userData.rippleGroup) {
                 marker.userData.rippleGroup.scale.setScalar(markerScale);
@@ -3560,6 +3625,7 @@ class CommunityGlobe {
                 'participantMarkerTipHeight',
                 'participantMarkerRadius',
                 'participantMarkerFacets',
+                'participantMarkerAnchor',
                 'participantMarkerLabelGap',
                 'participantMarkerRippleIntervalMs',
                 'participantMarkerRippleDurationMs',

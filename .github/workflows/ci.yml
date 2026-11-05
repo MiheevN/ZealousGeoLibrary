@@ -45,4 +45,4 @@ jobs:
           LC_ALL: ru_RU.UTF-8
 
       - name: JavaScript tests
-        run: node --test experiments/*.test.mjs
+        run: node --test tests/js/*.test.mjs

@@ -78,6 +78,10 @@ public static class Site
     public static string Planet => Text(nameof(Planet));
     public static string PlanetEarth => Text(nameof(PlanetEarth));
     public static string PlanetEarthDescription => Text(nameof(PlanetEarthDescription));
+    public static string PlanetMars => Text(nameof(PlanetMars));
+    public static string PlanetMarsDescription => Text(nameof(PlanetMarsDescription));
+    public static string PlanetMoon => Text(nameof(PlanetMoon));
+    public static string PlanetMoonDescription => Text(nameof(PlanetMoonDescription));
     public static string PlanetDemo => Text(nameof(PlanetDemo));
     public static string PlanetDemoDescription => Text(nameof(PlanetDemoDescription));
     public static string NoCategory => Text(nameof(NoCategory));

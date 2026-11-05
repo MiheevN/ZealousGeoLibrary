@@ -213,6 +213,18 @@
   <data name="PlanetEarthDescription" xml:space="preserve">
     <value>Встроенные текстуры: день, ночь, рельеф, облака</value>
   </data>
+  <data name="PlanetMars" xml:space="preserve">
+    <value>Марс</value>
+  </data>
+  <data name="PlanetMarsDescription" xml:space="preserve">
+    <value>GlobePlanet.Mars: встроенная карта поверхности и тонкая пыльная атмосфера. Карта — Solar System Scope, CC BY 4.0</value>
+  </data>
+  <data name="PlanetMoon" xml:space="preserve">
+    <value>Луна</value>
+  </data>
+  <data name="PlanetMoonDescription" xml:space="preserve">
+    <value>GlobePlanet.Moon: встроенная карта поверхности, без атмосферы. Карта — Solar System Scope, CC BY 4.0</value>
+  </data>
   <data name="PlanetDemo" xml:space="preserve">
     <value>Выдуманная планета</value>
   </data>

@@ -213,6 +213,11 @@ builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
                       CategoryColors="@(new Dictionary<string, string> { ["hq"] = "#ffcf5a" })" />
 ```
 
+Маркер — пирамидка остриём вниз; под остриём на поверхности лежит отметка — кружок цвета
+маркера с тёмной каймой. По ней видно точное место, даже когда маркер вблизи наклонён или
+стоит на облаках и снегу. Выключить отметку: `GlobeOptions.ParticipantMarkerAnchor = false`
+(у JS-глобуса — опция `participantMarkerAnchor`).
+
 Подписи точек на глобусе не налезают друг на друга. Подпись встаёт над маркером, а если
 там занято — под ним или сбоку; если места нет нигде, плавно гаснет и появляется снова,
 когда место освободится. Подпись маркера под курсором показывается всегда, подписи на
@@ -262,8 +267,27 @@ builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
 
 ## Своя планета
 
-Вместо Земли глобус может показать любую планету: Марс, Луну, выдуманный мир. Её задаёт
-`GlobePlanet`: карта поверхности обязательна, остальное по желанию.
+Вместо Земли глобус может показать любую планету: Марс, Луну, выдуманный мир.
+
+### Встроенные: Марс и Луна
+
+```razor
+<CommunityGlobeViewer GlobeId="mars" DataContainerId="rovers" Planet="GlobePlanet.Mars" />
+<CommunityGlobeViewer GlobeId="moon" DataContainerId="landings" Planet="GlobePlanet.Moon" />
+```
+
+Карты поверхности (2K) лежат в библиотеке, в `wwwroot/assets/planets/`. У Марса тонкая пыльная
+атмосфера, у Луны атмосферы нет. `GlobePlanet.Mars` и `GlobePlanet.Moon` каждый раз возвращают
+новый объект, поэтому его можно менять: `var mars = GlobePlanet.Mars; mars.AtmosphereOpacity = 0;`.
+
+**Подпись обязательна.** Карты Марса и Луны — [Solar System Scope](https://www.solarsystemscope.com/textures/),
+лицензия CC BY 4.0: там, где показываете такую планету, укажите источник, например
+«Planet textures: Solar System Scope, CC BY 4.0». Встроенные карты Земли, судя по именам
+файлов (`8k_earth_daymap.jpg` и др.), из того же набора.
+
+### Свои карты
+
+Свою планету задаёт `GlobePlanet`: карта поверхности обязательна, остальное по желанию.
 
 ```razor
 <CommunityGlobeViewer GlobeId="mars" DataContainerId="rovers" Planet="_mars" />
@@ -302,7 +326,8 @@ builder.Services.Configure<ZealousMindedPeopleGeoOptions>(options =>
 `Planet` применяется при создании глобуса; чтобы сменить планету, пересоздайте компонент.
 Тот же параметр есть у `CommunityGlobeComponent`, а у JS-глобуса — опция `planet`
 (см. [JavaScript в браузере](javascript.md#3d-глобус-community-globejs)). На витрине,
-на странице `/globe`, есть выдуманная планета: её карта сгенерирована шумом на сфере.
+на странице `/globe`, можно выбрать Марс, Луну и выдуманную планету — её карта
+сгенерирована шумом на сфере.
 
 ## Управление глобусом: телефон и клавиатура
 
